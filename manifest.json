@@ -1,0 +1,17 @@
+{
+  "name": "Atenea Finanzas",
+  "short_name": "Atenea",
+  "description": "Gestión de ventas y stock para locales de ropa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081513.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

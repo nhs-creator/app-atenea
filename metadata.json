@@ -1,0 +1,5 @@
+{
+  "name": "Atenea Finanzas",
+  "description": "Aplicación moderna para gestión de ventas de ropa con integración a Google Sheets y soporte offline.",
+  "requestFramePermissions": []
+}
