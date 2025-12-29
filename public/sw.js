@@ -2,18 +2,22 @@ const CACHE_NAME = 'atenea-v2';
 const ASSETS = [
   '/',
   '/index.html',
-  '/index.tsx',
-  '/manifest.json',
-  'https://esm.sh/lucide-react@^0.562.0',
-  'https://esm.sh/react@^19.2.3',
-  'https://esm.sh/react-dom@^19.2.3'
+  '/manifest.json'
 ];
 
 // Install event: cache assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Usamos map y Promise.all para intentar cachear cada recurso.
+      // Si alguno falla, los demás se cachearán igual.
+      return Promise.all(
+        ASSETS.map(asset => {
+          return cache.add(asset).catch(err => {
+            console.warn(`No se pudo cachear el recurso: ${asset}`, err);
+          });
+        })
+      );
     })
   );
   self.skipWaiting();
@@ -31,20 +35,26 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event: Network first, then cache for dynamic logic, 
-// but for static assets we can use Cache First or Stale-while-revalidate
+// Fetch event: Network first, with cache fallback
 self.addEventListener('fetch', (event) => {
+  // Solo manejamos peticiones GET
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        // Optional: Cache new requests on the fly
+    fetch(event.request)
+      .then((response) => {
+        // Si la respuesta es válida, la guardamos en el cache (opcional)
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
         return response;
-      });
-    }).catch(() => {
-      // Offline fallback could go here
-    })
+      })
+      .catch(() => {
+        // Si falla la red, intentamos buscar en el cache
+        return caches.match(event.request);
+      })
   );
 });
