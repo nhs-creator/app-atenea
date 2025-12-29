@@ -2,7 +2,8 @@ const CACHE_NAME = 'atenea-v2';
 const ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.png'
 ];
 
 // Install event: cache assets
