@@ -14,14 +14,13 @@ export type ExpenseCategory =
 
 export type ProductCategory = string;
 
-// Reflejamos los campos de la base de datos (snake_case)
+// Interfaz para la base de datos (snake_case)
 export interface Sale {
   id: string;
   date: string;
-  client_number: string;
+  client_number: string; // ID Semántico: V260109-001, S... o C...
   product_name: string;
   quantity: number;
-  sale_number?: number; 
   price: number;
   cost_price: number;
   payment_method: PaymentMethod;
@@ -34,55 +33,51 @@ export interface Sale {
   inventory_id?: string;
 }
 
-export interface Expense {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  category: ExpenseCategory;
-  has_invoice_a: boolean;
-  invoice_percentage: number;
-  synced: boolean;
-  created_at: string;
-}
-
 export interface InventoryItem {
   id: string;
   name: string;
   category: ProductCategory;
   subcategory: string;
   material: string;
-  sizes: Record<string, number>;
-  stock: number; 
+  sizes: Record<string, number>; // JSONB: { "M": 5, "L": 2 }
   cost_price: number;
   selling_price: number;
   last_updated: string;
   synced: boolean;
 }
 
-export interface SaleFormData {
-  date: string;
-  clientNumber: string;
+// ============================================
+// ESTRUCTURAS PARA EL NUEVO POS (CARRITO)
+// ============================================
+
+export interface CartItem {
+  id: string; // ID temporal o ID real de DB si estamos editando
   product: string;
-  quantity: string;
-  price: string;
-  paymentMethod: PaymentMethod;
+  quantity: number;
+  price: number;
   size: string;
-  notes: string;
+  inventory_id?: string;
+  cost_price: number;
+  isReturn?: boolean; 
 }
 
-export interface ExpenseFormData {
+export interface PaymentSplit {
+  method: PaymentMethod;
+  amount: number;
+}
+
+export interface MultiSaleData {
   date: string;
-  description: string;
-  amount: string;
-  category: ExpenseCategory;
-  hasInvoiceA: boolean;
-  invoicePercentage: string;
+  items: CartItem[];
+  payments: PaymentSplit[];
+  // Campos para el modo edición
+  isEdit?: boolean;
+  originalClientNumber?: string;
 }
 
 export interface InventoryFormData {
   name: string;
-  category: ProductCategory;
+  category: string;
   subcategory: string;
   material: string;
   sizes: Record<string, string>;
@@ -97,3 +92,15 @@ export interface AppConfig {
 }
 
 export type Tab = 'form' | 'list' | 'expenses' | 'inventory' | 'stats' | 'settings';
+
+export interface Expense { 
+  id: string; 
+  date: string; 
+  description: string; 
+  amount: number; 
+  category: ExpenseCategory; 
+  has_invoice_a: boolean; 
+  invoice_percentage: number; 
+  synced: boolean; 
+  created_at: string; 
+}
