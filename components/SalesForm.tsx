@@ -26,9 +26,19 @@ const PAYMENT_CONFIG: Record<PaymentBaseMethod, { bg: string, border: string, ic
   'Vale': { bg: 'bg-orange-600', border: 'border-orange-700', icon: Ticket }
 };
 
+// Función Helper para obtener la fecha de Buenos Aires en formato YYYY-MM-DD
+const getTodayAR = () => {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+};
+
 const SalesForm: React.FC<SalesFormProps> = ({ onSubmit, inventory, vouchers, initialData, onChange, onCancelEdit }) => {
   // Sincronizar con App.tsx
-  const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(initialData?.date || getTodayAR());
   const [cart, setCart] = useState<CartItem[]>(initialData?.items || []);
   const [payments, setPayments] = useState<PaymentSplit[]>(initialData?.payments || []);
   

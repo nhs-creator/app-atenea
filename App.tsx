@@ -20,6 +20,16 @@ import LoginView from './components/LoginView';
 import { PlusCircle, List, BarChart2, ShoppingBag, LogOut, ArrowUpCircle, ArrowDownCircle, Share2 } from 'lucide-react';
 import { DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS } from './constants';
 
+// Función Helper para obtener la fecha de Buenos Aires en formato YYYY-MM-DD
+const getTodayAR = () => {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+};
+
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +48,7 @@ const App: React.FC = () => {
   const [saleDraft, setSaleDraft] = useState<MultiSaleData>(() => {
     const saved = localStorage.getItem('atenea_sale_draft');
     return saved ? JSON.parse(saved) : {
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayAR(),
       items: [],
       payments: []
     };
@@ -47,7 +57,7 @@ const App: React.FC = () => {
   const [expenseDraft, setExpenseDraft] = useState<ExpenseFormData>(() => {
     const saved = localStorage.getItem('atenea_expense_draft');
     return saved ? JSON.parse(saved) : {
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayAR(),
       description: '',
       amount: '',
       category: 'Mercadería',
@@ -198,7 +208,7 @@ const App: React.FC = () => {
       }
       
       showToast(data.isEdit ? "¡Actualizado!" : "¡Venta registrada!", generatedVoucher);
-      setSaleDraft({ date: new Date().toISOString().split('T')[0], items: [], payments: [] });
+      setSaleDraft({ date: getTodayAR(), items: [], payments: [] });
       await fetchData(); 
     } finally { setIsSyncing(false); }
   };
@@ -241,7 +251,7 @@ const App: React.FC = () => {
         showToast('¡Gasto registrado!');
       }
 
-      setExpenseDraft({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '' });
+      setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '' });
       await fetchData();
     } catch (err: any) {
       showToast(`Error al guardar: ${err.message}`);
@@ -305,8 +315,8 @@ const App: React.FC = () => {
                   inventory={inventory} 
                   vouchers={vouchers} 
                   initialData={saleDraft} 
-                  onChange={setSaleDraft} // <--- NUEVA PROP PARA PERSISTENCIA
-                  onCancelEdit={() => setSaleDraft({ date: new Date().toISOString().split('T')[0], items: [], payments: [] })} 
+                  onChange={setSaleDraft}
+                  onCancelEdit={() => setSaleDraft({ date: getTodayAR(), items: [], payments: [] })} 
                   nextSaleNumber={sales.length + 1} 
                 />
               ) : (
@@ -314,7 +324,7 @@ const App: React.FC = () => {
                   formData={expenseDraft} 
                   onChange={setExpenseDraft} 
                   onSubmit={handleNewExpense} 
-                  onCancelEdit={() => setExpenseDraft({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '' })} 
+                  onCancelEdit={() => setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '' })} 
                 />
               )}
             </div>
