@@ -1,144 +1,146 @@
 import React, { useMemo, useState } from 'react';
 import { Sale } from '../types';
-import { PAYMENT_METHOD_COLORS } from '../constants';
 import { 
-  Trash2, Edit2, Filter, 
-  ChevronLeft, ChevronRight, CalendarDays, 
-  ShoppingCart, AlertCircle, RefreshCcw
+  Calendar, Package, Trash2, Edit3, 
+  RefreshCcw, CheckCircle2, AlertCircle, Search, Filter, X
 } from 'lucide-react';
 
 interface SalesListProps {
   sales: Sale[];
-  onDelete: (id: string) => void;
+  onDelete: (clientNumber: string) => void;
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
 }
 
-type ViewMode = 'month' | 'day';
+const PAYMENT_COLORS: Record<string, string> = {
+  'Efectivo': 'bg-emerald-500',
+  'Transferencia': 'bg-blue-600',
+  'Débito': 'bg-amber-500',
+  'Crédito': 'bg-rose-600',
+  'Vale': 'bg-orange-600'
+};
+
+const STATUS_CONFIG = {
+  saldado: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: CheckCircle2, label: 'Saldado' },
+  sena: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', icon: AlertCircle, label: 'Seña' },
+  cambio: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', icon: RefreshCcw, label: 'Cambio' }
+};
+
+type Period = 'all' | 'today' | 'week' | 'month';
 
 const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [period, setPeriod] = useState<Period>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [filterPayment, setFilterPayment] = useState<string>('');
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [anchorDate, setAnchorDate] = useState(new Date());
-
-  const navigateDate = (direction: 'prev' | 'next') => {
-    const newDate = new Date(anchorDate);
-    const multiplier = direction === 'next' ? 1 : -1;
-    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + multiplier);
-    else newDate.setDate(newDate.getDate() + multiplier);
-    setAnchorDate(newDate);
-  };
-
-  const formatDateLabel = () => {
-    if (viewMode === 'month') return anchorDate.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase());
-    return anchorDate.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
-  };
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
-      if (filterPayment && sale.payment_method !== filterPayment) return false;
-      const saleDateObj = new Date(sale.date + 'T00:00:00');
-      if (viewMode === 'month') return saleDateObj.getMonth() === anchorDate.getMonth() && saleDateObj.getFullYear() === anchorDate.getFullYear();
-      if (viewMode === 'day') return sale.date === anchorDate.toISOString().split('T')[0];
+      const matchesSearch = 
+        sale.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.client_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.payment_method.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sale.size && sale.size.toLowerCase().includes(searchTerm.toLowerCase()));
+      if (!matchesSearch) return false;
+      if (period === 'all') return true;
+      const saleDate = new Date(sale.date + 'T12:00:00');
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      if (period === 'today') return sale.date === now.toISOString().split('T')[0];
+      if (period === 'week') {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        return saleDate >= weekAgo;
+      }
+      if (period === 'month') return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
       return true;
     });
-  }, [sales, filterPayment, viewMode, anchorDate]);
+  }, [sales, searchTerm, period]);
 
   const groupedSales = useMemo(() => {
-    const dateGroups: { [date: string]: { [client: string]: Sale[] } } = {};
+    const groups: Record<string, Sale[]> = {};
     filteredSales.forEach(sale => {
-      const date = sale.date;
-      const client = sale.client_number;
-      if (!dateGroups[date]) dateGroups[date] = {};
-      if (!dateGroups[date][client]) dateGroups[date][client] = [];
-      dateGroups[date][client].push(sale);
+      if (!groups[sale.client_number]) groups[sale.client_number] = [];
+      groups[sale.client_number].push(sale);
     });
-
-    return Object.entries(dateGroups)
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([date, clients]) => ({
-        date,
-        clients: Object.entries(clients).sort((a, b) => b[0].localeCompare(a[0]))
-      }));
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredSales]);
 
-  const totalInView = filteredSales.reduce((sum, s) => sum + Number(s.price), 0);
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center px-1">
-        <div>
-          <h3 className="font-black text-slate-900 text-xl tracking-tight">Historial</h3>
-          <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">Total: <span className="text-primary">${totalInView.toLocaleString('es-AR')}</span></p>
+    <div className="space-y-4 pb-24">
+      {/* BUSCADOR */}
+      <div className="sticky top-0 z-30 bg-slate-50 pt-2 pb-4 space-y-3">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" placeholder="Buscar venta o producto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-12 pl-11 pr-4 bg-white rounded-2xl border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter" />
+            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"><X className="w-3 h-3" /></button>}
+          </div>
+          <button onClick={() => setShowFilters(!showFilters)} className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 transition-all ${showFilters || period !== 'all' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 shadow-sm'}`}><Filter className="w-5 h-5" /></button>
         </div>
-        <button onClick={() => setShowFilters(!showFilters)} className={`w-12 h-12 flex items-center justify-center rounded-2xl border-2 transition-all ${showFilters ? 'bg-primary border-primary text-white' : 'bg-white border-slate-300 text-slate-500'}`}><Filter className="w-6 h-6" /></button>
-      </div>
-
-      {showFilters && (
-        <div className="bg-white p-5 rounded-[2rem] border-2 border-slate-200 shadow-xl space-y-4 animate-in slide-in-from-top-2">
-          <div className="flex bg-slate-100 p-1.5 rounded-xl">
-            {(['month', 'day'] as ViewMode[]).map((mode) => (
-              <button key={mode} onClick={() => setViewMode(mode)} className={`flex-1 py-2 text-xs font-black rounded-lg uppercase transition-all ${viewMode === mode ? 'bg-white text-primary shadow-md' : 'text-slate-500'}`}>{mode === 'month' ? 'Mes' : 'Día'}</button>
+        {(showFilters || period !== 'all') && (
+          <div className="flex gap-2 animate-in slide-in-from-top-2 duration-300 overflow-x-auto pb-1 px-1">
+            {['today', 'week', 'month', 'all'].map(p => (
+              <button key={p} onClick={() => setPeriod(p as Period)} className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${period === p ? 'bg-primary text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100'}`}>
+                {p === 'all' ? <Filter className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                {p === 'today' ? 'Hoy' : p === 'week' ? 'Semana' : p === 'month' ? 'Mes' : 'Todo'}
+              </button>
             ))}
           </div>
-          <div className="flex items-center justify-between bg-slate-50 border-2 border-slate-200 rounded-2xl p-1">
-            <button onClick={() => navigateDate('prev')} className="w-12 h-12 flex items-center justify-center text-slate-600"><ChevronLeft /></button>
-            <span className="font-black text-slate-800 text-sm flex items-center gap-2 uppercase tracking-tight">{formatDateLabel()}</span>
-            <button onClick={() => navigateDate('next')} className="w-12 h-12 flex items-center justify-center text-slate-600"><ChevronRight /></button>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-8">
-        {groupedSales.map(({ date, clients }) => (
-          <div key={date}>
-            <div className="mb-4 px-1 border-b-2 border-slate-200 pb-2">
-              <span className="font-black text-slate-900 text-xs uppercase tracking-[0.2em]">{new Date(date + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-            </div>
-            <div className="space-y-5">
-              {clients.map(([clientNum, clientSales]) => {
-                const clientTotal = clientSales.reduce((sum, s) => sum + Number(s.price), 0);
-                return (
-                  <div key={clientNum} className="bg-white rounded-[1.5rem] shadow-lg border-2 border-slate-300 overflow-hidden">
-                    <div className="bg-slate-900 px-4 py-3 flex justify-between items-center">
-                      <span className="text-sm font-black text-primary tracking-widest uppercase">{clientNum}</span>
-                      <span className="text-base font-black text-white">${clientTotal.toLocaleString('es-AR')}</span>
-                    </div>
-                    <div className="divide-y-2 divide-slate-100">
-                      {clientSales.map((sale) => {
-                        const colorStyles = PAYMENT_METHOD_COLORS[sale.payment_method] || { bg: 'bg-slate-100', text: 'text-slate-900' };
-                        const isReturn = Number(sale.price) < 0;
-                        return (
-                          <div key={sale.id} className="p-4 flex justify-between items-center">
-                            <div className="flex-1 min-w-0 pr-3">
-                              <div className="flex items-center gap-2 mb-1">
-                                {isReturn && <span className="bg-rose-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Devolución</span>}
-                                <h4 className="font-black text-slate-900 text-base leading-tight uppercase truncate">{sale.product_name}</h4>
-                              </div>
-                              <span className={`${colorStyles.bg} ${colorStyles.text} text-[10px] px-2.5 py-1 rounded-md font-black uppercase border-2 border-black/10`}>{sale.payment_method}</span>
-                            </div>
-                            <div className="flex flex-col items-end gap-3">
-                              <span className={`font-black text-lg tracking-tighter ${isReturn ? 'text-rose-600' : 'text-slate-900'}`}>
-                                {isReturn ? '-' : ''}${Math.abs(Number(sale.price)).toLocaleString('es-AR')}
-                              </span>
-                              <div className="flex gap-1.5">
-                                <button onClick={() => onReturn(sale)} className="w-11 h-11 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-xl border-2 border-indigo-100 active:scale-95 transition-all shadow-sm"><RefreshCcw className="w-5 h-5" /></button>
-                                <button onClick={() => onEdit(sale)} className="w-11 h-11 flex items-center justify-center bg-slate-100 text-slate-700 rounded-xl border-2 border-slate-200 active:scale-95 transition-all shadow-sm"><Edit2 className="w-5 h-5" /></button>
-                                <button onClick={() => onDelete(sale.id)} className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl border-2 border-rose-200 active:scale-95 transition-all shadow-sm"><Trash2 className="w-5 h-5" /></button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        )}
       </div>
+
+      {groupedSales.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-100"><Package className="w-12 h-12 mb-4 opacity-20" /><p className="font-bold">Sin resultados</p></div>
+      ) : (
+        groupedSales.map(([clientNumber, items]) => {
+          const firstSale = items[0];
+          const isPending = firstSale.status === 'pending';
+          const isReturn = clientNumber.startsWith('C');
+          const status = isReturn ? STATUS_CONFIG.cambio : isPending ? STATUS_CONFIG.sena : STATUS_CONFIG.saldado;
+          const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+
+          return (
+            <div key={clientNumber} className={`${status.bg} rounded-[2rem] shadow-sm border-2 ${status.border} overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-500`}>
+              <div className="p-4 flex justify-between items-center bg-white/40 border-b border-white/60">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-2xl shadow-sm bg-white ${status.text}`}><status.icon className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="text-[11px] font-black text-slate-400 leading-tight uppercase tracking-widest">{clientNumber}</h3>
+                    <div className="flex items-center gap-1.5 text-sm font-black text-slate-700 mt-0.5"><Calendar className="w-4 h-4 text-primary" />{new Date(firstSale.date + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'long' })}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xl font-black leading-none ${totalAmount < 0 ? 'text-indigo-600' : 'text-slate-900'} tracking-tighter`}>${Math.abs(totalAmount).toLocaleString('es-AR')}</p>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase mt-1 inline-block bg-white border ${status.border} ${status.text}`}>{status.label}</span>
+                </div>
+              </div>
+
+              <div className="px-4 py-3 space-y-2">
+                {items.map(item => (
+                  <div key={item.id} className="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span className="truncate uppercase pr-4">{item.product_name} <span className="text-[9px] text-slate-400 font-black">({item.size || 'U'})</span></span>
+                    <span className="font-black text-slate-800">${Math.abs(item.price).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              {firstSale.payment_details && firstSale.payment_details.length > 0 && (
+                <div className="px-4 py-3 flex flex-wrap gap-2 bg-white/20">
+                  {firstSale.payment_details.map((p, i) => (
+                    <div key={i} className={`${PAYMENT_COLORS[p.method] || 'bg-slate-400'} px-2.5 py-1 rounded-lg flex items-center gap-2 shadow-sm`}><span className="text-[8px] font-black text-white uppercase tracking-tighter">{p.method}</span><span className="text-[10px] font-black text-white">${p.amount.toLocaleString()}</span></div>
+                  ))}
+                </div>
+              )}
+
+              <div className="p-2 grid grid-cols-3 gap-2 bg-white/60">
+                <button onClick={() => onDelete(clientNumber)} className="h-11 bg-white hover:bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
+                <button onClick={() => onEdit(firstSale)} className="h-11 bg-white hover:bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Editar</span></button>
+                <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
+              </div>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 };
