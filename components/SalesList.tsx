@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Sale } from '../types';
 import { 
   Calendar, Package, Trash2, Edit3, 
-  RefreshCcw, CheckCircle2, AlertCircle, Search, Filter, X
+  RefreshCcw, CheckCircle2, AlertCircle, Search, Filter, X,
+  Percent, Coins
 } from 'lucide-react';
 
 interface SalesListProps {
@@ -38,8 +39,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
       const matchesSearch = 
         sale.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sale.client_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.payment_method.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sale.size && sale.size.toLowerCase().includes(searchTerm.toLowerCase()));
+        (sale.payment_method || '').toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
       if (period === 'all') return true;
       const saleDate = new Date(sale.date + 'T12:00:00');
@@ -95,12 +95,26 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
         groupedSales.map(([clientNumber, items]) => {
           const firstSale = items[0];
           const isPending = firstSale.status === 'pending';
-          const isReturn = clientNumber.startsWith('C');
-          const status = isReturn ? STATUS_CONFIG.cambio : isPending ? STATUS_CONFIG.sena : STATUS_CONFIG.saldado;
-          const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+          const isReturnTransaction = clientNumber.startsWith('C');
+          const status = isReturnTransaction ? STATUS_CONFIG.cambio : isPending ? STATUS_CONFIG.sena : STATUS_CONFIG.saldado;
+
+          const realProducts = items.filter(i => i.product_name !== '💰 AJUSTE POR REDONDEO');
+          const roundingAdjustment = items.find(i => i.product_name === '💰 AJUSTE POR REDONDEO');
+          
+          const totalCobrado = items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+
+          let totalDescuento10 = 0;
+          realProducts.forEach(p => {
+            const unitPrice = Number(p.price);
+            const unitListPrice = Number(p.list_price) || unitPrice;
+            if (unitListPrice > unitPrice) {
+              totalDescuento10 += (unitListPrice - unitPrice) * p.quantity;
+            }
+          });
 
           return (
-            <div key={clientNumber} className={`${status.bg} rounded-[2rem] shadow-sm border-2 ${status.border} overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-500`}>
+            <div key={clientNumber} className={`${status.bg} rounded-[2rem] shadow-sm border-2 ${status.border} overflow-hidden mb-4 animate-in fade-in slide-in-from-bottom-3 duration-500`}>
+              {/* CABECERA */}
               <div className="p-4 flex justify-between items-center bg-white/40 border-b border-white/60">
                 <div className="flex items-center gap-3">
                   <div className={`p-2.5 rounded-2xl shadow-sm bg-white ${status.text}`}><status.icon className="w-5 h-5" /></div>
@@ -110,31 +124,75 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-xl font-black leading-none ${totalAmount < 0 ? 'text-indigo-600' : 'text-slate-900'} tracking-tighter`}>${Math.abs(totalAmount).toLocaleString('es-AR')}</p>
+                  <p className={`text-xl font-black leading-none ${totalCobrado < 0 ? 'text-indigo-600' : 'text-slate-900'} tracking-tighter`}>${Math.abs(totalCobrado).toLocaleString('es-AR')}</p>
                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase mt-1 inline-block bg-white border ${status.border} ${status.text}`}>{status.label}</span>
                 </div>
               </div>
 
+              {/* LISTA DE PRODUCTOS */}
               <div className="px-4 py-3 space-y-2">
-                {items.map(item => (
-                  <div key={item.id} className="flex justify-between items-center text-xs font-bold text-slate-600">
-                    <span className="truncate uppercase pr-4">{item.product_name} <span className="text-[9px] text-slate-400 font-black">({item.size || 'U'})</span></span>
-                    <span className="font-black text-slate-800">${Math.abs(item.price).toLocaleString()}</span>
+                {realProducts.map(item => {
+                  const unitPrice = Number(item.price);
+                  const unitListPrice = Number(item.list_price) || unitPrice;
+                  const has10 = unitListPrice > unitPrice;
+                  const lineTotal = unitPrice * item.quantity;
+                  const lineListTotal = unitListPrice * item.quantity;
+
+                  return (
+                    <div key={item.id} className="flex justify-between items-center text-xs font-bold text-slate-600">
+                      <span className="truncate uppercase pr-4">
+                        {item.quantity > 1 && <span className="text-primary mr-1">{item.quantity}x</span>}
+                        {item.product_name} <span className="text-[9px] text-slate-400 font-black ml-1">({item.size || 'U'})</span>
+                      </span>
+                      <div className="text-right flex flex-col items-end">
+                        {has10 && <span className="text-[9px] text-slate-300 line-through">${lineListTotal.toLocaleString()}</span>}
+                        <span className={`font-black ${has10 ? 'text-emerald-500' : 'text-slate-800'}`}>${Math.abs(lineTotal).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {(totalDescuento10 > 0 || roundingAdjustment) && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-white/60 space-y-1.5">
+                    {totalDescuento10 > 0 && (
+                      <div className="flex justify-between items-center text-[10px] font-black text-emerald-600 uppercase tracking-tighter italic">
+                        <div className="flex items-center gap-1"><Percent className="w-3 h-3" /> Descuento 10%</div>
+                        <span>-${totalDescuento10.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {roundingAdjustment && (
+                      <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-tighter italic">
+                        <div className="flex items-center gap-1"><Coins className="w-3 h-3" /> Redondeo</div>
+                        <span>-${Math.abs(Number(roundingAdjustment.price)).toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
 
+              {/* MEDIOS DE PAGO */}
               {firstSale.payment_details && firstSale.payment_details.length > 0 && (
-                <div className="px-4 py-3 flex flex-wrap gap-2 bg-white/20">
+                <div className="px-4 py-3 flex flex-wrap gap-2 bg-white/20 border-t border-white/40">
                   {firstSale.payment_details.map((p, i) => (
                     <div key={i} className={`${PAYMENT_COLORS[p.method] || 'bg-slate-400'} px-2.5 py-1 rounded-lg flex items-center gap-2 shadow-sm`}><span className="text-[8px] font-black text-white uppercase tracking-tighter">{p.method}</span><span className="text-[10px] font-black text-white">${p.amount.toLocaleString()}</span></div>
                   ))}
                 </div>
               )}
 
+              {/* BOTONES DE ACCIÓN (CON CONFIRMACIÓN EN BORRAR) */}
               <div className="p-2 grid grid-cols-3 gap-2 bg-white/60">
-                <button onClick={() => onDelete(clientNumber)} className="h-11 bg-white hover:bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
-                <button onClick={() => onEdit(firstSale)} className="h-11 bg-white hover:bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Editar</span></button>
+                <button 
+                  onClick={() => {
+                    if (window.confirm(`¿Estás seguro de que quieres borrar TODA la venta ${clientNumber}? Esta acción restaurará el stock y no se puede deshacer.`)) {
+                      onDelete(clientNumber);
+                    }
+                  }} 
+                  className="h-11 bg-white hover:bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="text-[9px] font-black uppercase">Borrar</span>
+                </button>
+                <button onClick={() => onEdit(firstSale)} className="h-11 bg-white hover:bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Corregir</span></button>
                 <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
               </div>
             </div>
