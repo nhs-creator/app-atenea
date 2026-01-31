@@ -10,8 +10,6 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Usamos map y Promise.all para intentar cachear cada recurso.
-      // Si alguno falla, los demás se cachearán igual.
       return Promise.all(
         ASSETS.map(asset => {
           return cache.add(asset).catch(err => {
@@ -36,15 +34,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event: Network first, with cache fallback
+// Fetch event: Network first con bypass para Supabase
 self.addEventListener('fetch', (event) => {
-  // Solo manejamos peticiones GET
   if (event.request.method !== 'GET') return;
+
+  // IMPORTANTE: Bypass total para Supabase para evitar race conditions
+  if (event.request.url.includes('supabase.co')) {
+    return; // El SW no interviene en estas peticiones
+  }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Si la respuesta es válida, la guardamos en el cache (opcional)
         if (response && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -54,7 +55,6 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Si falla la red, intentamos buscar en el cache
         return caches.match(event.request);
       })
   );

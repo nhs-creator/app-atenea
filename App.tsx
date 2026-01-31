@@ -59,43 +59,47 @@ const App: React.FC = () => {
   // 2. Cerebro de la App
   const atenea = useAtenea(session);
 
-  // 3. Manejo de Sesión y Rol
+  // 3. Manejo de Sesión Reactivo
   useEffect(() => {
-    const initSession = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      
-      if (currentSession) {
-        try {
-          const { data: profile, error } = await (supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', currentSession.user.id)
-            .single() as any);
-          
-          const role = (profile && !error) ? (profile.role as 'owner' | 'accountant') : 'owner';
-          setUserRole(role);
+    const safetyTimer = setTimeout(() => setLoading(false), 5000);
 
+    const loadProfile = async (userId: string) => {
+      try {
+        const { data: profile, error } = await (supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single() as any);
+        
+        if (profile && !error) {
+          const role = profile.role as 'owner' | 'accountant';
+          setUserRole(role);
           if (role === 'accountant') {
             setActiveTab('stats');
-            setHistoryMode('expense'); // Default para contador
+            setHistoryMode('expense');
           }
-        } catch (err) {
-          setUserRole('owner');
         }
+      } catch (err) {
+        setUserRole('owner');
       }
-      setLoading(false);
     };
 
-    initSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      setSession(currentSession);
+      clearTimeout(safetyTimer);
+      setLoading(false);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) {
-        const { data: profile } = await (supabase.from('profiles').select('role').eq('id', session.user.id).single() as any);
-        setUserRole(profile?.role || 'owner');
+      if (currentSession) {
+        loadProfile(currentSession.user.id);
       } else {
         setUserRole(null);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (s) {
+        setSession(s);
+        setLoading(false);
       }
     });
 
@@ -107,25 +111,12 @@ const App: React.FC = () => {
     if (!voucher) setTimeout(() => setToastMessage(null), 1000);
   };
 
-  const renderRecentActivity = () => {
-    const list = entryMode === 'sale' ? atenea.sales.slice(0, 3) : atenea.expenses.slice(0, 3);
-    if (list.length === 0) return null;
-    return (
-      <div className="mt-4 space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Últimos Movimientos</h3>
-        {list.map((item: any) => (
-          <div key={item.id} className="bg-white p-2.5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-            <div className="min-w-0">
-              <p className="font-bold text-xs text-slate-700 truncate uppercase">{item.product_name || item.description}</p>
-              <p className="text-[9px] text-slate-400 font-bold uppercase">{item.client_number || item.category}</p>
-            </div>
-            <p className={`font-black text-sm ml-2 ${entryMode === 'sale' ? (Number(item.price) < 0 ? 'text-indigo-600' : 'text-primary') : 'text-rose-500'}`}>
-              {entryMode === 'sale' ? '' : '-'}${Math.abs(Number(item.price || item.amount)).toLocaleString('es-AR')}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
+  const sendVoucherByWA = (voucher: any, phone: string = '') => {
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone && !cleanPhone.startsWith('54')) cleanPhone = '549' + cleanPhone.replace(/^0/, '').replace(/^15/, '');
+    const message = encodeURIComponent(`¡Hola! Tenés un vale de crédito en *Atenea Finanzas* por *$${voucher.amount.toLocaleString()}*.\n🎫 Código: *${voucher.code}*\n📅 Vence el: ${new Date(voucher.expires_at).toLocaleDateString('es-AR')}`);
+    window.open(cleanPhone ? `https://wa.me/${cleanPhone}?text=${message}` : `https://wa.me/?text=${message}`, '_blank');
+    setToastMessage(null);
   };
 
   const handleNewSale = async (data: MultiSaleData) => {
@@ -164,7 +155,44 @@ const App: React.FC = () => {
     setActiveTab('form');
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center font-black text-primary animate-pulse text-xs tracking-widest uppercase">Atenea...</div>;
+  const handleEditExpense = (expense: Expense) => {
+    if (userRole !== 'owner') return; 
+    setExpenseDraft({
+      id: expense.id, date: expense.date, description: expense.description, amount: expense.amount.toString(),
+      category: expense.category, hasInvoiceA: expense.has_invoice_a, invoiceAmount: (expense.invoice_amount || 0).toString(), isEdit: true
+    });
+    setEntryMode('expense');
+    setActiveTab('form');
+  };
+
+  const renderRecentActivity = () => {
+    const list = entryMode === 'sale' ? atenea.sales.slice(0, 3) : atenea.expenses.slice(0, 3);
+    if (list.length === 0) return null;
+    return (
+      <div className="mt-4 space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Últimos Movimientos</h3>
+        {list.map((item: any) => (
+          <div key={item.id} className="bg-white p-2.5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+            <div className="min-w-0">
+              <p className="font-bold text-xs text-slate-700 truncate uppercase">{item.product_name || item.description}</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase">{item.client_number || item.category}</p>
+            </div>
+            <p className={`font-black text-sm ml-2 ${entryMode === 'sale' ? (Number(item.price) < 0 ? 'text-indigo-600' : 'text-primary') : 'text-rose-500'}`}>
+              {entryMode === 'sale' ? '' : '-'}${Math.abs(Number(item.price || item.amount)).toLocaleString('es-AR')}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  if (loading) return (
+    <div className="flex flex-col h-screen items-center justify-center bg-slate-50 gap-4">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="font-black text-primary animate-pulse text-xs tracking-widest uppercase">ATENEA...</div>
+    </div>
+  );
+
   if (!session) return <LoginView onLogin={() => {}} />;
 
   return (
@@ -203,16 +231,23 @@ const App: React.FC = () => {
 
         {activeTab === 'list' && (
           <div className="flex flex-col space-y-4">
-            {userRole === 'owner' && (
-              <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-                <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
-                <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
-              </div>
-            )}
-            {historyMode === 'sale' && userRole === 'owner' ? (
-              <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} />
+            <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
+              <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
+              <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
+            </div>
+            {historyMode === 'sale' ? (
+              <SalesList 
+                sales={atenea.sales} 
+                onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} // BLOQUEADO PARA CONTADOR
+                onEdit={userRole === 'owner' ? handleEditSale : undefined} // BLOQUEADO PARA CONTADOR
+                onReturn={() => {}} 
+              />
             ) : (
-              <ExpenseList expenses={atenea.expenses} onDelete={atenea.deleteExpense} onEdit={atenea.saveExpense} />
+              <ExpenseList 
+                expenses={atenea.expenses} 
+                onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} // BLOQUEADO PARA CONTADOR
+                onEdit={userRole === 'owner' ? handleEditExpense : undefined} // BLOQUEADO PARA CONTADOR
+              />
             )}
           </div>
         )}
@@ -224,19 +259,19 @@ const App: React.FC = () => {
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 px-4 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 px-4 z-50 shadow-lg">
         <div className="max-w-md mx-auto flex justify-between items-center mb-2">
           {userRole === 'owner' ? (
             <>
-              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}><PlusCircle /><span className="text-[9px] font-bold uppercase tracking-tighter">Ingresar</span></button>
-              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}><List /><span className="text-[9px] font-bold uppercase tracking-tighter">Movimientos</span></button>
-              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'inventory' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}><Package /><span className="text-[9px] font-bold uppercase tracking-tighter">Stock</span></button>
+              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}><PlusCircle /><span className="text-[9px] font-bold uppercase">Ingresar</span></button>
+              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}><List /><span className="text-[9px] font-bold uppercase">Ventas</span></button>
+              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'inventory' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}><Package /><span className="text-[9px] font-bold uppercase">Stock</span></button>
             </>
           ) : (
             <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}><List /><span className="text-[9px] font-bold uppercase tracking-tighter">Movimientos</span></button>
           )}
           
-          <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'stats' ? 'text-primary scale-110' : 'text-slate-400'}`}><BarChart2 /><span className="text-[9px] font-bold uppercase tracking-tighter">Reporte</span></button>
+          <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'stats' ? 'text-primary scale-110' : 'text-slate-400'}`}><BarChart2 /><span className="text-[9px] font-bold uppercase">Reporte</span></button>
         </div>
       </nav>
 

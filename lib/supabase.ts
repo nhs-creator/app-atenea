@@ -1,25 +1,26 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../database.types';
 
-// En Vite, se usa import.meta.env en lugar de process.env
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Usamos un cast a 'any' para que TypeScript ignore el error de Vite
+const env = (import.meta as any).env;
 
-// Verificación de configuración
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('https://'));
+const supabaseUrl = env.VITE_SUPABASE_URL;
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-// Inicialización controlada
-let supabaseInstance: SupabaseClient<Database> | null = null;
+// Inicialización con configuración de persistencia para evitar el loading infinito
+export const supabase = isSupabaseConfigured 
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true, 
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'atenea-auth-token'
+      }
+    })
+  : null;
 
-if (isSupabaseConfigured) {
-  try {
-    supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey);
-  } catch (err) {
-    console.error("Error al inicializar el cliente de Supabase:", err);
-  }
-} else {
+if (!supabase) {
   console.warn("⚠️ Supabase no está configurado. Revisa tu archivo .env");
 }
-
-export const supabase = supabaseInstance;
