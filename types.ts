@@ -1,7 +1,50 @@
-export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings';
+export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses';
 export type EntryMode = 'sale' | 'expense';
+export type ExpenseType = 'business' | 'personal';
+
+// Definición de los métodos de pago
+export type PaymentMethod = 
+  | 'Efectivo - 10%'
+  | 'Efectivo'
+  | 'Crédito 1 Cuota'
+  | 'Crédito 3 Cuotas'
+  | 'Débito'
+  | 'Transferencia'
+  | 'Vale';
 
 export type PaymentBaseMethod = 'Efectivo' | 'Transferencia' | 'Débito' | 'Crédito' | 'Vale';
+
+// Categorías finales unificadas
+export type ExpenseCategory = 
+  | 'Mercadería'
+  | 'Alquiler'
+  | 'Servicios'
+  | 'Impuestos'
+  | 'Moratoria'
+  | 'Inversión'
+  | 'Marketing'
+  | 'Otros Negocio'
+  | 'Comida/Súper'
+  | 'Transporte'
+  | 'Ocio/Salidas'
+  | 'Salud'
+  | 'Vivienda'
+  | 'Suscripciones'
+  | 'Otros Personal';
+
+export interface ExpenseCategoryMetadata {
+  id: ExpenseCategory;
+  icon: any; // LucideIcon type
+  type: ExpenseType;
+  color: string; // Tailwind color class prefix (e.g. "blue")
+  styles: {
+    activeClasses: string;
+    inactiveClasses: string;
+    iconColor: string;
+    text: string;
+    bg: string;
+  };
+}
 
 export interface PaymentSplit {
   method: PaymentBaseMethod;
@@ -9,7 +52,7 @@ export interface PaymentSplit {
   installments?: number;
   voucherCode?: string;
   appliedToItems?: string[];
-  roundingBase?: 100 | 500 | 1000 | null; // IDs de productos del carrito que tienen descuento
+  roundingBase?: 100 | 500 | 1000 | null;
 }
 
 export interface CartItem {
@@ -49,8 +92,8 @@ export interface Sale {
   client_number: string;
   product_name: string;
   quantity: number;
-  price: number; // Este es el precio final cobrado
-  list_price?: number; // Precio de lista original
+  price: number;
+  list_price?: number;
   cost_price: number;
   payment_method: string;
   payment_details: PaymentSplit[];
@@ -59,7 +102,7 @@ export interface Sale {
   inventory_id?: string;
   created_at: string;
   updated_at: string;
-  expires_at?: string; // Para vencimiento de señas o vales
+  expires_at?: string;
 }
 
 export interface Expense {
@@ -69,6 +112,7 @@ export interface Expense {
   description: string;
   amount: number;
   category: string;
+  type: ExpenseType; 
   has_invoice_a: boolean;
   invoice_amount: number;
   created_at: string;
@@ -81,6 +125,7 @@ export interface ExpenseFormData {
   description: string;
   amount: string;
   category: string;
+  type: ExpenseType; 
   hasInvoiceA: boolean;
   invoiceAmount: string;
   isEdit?: boolean;
@@ -94,7 +139,7 @@ export interface InventoryItem {
   subcategory: string;
   material: string;
   cost_price: number;
-  list_price: number;
+  selling_price: number;
   sizes: Record<string, number>;
   min_stock: number;
   image_url?: string;
@@ -124,7 +169,7 @@ export interface InventoryFormData {
   subcategory: string;
   material: string;
   costPrice: string;
-  listPrice: string;
+  sellingPrice: string;
   sizes: Record<string, number>;
   minStock: string;
 }

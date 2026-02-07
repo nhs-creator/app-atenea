@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { Expense, ExpenseFormData, ExpenseCategory } from '../types';
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_COLORS } from '../constants';
+import { EXPENSE_CATEGORIES, CATEGORY_METADATA } from '../constants';
 import { Plus, Receipt, Trash2, AlertCircle, CheckCircle, Package, Home, Tag, FileText, Percent } from 'lucide-react';
 
 interface ExpensesViewProps {
@@ -41,15 +40,6 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, onSubmit, onDelet
   }, [expenses]);
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  const getCategoryIcon = (category: ExpenseCategory) => {
-    switch (category) {
-      case 'Mercadería': return <Package className="w-4 h-4" />;
-      case 'Alquiler/Fijos': return <Home className="w-4 h-4" />;
-      case 'Impuestos/Servicios': return <Receipt className="w-4 h-4" />;
-      default: return <Tag className="w-4 h-4" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -170,13 +160,18 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, onSubmit, onDelet
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden">
             {sortedExpenses.map((expense) => {
-              const colorInfo = EXPENSE_CATEGORY_COLORS[expense.category];
+              const metadata = CATEGORY_METADATA[expense.category as ExpenseCategory];
+              const styles = metadata ? metadata.styles : {
+                bg: 'bg-slate-200', text: 'text-slate-600', iconColor: 'text-slate-400'
+              };
+              const Icon = metadata ? metadata.icon : Tag;
+
               return (
                 <div key={expense.id} className="p-4 flex justify-between items-center group hover:bg-slate-50 transition-colors active:bg-slate-50">
                   <div className="flex-1 min-w-0 pr-2">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className={`${colorInfo.bg} ${colorInfo.iconColor} p-1.5 rounded-lg`}>
-                        {getCategoryIcon(expense.category)}
+                      <div className={`${styles.bg} ${styles.iconColor} p-1.5 rounded-lg`}>
+                        <Icon className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -186,7 +181,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, onSubmit, onDelet
                             <div className="flex items-center gap-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-100 flex-shrink-0">
                               <FileText className="w-2.5 h-2.5" />
                               {/* Fix: Use invoice_percentage instead of invoicePercentage */}
-                              A {expense.invoice_percentage}%
+                              A {expense.invoice_percentage || '100'}%
                             </div>
                           )}
                         </div>
@@ -194,7 +189,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, onSubmit, onDelet
                           <span className="text-[10px] text-slate-400 font-medium">
                             {new Date(expense.date + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
                           </span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${colorInfo.bg} ${colorInfo.text}`}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${styles.bg} ${styles.text}`}>
                             {expense.category}
                           </span>
                         </div>

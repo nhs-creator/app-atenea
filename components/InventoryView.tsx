@@ -111,7 +111,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
   const subcategoriesMap = config.subcategories || {};
 
   const [formData, setFormData] = useState<InventoryFormData>({
-    name: '', category: categories[0] || '', subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: ''
+    name: '', category: categories[0] || '', subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '', minStock: ''
   });
 
   const activeSizeSystem = useMemo(() => {
@@ -142,7 +142,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
       material: item.material || '',
       sizes: mappedSizes,
       costPrice: String(item.cost_price),
-      sellingPrice: String(item.selling_price)
+      sellingPrice: String(item.selling_price),
+      minStock: String(item.min_stock || 0)
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -165,6 +166,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         sizes: sizesNum,
         cost_price: parseFloat(formData.costPrice) || 0,
         selling_price: parseFloat(formData.sellingPrice) || 0,
+        min_stock: parseInt(formData.minStock) || 0,
         last_updated: new Date().toISOString(),
         synced: false
       });
@@ -178,7 +180,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
   const resetForm = () => {
     setEditingId(null);
     setShowForm(false);
-    setFormData({ name: '', category: categories[0], subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '' });
+    setFormData({ name: '', category: categories[0], subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '', minStock: '' });
   };
 
   const filteredInventory = useMemo(() => {
@@ -257,6 +259,11 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                 <label className="block text-xs font-bold text-slate-600 mb-1">Precio Venta</label>
                 <input type="text" inputMode="decimal" value={formData.sellingPrice} onChange={(e) => setFormData({...formData, sellingPrice: e.target.value.replace(/[^\d.]/g, '')})} className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-primary" required />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Stock Mínimo</label>
+              <input type="number" value={formData.minStock} onChange={(e) => setFormData({...formData, minStock: e.target.value})} className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold" placeholder="0" />
             </div>
 
             <div className="flex gap-2 pt-2">

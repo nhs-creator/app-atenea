@@ -21,9 +21,12 @@ import LoginView from './components/LoginView';
 // Iconos
 import { 
   PlusCircle, List, BarChart2, ShoppingBag, LogOut, 
-  ArrowUpCircle, ArrowDownCircle, Share2, CheckCircle2, Package
+  ArrowUpCircle, ArrowDownCircle, Package, Receipt
 } from 'lucide-react';
-import { DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS } from './constants';
+import { 
+  DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS,
+  BUSINESS_CATEGORIES, PERSONAL_CATEGORIES
+} from './constants';
 
 const getTodayAR = () => {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -41,7 +44,6 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'owner' | 'accountant' | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('form');
-  const [entryMode, setEntryMode] = useState<EntryMode>('sale');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
   const [toastMessage, setToastMessage] = useState<{msg: string, voucher?: any} | null>(null);
 
@@ -49,9 +51,17 @@ const App: React.FC = () => {
   const [saleDraft, setSaleDraft] = useLocalStorage<MultiSaleData>('atenea_sale_draft', {
     date: getTodayAR(), items: [], payments: [], productDraft: initialProductDraft
   });
+
   const [expenseDraft, setExpenseDraft] = useLocalStorage<ExpenseFormData>('atenea_expense_draft', {
-    date: getTodayAR(), description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: ''
+    date: getTodayAR(), 
+    description: '', 
+    amount: '', 
+    category: BUSINESS_CATEGORIES[0].id, 
+    hasInvoiceA: false, 
+    invoiceAmount: '',
+    type: 'business'
   });
+
   const [config, setConfig] = useLocalStorage('atenea_config', {
     categories: DEFAULT_PRODUCT_CATEGORIES, subcategories: DEFAULT_CATEGORY_MAP, materials: DEFAULT_MATERIALS
   });
@@ -108,15 +118,7 @@ const App: React.FC = () => {
 
   const showToast = (msg: string, voucher?: any) => {
     setToastMessage({ msg, voucher });
-    if (!voucher) setTimeout(() => setToastMessage(null), 1000);
-  };
-
-  const sendVoucherByWA = (voucher: any, phone: string = '') => {
-    let cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone && !cleanPhone.startsWith('54')) cleanPhone = '549' + cleanPhone.replace(/^0/, '').replace(/^15/, '');
-    const message = encodeURIComponent(`¡Hola! Tenés un vale de crédito en *Atenea Finanzas* por *$${voucher.amount.toLocaleString()}*.\n🎫 Código: *${voucher.code}*\n📅 Vence el: ${new Date(voucher.expires_at).toLocaleDateString('es-AR')}`);
-    window.open(cleanPhone ? `https://wa.me/${cleanPhone}?text=${message}` : `https://wa.me/?text=${message}`, '_blank');
-    setToastMessage(null);
+    if (!voucher) setTimeout(() => setToastMessage(null), 1500);
   };
 
   const handleNewSale = async (data: MultiSaleData) => {
@@ -133,7 +135,15 @@ const App: React.FC = () => {
     const res = await atenea.saveExpense(data);
     if (res?.success) {
       showToast(data.isEdit ? "¡Gasto actualizado!" : "¡Gasto registrado!");
-      setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '' });
+      setExpenseDraft({ 
+        date: getTodayAR(), 
+        description: '', 
+        amount: '', 
+        category: data.type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id, 
+        hasInvoiceA: false, 
+        invoiceAmount: '',
+        type: data.type
+      });
       setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     }
   };
@@ -151,39 +161,23 @@ const App: React.FC = () => {
       payments: sale.payment_details || [], isEdit: true, originalClientNumber: sale.client_number,
       productDraft: initialProductDraft 
     });
-    setEntryMode('sale');
     setActiveTab('form');
   };
 
   const handleEditExpense = (expense: Expense) => {
     if (userRole !== 'owner') return; 
     setExpenseDraft({
-      id: expense.id, date: expense.date, description: expense.description, amount: expense.amount.toString(),
-      category: expense.category, hasInvoiceA: expense.has_invoice_a, invoiceAmount: (expense.invoice_amount || 0).toString(), isEdit: true
+      id: expense.id, 
+      date: expense.date, 
+      description: expense.description, 
+      amount: expense.amount.toString(),
+      category: expense.category, 
+      hasInvoiceA: expense.has_invoice_a, 
+      invoiceAmount: (expense.invoice_amount || 0).toString(), 
+      type: expense.type || 'business',
+      isEdit: true
     });
-    setEntryMode('expense');
-    setActiveTab('form');
-  };
-
-  const renderRecentActivity = () => {
-    const list = entryMode === 'sale' ? atenea.sales.slice(0, 3) : atenea.expenses.slice(0, 3);
-    if (list.length === 0) return null;
-    return (
-      <div className="mt-4 space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Últimos Movimientos</h3>
-        {list.map((item: any) => (
-          <div key={item.id} className="bg-white p-2.5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-            <div className="min-w-0">
-              <p className="font-bold text-xs text-slate-700 truncate uppercase">{item.product_name || item.description}</p>
-              <p className="text-[9px] text-slate-400 font-bold uppercase">{item.client_number || item.category}</p>
-            </div>
-            <p className={`font-black text-sm ml-2 ${entryMode === 'sale' ? (Number(item.price) < 0 ? 'text-indigo-600' : 'text-primary') : 'text-rose-500'}`}>
-              {entryMode === 'sale' ? '' : '-'}${Math.abs(Number(item.price || item.amount)).toLocaleString('es-AR')}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
+    setActiveTab('expenses');
   };
 
   if (loading) return (
@@ -209,28 +203,61 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-md mx-auto p-4">
-        {activeTab === 'form' && (
-          <div className="flex flex-col space-y-3">
-            <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-              {userRole === 'owner' && (
-                <button onClick={() => setEntryMode('sale')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${entryMode === 'sale' ? 'bg-white text-primary shadow-md scale-[1.02]' : 'text-slate-500'}`}><ArrowUpCircle className="w-4 h-4" /> INGRESO</button>
-              )}
-              <button onClick={() => setEntryMode('expense')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${entryMode === 'expense' || userRole === 'accountant' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}><ArrowDownCircle className="w-4 h-4" /> EGRESO</button>
-            </div>
-            
-            <div className="flex-1">
-              {entryMode === 'sale' && userRole === 'owner' ? (
-                <SalesForm onSubmit={handleNewSale} inventory={atenea.inventory} vouchers={atenea.vouchers} initialData={saleDraft} onChange={setSaleDraft} onCancelEdit={() => setSaleDraft({ date: getTodayAR(), items: [], payments: [], productDraft: initialProductDraft })} nextSaleNumber={atenea.sales.length + 1} />
-              ) : (
-                <ExpenseForm formData={expenseDraft} onChange={setExpenseDraft} onSubmit={handleNewExpense} onCancelEdit={() => setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: 'Mercadería', hasInvoiceA: false, invoiceAmount: '', isEdit: false })} />
-              )}
-            </div>
-            {renderRecentActivity()}
+        {/* TAB 1: INGRESOS (VENTAS) */}
+        {activeTab === 'form' && userRole === 'owner' && (
+          <div className="animate-in fade-in duration-500">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Nuevo Ingreso</h2>
+            <SalesForm 
+              onSubmit={handleNewSale} 
+              inventory={atenea.inventory} 
+              vouchers={atenea.vouchers} 
+              initialData={saleDraft} 
+              onChange={setSaleDraft} 
+              onCancelEdit={() => setSaleDraft({ date: getTodayAR(), items: [], payments: [], productDraft: initialProductDraft })} 
+              nextSaleNumber={atenea.sales.length + 1} 
+            />
           </div>
         )}
 
+        {/* TAB 2: GASTOS (NEGOCIO / PERSONAL) */}
+        {activeTab === 'expenses' && (
+          <div className="flex flex-col space-y-4 animate-in fade-in duration-500">
+            <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
+              <button 
+                onClick={() => setExpenseDraft({...expenseDraft, type: 'business', category: BUSINESS_CATEGORIES[0].id})} 
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'business' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}
+              >
+                <ShoppingBag className="w-4 h-4" /> NEGOCIO
+              </button>
+              <button 
+                onClick={() => setExpenseDraft({...expenseDraft, type: 'personal', category: PERSONAL_CATEGORIES[0].id})} 
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'personal' ? 'bg-white text-pink-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}
+              >
+                <PlusCircle className="w-4 h-4" /> PERSONAL
+              </button>
+            </div>
+            
+            <ExpenseForm 
+              formData={expenseDraft} 
+              onChange={setExpenseDraft} 
+              onSubmit={handleNewExpense} 
+              onCancelEdit={() => setExpenseDraft({ 
+                date: getTodayAR(), 
+                description: '', 
+                amount: '', 
+                category: expenseDraft.type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id, 
+                hasInvoiceA: false, 
+                invoiceAmount: '', 
+                type: expenseDraft.type,
+                isEdit: false 
+              })} 
+            />
+          </div>
+        )}
+
+        {/* TAB 3: HISTORIAL (LISTADO) */}
         {activeTab === 'list' && (
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col space-y-4 animate-in fade-in duration-500">
             <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
               <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
               <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
@@ -238,44 +265,68 @@ const App: React.FC = () => {
             {historyMode === 'sale' ? (
               <SalesList 
                 sales={atenea.sales} 
-                onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} // BLOQUEADO PARA CONTADOR
-                onEdit={userRole === 'owner' ? handleEditSale : undefined} // BLOQUEADO PARA CONTADOR
+                onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined}
+                onEdit={userRole === 'owner' ? handleEditSale : undefined}
                 onReturn={() => {}} 
               />
             ) : (
               <ExpenseList 
                 expenses={atenea.expenses} 
-                onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} // BLOQUEADO PARA CONTADOR
-                onEdit={userRole === 'owner' ? handleEditExpense : undefined} // BLOQUEADO PARA CONTADOR
+                onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined}
+                onEdit={userRole === 'owner' ? handleEditExpense : undefined}
               />
             )}
           </div>
         )}
 
         {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.fetchData} onUpdate={atenea.fetchData} onDelete={atenea.fetchData} />}
-        
         {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} />}
-        
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 px-4 z-50 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <div className="max-w-md mx-auto flex justify-between items-center mb-2">
           {userRole === 'owner' ? (
             <>
-              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}><PlusCircle /><span className="text-[9px] font-bold uppercase">Ingresar</span></button>
-              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}><List /><span className="text-[9px] font-bold uppercase">Ventas</span></button>
-              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'inventory' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}><Package /><span className="text-[9px] font-bold uppercase">Stock</span></button>
+              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}>
+                <ArrowUpCircle className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Ingresos</span>
+              </button>
+              <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'expenses' ? 'text-rose-500 scale-110' : 'text-slate-400'}`}>
+                <ArrowDownCircle className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Gastos</span>
+              </button>
+              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+                <Receipt className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Historial</span>
+              </button>
+              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'inventory' ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
+                <Package className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Stock</span>
+              </button>
+              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
+                <BarChart2 className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Reporte</span>
+              </button>
             </>
           ) : (
-            <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}><List /><span className="text-[9px] font-bold uppercase tracking-tighter">Movimientos</span></button>
+            <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-full transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}>
+              <List />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Movimientos</span>
+            </button>
           )}
-          
-          <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-14 transition-all ${activeTab === 'stats' ? 'text-primary scale-110' : 'text-slate-400'}`}><BarChart2 /><span className="text-[9px] font-bold uppercase">Reporte</span></button>
         </div>
       </nav>
 
-      {/* Toasts... */}
+      {/* Toast Message */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
+          <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-widest">{toastMessage.msg}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

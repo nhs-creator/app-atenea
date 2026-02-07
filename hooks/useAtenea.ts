@@ -17,7 +17,7 @@ export function useAtenea(session: any) {
     setIsSyncing(true);
     try {
       const [sRes, iRes, eRes, vRes] = await Promise.all([
-        supabase.from('sales').select('*').order('date', { ascending: false }).order('client_number', { ascending: false }).limit(250),
+        supabase.from('sales').select('*').order('date', { ascending: false }).order('client_number', { ascending: false }).limit(1000),
         supabase.from('inventory').select('*').order('name'),
         supabase.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('vouchers').select('*').eq('status', 'active').order('created_at', { ascending: false })
@@ -39,31 +39,26 @@ export function useAtenea(session: any) {
     if (!session || !supabase) return null;
     setIsSyncing(true);
     try {
-      // 1. Calculamos el total de prendas (con su 10% off ya aplicado por item)
       const cartTotal = data.items.reduce((sum, i) => sum + (i.finalPrice * i.quantity), 0);
       const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
       
-      // 2. LÓGICA DE REDONDEO: Inyectar renglón de ajuste si hay diferencia menor a $1000
       const roundingDiff = totalPaid - cartTotal;
       const finalItemsToSave = [...data.items];
 
-      // Si hay una diferencia (ej. perdonamos $480 pesos), creamos un renglón de ajuste
       if (Math.abs(roundingDiff) > 0 && Math.abs(roundingDiff) < 1000) {
         finalItemsToSave.push({
           id: 'rounding-adjustment',
           product: '💰 AJUSTE POR REDONDEO',
           quantity: 1,
           listPrice: 0,
-          finalPrice: roundingDiff, // Será negativo si es a favor del cliente
+          finalPrice: roundingDiff,
           size: 'U',
           cost_price: 0
         });
       }
 
-      // Una venta es 'pending' SOLO si falta plata real (más de $1000) y no se forzó
       const isPending = (totalPaid < (cartTotal + roundingDiff)) && !data.forceCompleted;
       
-      // ... resto de la lógica de vales y semanticId igual
       let generatedVoucher = null;
       if (totalPaid < 0 || (cartTotal + roundingDiff) < 0) {
         const code = `VALE-${data.date.replace(/-/g, '').slice(2)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
@@ -80,7 +75,6 @@ export function useAtenea(session: any) {
 
       if (data.isEdit) await (supabase.from('sales') as any).delete().eq('client_number', data.originalClientNumber);
       
-      // Guardamos con los ítems de ajuste incluidos
       await (supabase.from('sales') as any).insert(finalItemsToSave.map(item => ({
         date: data.date, client_number: semanticId, 
         product_name: item.isReturn ? `(DEVOLUCIÓN) ${item.product}` : item.product,
@@ -91,7 +85,6 @@ export function useAtenea(session: any) {
         size: item.size, inventory_id: item.inventory_id, user_id: session.user.id
       })));
 
-      // Actualizar Stock (solo ítems reales, no el de ajuste)
       for (const item of data.items) {
         if (item.inventory_id && item.size) {
           const invItem = inventory.find(i => i.id === item.inventory_id);
@@ -140,23 +133,44 @@ export function useAtenea(session: any) {
     setIsSyncing(true);
     try {
       const payload: any = {
-        date: formData.date, description: formData.description, amount: parseFloat(formData.amount) || 0, category: formData.category,
-        has_invoice_a: formData.hasInvoiceA, invoice_amount: formData.hasInvoiceA ? (parseFloat(formData.invoiceAmount) || 0) : 0, 
+        date: formData.date, 
+        description: formData.description, 
+        amount: parseFloat(formData.amount) || 0, 
+        category: formData.category,
+        type: formData.type, // 'business' | 'personal'
+        has_invoice_a: formData.hasInvoiceA, 
+        invoice_amount: formData.hasInvoiceA ? (parseFloat(formData.invoiceAmount) || 0) : 0, 
       };
-      if (formData.isEdit && formData.id) await (supabase.from('expenses') as any).update(payload).eq('id', formData.id);
-      else { payload.user_id = session.user.id; await (supabase.from('expenses') as any).insert(payload); }
+
+      if (formData.isEdit && formData.id) {
+        await (supabase.from('expenses') as any).update(payload).eq('id', formData.id);
+      } else {
+        payload.user_id = session.user.id;
+        await (supabase.from('expenses') as any).insert(payload);
+      }
+      
       await fetchData();
       return { success: true };
-    } catch (error) { return { success: false, error }; }
-    finally { setIsSyncing(false); }
+    } catch (error) { 
+      console.error("Error saving expense:", error);
+      return { success: false, error }; 
+    } finally { 
+      setIsSyncing(false); 
+    }
   };
 
   const deleteExpense = async (id: string) => {
     if (!supabase || !window.confirm('¿Borrar este gasto?')) return;
     setIsSyncing(true);
-    try { await (supabase.from('expenses') as any).delete().eq('id', id); await fetchData(); return { success: true }; }
-    catch (error) { return { success: false, error }; }
-    finally { setIsSyncing(false); }
+    try { 
+      await (supabase.from('expenses') as any).delete().eq('id', id); 
+      await fetchData(); 
+      return { success: true }; 
+    } catch (error) { 
+      return { success: false, error }; 
+    } finally { 
+      setIsSyncing(false); 
+    }
   };
 
   return { sales, expenses, inventory, vouchers, isSyncing, saveMultiSale, deleteTransaction, saveExpense, deleteExpense, fetchData };

@@ -18,7 +18,8 @@ export interface Database {
           description: string
           has_invoice_a: boolean
           id: string
-          invoice_percentage: number
+          invoice_amount: number
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -29,7 +30,8 @@ export interface Database {
           description: string
           has_invoice_a?: boolean
           id?: string
-          invoice_percentage?: number
+          invoice_amount?: number
+          updated_at?: string | null
           user_id?: string
         }
         Update: {
@@ -40,7 +42,8 @@ export interface Database {
           description?: string
           has_invoice_a?: boolean
           id?: string
-          invoice_percentage?: number
+          invoice_amount?: number
+          updated_at?: string | null
           user_id?: string
         }
       }
