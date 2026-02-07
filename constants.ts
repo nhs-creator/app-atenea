@@ -173,28 +173,37 @@ export const CATEGORY_SIZE_MAP: Record<string, keyof typeof SIZE_SYSTEMS> = {
   'Otros': 'UNICO'
 };
 
-export const DEFAULT_PRODUCT_CATEGORIES: string[] = [
-  'Tejidos y Abrigos', 'Prendas Superiores', 'Prendas Inferiores',
-  'Piezas Enteras', 'Accesorios', 'Marroquinería', 'Bijouterie',
-  'Hogar/Home', 'Otros'
-];
+// Re-export from 3-level inventory categorization system
+import {
+  getCategoriesForConfig,
+  getSubcategoriesMapForConfig,
+  getMaterialsForConfig,
+} from './inventoryConstants';
 
-export const DEFAULT_CATEGORY_MAP: Record<string, string[]> = {
-  'Tejidos y Abrigos': ['Suéteres', 'Poleras', 'Cardigans', 'Chalecos', 'Abrigos', 'Buzos'],
-  'Prendas Superiores': ['Remeras', 'Musculosas', 'Blusas', 'Camisas', 'Bodys'],
-  'Prendas Inferiores': ['Jeans', 'Pantalones', 'Shorts', 'Polleras'],
-  'Piezas Enteras': ['Vestidos', 'Enteritos'],
-  'Accesorios': ['Cuello/Cabeza', 'Manos', 'Complementos'],
-  'Marroquinería': ['Bolsos Grandes', 'Bolsos Pequeños', 'Pequeña Marroquinería'],
-  'Bijouterie': ['Joyería'],
-  'Hogar/Home': ['Aromas', 'Deco'],
-  'Otros': ['Varios']
+export const DEFAULT_PRODUCT_CATEGORIES: string[] = getCategoriesForConfig();
+
+export const DEFAULT_CATEGORY_MAP: Record<string, string[]> = getSubcategoriesMapForConfig();
+
+export const DEFAULT_MATERIALS: string[] = getMaterialsForConfig();
+
+export const DEFAULT_SIZE_SYSTEMS: Record<string, string[]> = {
+  LETRAS: ['S', 'M', 'L', 'XL', 'XXL', 'U'],
+  NUMEROS_ROPA: ['36', '38', '40', '42', '44', '46', '48', '50'],
+  NUMEROS_CALZADO: ['35', '36', '37', '38', '39', '40', '41'],
+  UNICO: ['U']
 };
 
-export const DEFAULT_MATERIALS = [
-  'Lana', 'Hilo', 'Bremer', 'Lanilla', 'Modal', 'Algodón', 'Morley', 
-  'Lino', 'Crepé', 'Sastrero', 'Denim/Jean', 'Poplín', 'Tuill', 'Broderi'
-];
+export const DEFAULT_CATEGORY_SIZE_MAP: Record<string, string> = {
+  'Tejidos y Abrigos': 'LETRAS',
+  'Prendas Superiores': 'LETRAS',
+  'Prendas Inferiores': 'NUMEROS_ROPA',
+  'Piezas Enteras': 'LETRAS',
+  'Accesorios': 'UNICO',
+  'Marroquinería': 'UNICO',
+  'Bijouterie': 'UNICO',
+  'Hogar/Home': 'UNICO',
+  'Otros': 'UNICO'
+};
 
 export const PAYMENT_METHOD_COLORS: Record<string, { bg: string, text: string, dot: string }> = {
   'Efectivo - 10%': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },

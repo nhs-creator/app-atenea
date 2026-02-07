@@ -1,14 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
-import { SIZE_SYSTEMS, CATEGORY_SIZE_MAP } from '../constants';
 import { Plus, Search, Trash2, Package, Minus, Save, X, ChevronDown, Ruler, Edit2 } from 'lucide-react';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
   config: AppConfig;
-  onAdd: (data: InventoryFormData) => void;
-  onUpdate: (item: InventoryItem) => void;
-  onDelete: (id: string) => void;
+  onAdd: (data: InventoryFormData) => void | Promise<unknown>;
+  onUpdate: (item: InventoryItem) => void | Promise<unknown>;
+  onDelete: (id: string) => void | Promise<unknown>;
 }
 
 const InventoryCard = React.memo(({ 
@@ -47,6 +46,7 @@ const InventoryCard = React.memo(({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-slate-200">{item.category}</span>
             <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-indigo-100">{item.subcategory}</span>
+            {item.material && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-amber-100">{item.material}</span>}
           </div>
         </div>
         
@@ -109,23 +109,31 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
 
   const categories = config.categories || [];
   const subcategoriesMap = config.subcategories || {};
+  const materials = config.materials || [];
 
   const [formData, setFormData] = useState<InventoryFormData>({
     name: '', category: categories[0] || '', subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '', minStock: ''
   });
 
   const activeSizeSystem = useMemo(() => {
-    const systemKey = CATEGORY_SIZE_MAP[formData.category] || 'UNICO';
-    return SIZE_SYSTEMS[systemKey];
-  }, [formData.category]);
+    const sizeSystems = config.sizeSystems ?? {};
+    const categorySizeMap = config.categorySizeMap ?? {};
+    const systemKey = categorySizeMap[formData.category] || 'UNICO';
+    const sizes = sizeSystems[systemKey];
+    return sizes && sizes.length > 0 ? sizes : ['U'];
+  }, [formData.category, config.sizeSystems, config.categorySizeMap]);
 
+  // Reset sizes when category changes (including during edit) - preserve values for sizes that exist in both
   useEffect(() => {
-    if (!editingId) {
+    setFormData(f => {
       const newSizes: Record<string, string> = {};
-      activeSizeSystem.forEach(s => newSizes[s] = '');
-      setFormData(f => ({ ...f, sizes: newSizes }));
-    }
-  }, [activeSizeSystem, editingId]);
+      activeSizeSystem.forEach(s => {
+        const currentVal = f.sizes?.[s];
+        newSizes[s] = typeof currentVal === 'number' ? String(currentVal) : (currentVal ?? '');
+      });
+      return { ...f, sizes: newSizes };
+    });
+  }, [formData.category, activeSizeSystem]);
 
   const handleEdit = (item: InventoryItem) => {
     // Solución al error de tipado: mapeo manual y seguro
@@ -149,15 +157,15 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
 
     if (editingId) {
       const sizesNum: Record<string, number> = {};
-      Object.entries(formData.sizes).forEach(([s, q]) => sizesNum[s] = parseInt(q as string) || 0);
-      
-      onUpdate({
+      Object.entries(formData.sizes || {}).forEach(([s, q]) => sizesNum[s] = parseInt(String(q), 10) || 0);
+
+      await onUpdate({
         id: editingId,
         name: formData.name,
         category: formData.category,
@@ -166,12 +174,17 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         sizes: sizesNum,
         cost_price: parseFloat(formData.costPrice) || 0,
         selling_price: parseFloat(formData.sellingPrice) || 0,
-        min_stock: parseInt(formData.minStock) || 0,
-        last_updated: new Date().toISOString(),
-        synced: false
+        min_stock: parseInt(formData.minStock, 10) || 0,
+        last_updated: new Date().toISOString()
       });
     } else {
-      onAdd(formData);
+      const dataToAdd: InventoryFormData = {
+        ...formData,
+        sizes: Object.fromEntries(
+          Object.entries(formData.sizes || {}).map(([s, q]) => [s, parseInt(String(q), 10) || 0])
+        ) as Record<string, number>
+      };
+      await onAdd(dataToAdd);
     }
 
     resetForm();
@@ -233,6 +246,14 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   {(subcategoriesMap[formData.category] || []).map(sub => <option key={sub} value={sub}>{sub}</option>)}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Material</label>
+              <select value={formData.material} onChange={(e) => setFormData({...formData, material: e.target.value})} className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold">
+                <option value="">Sin material</option>
+                {materials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
+              </select>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">

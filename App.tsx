@@ -21,10 +21,11 @@ import LoginView from './components/LoginView';
 // Iconos
 import { 
   PlusCircle, List, BarChart2, ShoppingBag, LogOut, 
-  ArrowUpCircle, ArrowDownCircle, Package, Receipt
+  ArrowUpCircle, ArrowDownCircle, Package, Receipt, Settings
 } from 'lucide-react';
 import { 
   DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS,
+  DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP,
   BUSINESS_CATEGORIES, PERSONAL_CATEGORIES
 } from './constants';
 
@@ -63,7 +64,11 @@ const App: React.FC = () => {
   });
 
   const [config, setConfig] = useLocalStorage('atenea_config', {
-    categories: DEFAULT_PRODUCT_CATEGORIES, subcategories: DEFAULT_CATEGORY_MAP, materials: DEFAULT_MATERIALS
+    categories: DEFAULT_PRODUCT_CATEGORIES,
+    subcategories: DEFAULT_CATEGORY_MAP,
+    materials: DEFAULT_MATERIALS,
+    sizeSystems: DEFAULT_SIZE_SYSTEMS,
+    categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP
   });
 
   // 2. Cerebro de la App
@@ -196,9 +201,18 @@ const App: React.FC = () => {
           <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20"><ShoppingBag className="w-4 h-4 text-white" /></div>
           <h1 className="font-bold text-lg italic">Atenea <span className="text-primary italic">Finanzas</span></h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {userRole === 'accountant' && <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-tighter">Contador</span>}
-          <button onClick={() => supabase.auth.signOut()} className="p-2 text-rose-400 active:scale-90 transition-all"><LogOut className="w-5 h-5" /></button>
+          {userRole === 'owner' && (
+            <button 
+              onClick={() => setActiveTab('settings')} 
+              className={`p-2 rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:text-primary active:scale-90'}`}
+              aria-label="Configuración"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={() => supabase.auth.signOut()} className="p-2 text-rose-400 hover:text-rose-600 active:scale-90 transition-all"><LogOut className="w-5 h-5" /></button>
         </div>
       </header>
 
@@ -279,7 +293,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.fetchData} onUpdate={atenea.fetchData} onDelete={atenea.fetchData} />}
+        {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />}
         {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>

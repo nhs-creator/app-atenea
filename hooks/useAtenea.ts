@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Sale, Expense, InventoryItem, Voucher, 
-  MultiSaleData, ExpenseFormData 
+  MultiSaleData, ExpenseFormData, InventoryFormData 
 } from '../types';
 
 export function useAtenea(session: any) {
@@ -173,5 +173,74 @@ export function useAtenea(session: any) {
     }
   };
 
-  return { sales, expenses, inventory, vouchers, isSyncing, saveMultiSale, deleteTransaction, saveExpense, deleteExpense, fetchData };
+  const addInventory = async (data: InventoryFormData) => {
+    if (!session || !supabase) return;
+    setIsSyncing(true);
+    try {
+      const sizesNum: Record<string, number> = {};
+      Object.entries(data.sizes || {}).forEach(([s, q]) => {
+        sizesNum[s] = typeof q === 'string' ? parseInt(q, 10) || 0 : (q || 0);
+      });
+      const payload = {
+        user_id: session.user.id,
+        name: data.name.trim(),
+        category: data.category,
+        subcategory: data.subcategory || null,
+        material: data.material || null,
+        cost_price: parseFloat(data.costPrice) || 0,
+        selling_price: parseFloat(data.sellingPrice) || 0,
+        sizes: sizesNum,
+      };
+      await (supabase.from('inventory') as any).insert(payload);
+      await fetchData();
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding inventory:', error);
+      return { success: false, error };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const updateInventory = async (item: Partial<InventoryItem> & { id: string }) => {
+    if (!session || !supabase) return;
+    setIsSyncing(true);
+    try {
+      const payload: Record<string, unknown> = {
+        name: item.name,
+        category: item.category,
+        subcategory: item.subcategory || null,
+        material: item.material || null,
+        cost_price: item.cost_price,
+        selling_price: item.selling_price,
+        sizes: item.sizes,
+        last_updated: new Date().toISOString(),
+      };
+      await (supabase.from('inventory') as any).update(payload).eq('id', item.id).eq('user_id', session.user.id);
+      await fetchData();
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating inventory:', error);
+      return { success: false, error };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const deleteInventory = async (id: string) => {
+    if (!supabase) return;
+    setIsSyncing(true);
+    try {
+      await (supabase.from('inventory') as any).delete().eq('id', id);
+      await fetchData();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting inventory:', error);
+      return { success: false, error };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  return { sales, expenses, inventory, vouchers, isSyncing, saveMultiSale, deleteTransaction, saveExpense, deleteExpense, fetchData, addInventory, updateInventory, deleteInventory };
 }

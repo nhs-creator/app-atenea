@@ -161,6 +161,10 @@ export interface AppConfig {
   categories: string[];
   subcategories: Record<string, string[]>;
   materials: string[];
+  /** Size systems: name -> array of size labels (e.g. { "LETRAS": ["S","M","L"], "UNICO": ["U"] }) */
+  sizeSystems: Record<string, string[]>;
+  /** Which size system each category uses (e.g. { "Prendas Superiores": "LETRAS" }) */
+  categorySizeMap: Record<string, string>;
 }
 
 export interface InventoryFormData {

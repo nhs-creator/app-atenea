@@ -1,5 +1,5 @@
 import { Sale, Expense, InventoryItem, AppConfig } from '../types';
-import { STORAGE_KEYS, DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS } from '../constants';
+import { STORAGE_KEYS, DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS, DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
 
 const SESSION_KEY = 'boutique_last_session';
 
@@ -67,7 +67,9 @@ export const getConfigLocally = (): AppConfig => {
     return { 
       categories: DEFAULT_PRODUCT_CATEGORIES,
       subcategories: DEFAULT_CATEGORY_MAP,
-      materials: DEFAULT_MATERIALS
+      materials: DEFAULT_MATERIALS,
+      sizeSystems: DEFAULT_SIZE_SYSTEMS,
+      categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP
     };
   }
   const config = JSON.parse(data);
@@ -75,7 +77,9 @@ export const getConfigLocally = (): AppConfig => {
     ...config,
     categories: config.categories || DEFAULT_PRODUCT_CATEGORIES,
     subcategories: config.subcategories || DEFAULT_CATEGORY_MAP,
-    materials: config.materials || DEFAULT_MATERIALS
+    materials: config.materials || DEFAULT_MATERIALS,
+    sizeSystems: config.sizeSystems || DEFAULT_SIZE_SYSTEMS,
+    categorySizeMap: config.categorySizeMap || DEFAULT_CATEGORY_SIZE_MAP
   };
 };
 
