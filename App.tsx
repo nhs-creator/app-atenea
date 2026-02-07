@@ -71,6 +71,18 @@ const App: React.FC = () => {
     categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP
   });
 
+  // Merge default size config if missing (e.g. old localStorage)
+  useEffect(() => {
+    const hasSizeConfig = config.sizeSystems && Object.keys(config.sizeSystems).length > 0 && config.categorySizeMap && Object.keys(config.categorySizeMap).length > 0;
+    if (!hasSizeConfig) {
+      setConfig(prev => ({
+        ...prev,
+        sizeSystems: prev.sizeSystems && Object.keys(prev.sizeSystems).length > 0 ? prev.sizeSystems : DEFAULT_SIZE_SYSTEMS,
+        categorySizeMap: prev.categorySizeMap && Object.keys(prev.categorySizeMap).length > 0 ? prev.categorySizeMap : DEFAULT_CATEGORY_SIZE_MAP
+      }));
+    }
+  }, []);
+
   // 2. Cerebro de la App
   const atenea = useAtenea(session);
 

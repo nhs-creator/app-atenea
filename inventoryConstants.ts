@@ -220,22 +220,22 @@ export function getAttributesForSuperiores(): IVariant[] {
 // APP CONFIG COMPATIBILITY (for use with AppConfig interface)
 // =============================================================================
 
-/** Returns categories as string[] for AppConfig.categories */
+/** Returns categories as string[] for AppConfig.categories (uppercase for consistency) */
 export function getCategoriesForConfig(): string[] {
-  return CATEGORIES.map(c => c.label);
+  return CATEGORIES.map(c => c.label.toUpperCase());
 }
 
-/** Returns subcategories as Record<categoryLabel, string[]> for AppConfig.subcategories */
+/** Returns subcategories as Record<categoryLabel, string[]> for AppConfig.subcategories (uppercase) */
 export function getSubcategoriesMapForConfig(): Record<string, string[]> {
   const map: Record<string, string[]> = {};
   for (const cat of CATEGORIES) {
-    const subs = SUBCATEGORIES.filter(s => s.categoryId === cat.id).map(s => s.label);
-    map[cat.label] = subs;
+    const subs = SUBCATEGORIES.filter(s => s.categoryId === cat.id).map(s => s.label.toUpperCase());
+    map[cat.label.toUpperCase()] = subs;
   }
   return map;
 }
 
-/** Returns materials as string[] for AppConfig.materials */
+/** Returns materials as string[] for AppConfig.materials (uppercase) */
 export function getMaterialsForConfig(): string[] {
-  return MATERIALS.map(m => m.label);
+  return MATERIALS.map(m => m.label.toUpperCase());
 }

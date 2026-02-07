@@ -183,10 +183,10 @@ export function useAtenea(session: any) {
       });
       const payload = {
         user_id: session.user.id,
-        name: data.name.trim(),
-        category: data.category,
-        subcategory: data.subcategory || null,
-        material: data.material || null,
+        name: data.name.trim().toUpperCase(),
+        category: (data.category || '').toUpperCase(),
+        subcategory: data.subcategory ? data.subcategory.toUpperCase() : null,
+        material: data.material ? data.material.toUpperCase() : null,
         cost_price: parseFloat(data.costPrice) || 0,
         selling_price: parseFloat(data.sellingPrice) || 0,
         sizes: sizesNum,
@@ -207,10 +207,10 @@ export function useAtenea(session: any) {
     setIsSyncing(true);
     try {
       const payload: Record<string, unknown> = {
-        name: item.name,
-        category: item.category,
-        subcategory: item.subcategory || null,
-        material: item.material || null,
+        name: item.name ? item.name.toUpperCase() : undefined,
+        category: item.category ? item.category.toUpperCase() : undefined,
+        subcategory: item.subcategory ? item.subcategory.toUpperCase() : null,
+        material: item.material ? item.material.toUpperCase() : null,
         cost_price: item.cost_price,
         selling_price: item.selling_price,
         sizes: item.sizes,

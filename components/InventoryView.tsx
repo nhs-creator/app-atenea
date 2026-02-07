@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
+import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
 import { Plus, Search, Trash2, Package, Minus, Save, X, ChevronDown, Ruler, Edit2 } from 'lucide-react';
 
 interface InventoryViewProps {
@@ -42,11 +43,11 @@ const InventoryCard = React.memo(({
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 relative overflow-hidden transition-all hover:shadow-md">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0 pr-4">
-          <h4 className="font-bold text-slate-800 text-base leading-tight truncate mb-1.5">{item.name}</h4>
+          <h4 className="font-bold text-slate-800 text-base leading-tight truncate mb-1.5 uppercase">{item.name}</h4>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-slate-200">{item.category}</span>
-            <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-indigo-100">{item.subcategory}</span>
-            {item.material && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-amber-100">{item.material}</span>}
+            <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-slate-200">{(item.category || '').toUpperCase()}</span>
+            <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-indigo-100">{(item.subcategory || '').toUpperCase()}</span>
+            {item.material && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-amber-100">{item.material.toUpperCase()}</span>}
           </div>
         </div>
         
@@ -54,12 +55,12 @@ const InventoryCard = React.memo(({
           <span className="text-sm font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
             ${item.selling_price.toLocaleString('es-AR')}
           </span>
-          <div className="flex gap-1">
-            <button onClick={() => onEdit(item)} className="text-slate-400 hover:text-primary p-1.5 bg-slate-50 rounded-lg transition-colors">
-              <Edit2 className="w-3.5 h-3.5" />
+          <div className="flex gap-2">
+            <button onClick={() => onEdit(item)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-primary bg-slate-50 rounded-xl transition-colors active:scale-95" aria-label="Editar">
+              <Edit2 className="w-5 h-5" />
             </button>
-            <button onClick={() => setDeleteConfirmId(item.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition-colors">
-               <Trash2 className="w-3.5 h-3.5" />
+            <button onClick={() => setDeleteConfirmId(item.id)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors active:scale-95" aria-label="Eliminar">
+              <Trash2 className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -88,7 +89,13 @@ const InventoryCard = React.memo(({
       </div>
       
       {deleteConfirmId === item.id && (
-        <button onClick={() => onDeleteRequest(item.id)} className="w-full mt-3 bg-red-600 text-white py-2.5 rounded-xl text-xs font-black uppercase animate-in zoom-in">Confirmar Eliminación</button>
+        <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-xl space-y-3 animate-in zoom-in">
+          <p className="text-xs font-bold text-red-800 text-center">¿Eliminar <strong>"{item.name}"</strong>? Esta acción no se puede deshacer.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteConfirmId(null)} className="flex-1 min-h-[44px] py-2.5 rounded-xl text-xs font-black uppercase bg-slate-200 text-slate-700 active:scale-[0.98]">Cancelar</button>
+            <button type="button" onClick={() => { onDeleteRequest(item.id); setDeleteConfirmId(null); }} className="flex-1 min-h-[44px] py-2.5 rounded-xl text-xs font-black uppercase bg-red-600 text-white active:scale-[0.98]">Eliminar</button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -116,11 +123,12 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
   });
 
   const activeSizeSystem = useMemo(() => {
-    const sizeSystems = config.sizeSystems ?? {};
-    const categorySizeMap = config.categorySizeMap ?? {};
-    const systemKey = categorySizeMap[formData.category] || 'UNICO';
+    const sizeSystems = (config.sizeSystems && Object.keys(config.sizeSystems).length > 0) ? config.sizeSystems : DEFAULT_SIZE_SYSTEMS;
+    const categorySizeMap = (config.categorySizeMap && Object.keys(config.categorySizeMap).length > 0) ? config.categorySizeMap : DEFAULT_CATEGORY_SIZE_MAP;
+    const categoryKey = (formData.category || '').toUpperCase();
+    const systemKey = categorySizeMap[categoryKey] || 'UNICO';
     const sizes = sizeSystems[systemKey];
-    return sizes && sizes.length > 0 ? sizes : ['U'];
+    return sizes && sizes.length > 0 ? sizes : (DEFAULT_SIZE_SYSTEMS.LETRAS || ['U']);
   }, [formData.category, config.sizeSystems, config.categorySizeMap]);
 
   // Reset sizes when category changes (including during edit) - preserve values for sizes that exist in both
@@ -144,10 +152,10 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
 
     setEditingId(item.id);
     setFormData({
-      name: item.name,
-      category: item.category,
-      subcategory: item.subcategory,
-      material: item.material || '',
+      name: (item.name || '').toUpperCase(),
+      category: (item.category || '').toUpperCase(),
+      subcategory: (item.subcategory || '').toUpperCase(),
+      material: (item.material || '').toUpperCase(),
       sizes: mappedSizes,
       costPrice: String(item.cost_price),
       sellingPrice: String(item.selling_price),
@@ -229,7 +237,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Nombre</label>
-              <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Ej: Remera Algodon" className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold focus:border-primary outline-none" required />
+              <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value.toUpperCase()})} placeholder="Ej: REMERA ALGODON" className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold focus:border-primary outline-none uppercase" required />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

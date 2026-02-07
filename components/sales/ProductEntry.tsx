@@ -84,8 +84,8 @@ const ProductEntry: React.FC<ProductEntryProps> = ({ current, onCurrentChange, o
                     <Search className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-700 text-sm">{item.name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.category}</p>
+                    <p className="font-bold text-slate-700 text-sm uppercase">{item.name}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{(item.category || '').toUpperCase()}</p>
                   </div>
                 </div>
                 <span className="font-black text-primary bg-indigo-50 px-3 py-1 rounded-lg text-sm group-hover:bg-primary group-hover:text-white transition-colors">

@@ -25,20 +25,37 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   const [newSizeLabel, setNewSizeLabel] = useState('');
 
   const handleSave = () => {
+    const normCat = (s: string) => (s || '').toUpperCase();
+    const cats = categories.map(normCat);
+    const subs: Record<string, string[]> = {};
+    Object.entries(subcategories).forEach(([k, v]) => {
+      subs[normCat(k)] = (v || []).map(normCat);
+    });
+    const mats = materials.map(normCat);
+    const sizeMap: Record<string, string> = {};
+    Object.entries(categorySizeMap).forEach(([k, v]) => {
+      sizeMap[normCat(k)] = v || 'UNICO';
+    });
     onSaveConfig({ 
       ...config, 
-      categories,
-      subcategories,
-      materials,
+      categories: cats,
+      subcategories: subs,
+      materials: mats,
       sizeSystems,
-      categorySizeMap
+      categorySizeMap: sizeMap
     });
+    setCategories(cats);
+    setSubcategories(subs);
+    setMaterials(mats);
+    setCategorySizeMap(sizeMap);
+    if (cats.length && !cats.includes(selectedCatForSub)) setSelectedCatForSub(cats[0]);
     alert('Configuración guardada correctamente.');
   };
 
   const addCategory = () => {
-    if (!newCat.trim() || categories.includes(newCat.trim())) return;
-    const cat = newCat.trim();
+    if (!newCat.trim()) return;
+    const cat = newCat.trim().toUpperCase();
+    if (categories.includes(cat)) return;
     setCategories([...categories, cat]);
     setSubcategories({ ...subcategories, [cat]: [] });
     setCategorySizeMap({ ...categorySizeMap, [cat]: 'UNICO' });
@@ -47,6 +64,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   };
 
   const removeCategory = (cat: string) => {
+    if (!window.confirm(`¿Eliminar la categoría "${cat}"? Se eliminarán también sus subcategorías.`)) return;
     setCategories(categories.filter(c => c !== cat));
     const newSubs = { ...subcategories };
     delete newSubs[cat];
@@ -58,16 +76,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
 
   const addSubcategory = () => {
     if (!newSub.trim() || !selectedCatForSub) return;
+    const sub = newSub.trim().toUpperCase();
     const currentSubs = subcategories[selectedCatForSub] || [];
-    if (currentSubs.includes(newSub.trim())) return;
+    if (currentSubs.includes(sub)) return;
     setSubcategories({
       ...subcategories,
-      [selectedCatForSub]: [...currentSubs, newSub.trim()]
+      [selectedCatForSub]: [...currentSubs, sub]
     });
     setNewSub('');
   };
 
   const removeSubcategory = (cat: string, sub: string) => {
+    if (!window.confirm(`¿Eliminar la subcategoría "${sub}" de ${cat}?`)) return;
     setSubcategories({
       ...subcategories,
       [cat]: (subcategories[cat] || []).filter(s => s !== sub)
@@ -75,12 +95,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   };
 
   const addMaterial = () => {
-    if (!newMat.trim() || materials.includes(newMat.trim())) return;
-    setMaterials([...materials, newMat.trim()]);
+    if (!newMat.trim()) return;
+    const mat = newMat.trim().toUpperCase();
+    if (materials.includes(mat)) return;
+    setMaterials([...materials, mat]);
     setNewMat('');
   };
 
   const removeMaterial = (mat: string) => {
+    if (!window.confirm(`¿Eliminar el material "${mat}"?`)) return;
     setMaterials(materials.filter(m => m !== mat));
   };
 
@@ -95,6 +118,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
 
   const removeSizeSystem = (name: string) => {
     if (Object.keys(sizeSystems).length <= 1) return;
+    if (!window.confirm(`¿Eliminar el sistema de talles "${name}"? Las categorías que lo usen pasarán a UNICO.`)) return;
     const next = { ...sizeSystems };
     delete next[name];
     setSizeSystems(next);
@@ -115,6 +139,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   };
 
   const removeSizeFromSystem = (systemName: string, sizeLabel: string) => {
+    if (!window.confirm(`¿Quitar el talle "${sizeLabel}" del sistema ${systemName}?`)) return;
     const sizes = (sizeSystems[systemName] || []).filter(s => s !== sizeLabel);
     if (sizes.length === 0) return;
     setSizeSystems({ ...sizeSystems, [systemName]: sizes });
@@ -161,9 +186,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
             </div>
             <div className="flex flex-wrap gap-2">
               {categories.map(cat => (
-                <div key={cat} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-200">
+                <div key={cat} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-200">
                   {cat}
-                  <button onClick={() => removeCategory(cat)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-3 h-3"/></button>
+                  <button type="button" onClick={() => removeCategory(cat)} className="min-w-[44px] min-h-[44px] -m-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" aria-label={`Eliminar categoría ${cat}`}><Trash2 className="w-5 h-5"/></button>
                 </div>
               ))}
             </div>
@@ -193,9 +218,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
 
               <div className="flex flex-wrap gap-1.5">
                 {(subcategories[selectedCatForSub] || []).map(sub => (
-                  <div key={sub} className="bg-white text-indigo-600 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-indigo-100 flex items-center gap-1.5">
+                  <div key={sub} className="bg-white text-indigo-600 px-2 py-1.5 rounded-md text-[10px] font-black uppercase border border-indigo-100 flex items-center gap-1">
                     {sub}
-                    <button onClick={() => removeSubcategory(selectedCatForSub, sub)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-2.5 h-2.5"/></button>
+                    <button type="button" onClick={() => removeSubcategory(selectedCatForSub, sub)} className="min-w-[44px] min-h-[44px] -m-0.5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50" aria-label={`Eliminar ${sub}`}><Trash2 className="w-4 h-4"/></button>
                   </div>
                 ))}
               </div>
@@ -216,9 +241,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
             </div>
             <div className="flex flex-wrap gap-2">
               {materials.map(mat => (
-                <div key={mat} className="bg-teal-50 text-teal-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-teal-100 flex items-center gap-2">
+                <div key={mat} className="bg-teal-50 text-teal-700 px-3 py-2 rounded-lg text-xs font-bold border border-teal-100 flex items-center gap-2">
                   {mat}
-                  <button onClick={() => removeMaterial(mat)} className="text-teal-300 hover:text-red-500"><Trash2 className="w-3 h-3"/></button>
+                  <button type="button" onClick={() => removeMaterial(mat)} className="min-w-[44px] min-h-[44px] -m-1 flex items-center justify-center rounded-lg text-teal-300 hover:text-red-500 hover:bg-red-50 transition-colors" aria-label={`Eliminar material ${mat}`}><Trash2 className="w-5 h-5"/></button>
                 </div>
               ))}
             </div>
@@ -250,9 +275,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
               {Object.keys(sizeSystems).map(name => (
-                <div key={name} className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-200 flex items-center gap-2">
+                <div key={name} className="bg-amber-50 text-amber-800 px-3 py-2 rounded-lg text-xs font-bold border border-amber-200 flex items-center gap-2">
                   {name}
-                  <button onClick={() => removeSizeSystem(name)} disabled={Object.keys(sizeSystems).length <= 1} className="text-amber-400 hover:text-red-500 disabled:opacity-30"><Trash2 className="w-3 h-3"/></button>
+                  <button type="button" onClick={() => removeSizeSystem(name)} disabled={Object.keys(sizeSystems).length <= 1} className="min-w-[44px] min-h-[44px] -m-1 flex items-center justify-center rounded-lg text-amber-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" aria-label={`Eliminar sistema ${name}`}><Trash2 className="w-5 h-5"/></button>
                 </div>
               ))}
             </div>
@@ -278,9 +303,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {(sizeSystems[selectedSizeSystem] || []).map(s => (
-                  <div key={s} className="bg-white text-amber-700 px-2 py-1 rounded-md text-[10px] font-black border border-amber-100 flex items-center gap-1.5">
+                  <div key={s} className="bg-white text-amber-700 px-2 py-1.5 rounded-md text-[10px] font-black border border-amber-100 flex items-center gap-1">
                     {s}
-                    <button onClick={() => removeSizeFromSystem(selectedSizeSystem, s)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-2.5 h-2.5"/></button>
+                    <button type="button" onClick={() => removeSizeFromSystem(selectedSizeSystem, s)} className="min-w-[44px] min-h-[44px] -m-0.5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50" aria-label={`Quitar talle ${s}`}><Trash2 className="w-4 h-4"/></button>
                   </div>
                 ))}
               </div>

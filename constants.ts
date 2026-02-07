@@ -194,15 +194,15 @@ export const DEFAULT_SIZE_SYSTEMS: Record<string, string[]> = {
 };
 
 export const DEFAULT_CATEGORY_SIZE_MAP: Record<string, string> = {
-  'Tejidos y Abrigos': 'LETRAS',
-  'Prendas Superiores': 'LETRAS',
-  'Prendas Inferiores': 'NUMEROS_ROPA',
-  'Piezas Enteras': 'LETRAS',
-  'Accesorios': 'UNICO',
-  'Marroquinería': 'UNICO',
-  'Bijouterie': 'UNICO',
-  'Hogar/Home': 'UNICO',
-  'Otros': 'UNICO'
+  'TEJIDOS Y ABRIGOS': 'LETRAS',
+  'PRENDAS SUPERIORES': 'LETRAS',
+  'PRENDAS INFERIORES': 'NUMEROS_ROPA',
+  'PIEZAS ENTERAS': 'LETRAS',
+  'ACCESORIOS': 'UNICO',
+  'MARROQUINERÍA': 'UNICO',
+  'BIJOUTERIE': 'UNICO',
+  'HOGAR/HOME': 'UNICO',
+  'OTROS': 'UNICO'
 };
 
 export const PAYMENT_METHOD_COLORS: Record<string, { bg: string, text: string, dot: string }> = {
