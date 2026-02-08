@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, AlertTriangle, CalendarDays } from 'lucide-react';
 
 interface SalesHeaderProps {
   date: string;
@@ -16,30 +16,48 @@ const SalesHeader: React.FC<SalesHeaderProps> = ({
 }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
 
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const getYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  };
+
   const adjustDate = (days: number) => {
     const d = new Date(date + 'T12:00:00');
     d.setDate(d.getDate() + days);
     onDateChange(d.toISOString().split('T')[0]);
   };
 
+  const quickButtonStyle = "px-3 h-14 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-primary shadow-sm active:scale-90 transition-all flex items-center justify-center uppercase shrink-0";
+
   return (
     <div className="space-y-3">
       {/* Selector de Fecha y Borrado */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+        {/* BOTÓN AYER */}
+        <button 
+          onClick={() => onDateChange(getYesterdayStr())}
+          className={quickButtonStyle}
+        >
+          Ayer
+        </button>
+
+        {/* SELECTOR CENTRAL */}
+        <div className="flex-1 flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm h-14">
           <button 
             onClick={() => adjustDate(-1)} 
-            className="p-3 text-slate-400 active:scale-75 transition-all"
+            className="p-2 text-slate-400 active:scale-75 transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           
           <div 
             onClick={() => dateInputRef.current?.showPicker()} 
-            className="flex-1 text-center py-2 cursor-pointer"
+            className="flex-1 text-center cursor-pointer flex flex-col justify-center"
           >
-            <span className="font-black text-slate-700 text-sm uppercase">
-              {new Date(date + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+            <span className="font-black text-slate-800 text-sm uppercase leading-none">
+              {new Date(date + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'long' })}
             </span>
             <input 
               ref={dateInputRef} 
@@ -52,16 +70,25 @@ const SalesHeader: React.FC<SalesHeaderProps> = ({
 
           <button 
             onClick={() => adjustDate(1)} 
-            className="p-3 text-slate-400 active:scale-75 transition-all"
+            className="p-2 text-slate-400 active:scale-75 transition-all"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
+        {/* BOTÓN HOY */}
+        <button 
+          onClick={() => onDateChange(getTodayStr())}
+          className={quickButtonStyle}
+        >
+          Hoy
+        </button>
+
+        {/* BOTÓN BORRAR (Solo si hay items y no estamos editando) */}
         {hasItems && !isEdit && (
           <button 
             onClick={onClear}
-            className="p-4 bg-rose-50 border-2 border-rose-100 rounded-2xl text-rose-500 active:scale-90 shadow-sm"
+            className="w-14 h-14 bg-rose-50 border border-rose-100 rounded-2xl text-rose-500 active:scale-90 shadow-sm flex items-center justify-center shrink-0"
           >
             <Trash2 className="w-6 h-6" />
           </button>

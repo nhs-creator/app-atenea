@@ -1,4 +1,4 @@
-export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses';
+export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses' | 'customers';
 export type EntryMode = 'sale' | 'expense';
 export type ExpenseType = 'business' | 'personal';
 
@@ -75,6 +75,17 @@ export interface ProductDraft {
   inventoryId: string;
 }
 
+export interface Client {
+  id: string;
+  user_id: string;
+  name: string;
+  last_name: string;
+  phone: string;
+  email?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface MultiSaleData {
   date: string;
   items: CartItem[];
@@ -83,6 +94,15 @@ export interface MultiSaleData {
   isEdit?: boolean;
   originalClientNumber?: string;
   forceCompleted?: boolean;
+  // Para vincular o crear una clienta durante la venta
+  clientId?: string;
+  clientDraft?: {
+    name: string;
+    lastName: string;
+    phone: string;
+    email?: string;
+  };
+  sendWhatsApp?: boolean;
 }
 
 export interface Sale {
@@ -100,6 +120,9 @@ export interface Sale {
   status: 'completed' | 'pending' | 'cancelled' | 'returned' | 'exchanged';
   size?: string;
   inventory_id?: string;
+  client_id?: string; // Relación con la tabla clients
+  client_name?: string; // Para mostrar sin JOIN
+  client_phone?: string; // Para mostrar sin JOIN
   created_at: string;
   updated_at: string;
   expires_at?: string;

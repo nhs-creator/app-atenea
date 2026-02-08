@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
-  Sale, Expense, InventoryItem, Voucher, 
+  Sale, Expense, InventoryItem, Voucher, Client,
   MultiSaleData, ExpenseFormData, InventoryFormData 
 } from '../types';
 
@@ -10,22 +10,26 @@ export function useAtenea(session: any) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!session || !supabase) return;
     setIsSyncing(true);
     try {
-      const [sRes, iRes, eRes, vRes] = await Promise.all([
+      const [sRes, iRes, eRes, vRes, cRes] = await Promise.all([
         supabase.from('sales').select('*').order('date', { ascending: false }).order('client_number', { ascending: false }).limit(1000),
         supabase.from('inventory').select('*').order('name'),
         supabase.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-        supabase.from('vouchers').select('*').eq('status', 'active').order('created_at', { ascending: false })
+        supabase.from('vouchers').select('*').eq('status', 'active').order('created_at', { ascending: false }),
+        supabase.from('clients').select('*').order('name')
       ]);
+      
       if (sRes.data) setSales(sRes.data as any);
       if (iRes.data) setInventory(iRes.data as any);
       if (eRes.data) setExpenses(eRes.data as any);
       if (vRes.data) setVouchers(vRes.data as any);
+      if (cRes.data) setClients(cRes.data as any);
     } catch (error) {
       console.error("Error syncing:", error);
     } finally {
@@ -39,9 +43,27 @@ export function useAtenea(session: any) {
     if (!session || !supabase) return null;
     setIsSyncing(true);
     try {
+      // 1. Manejo de Cliente (Crear si es nuevo)
+      let finalClientId = data.clientId;
+      if (data.clientDraft && !finalClientId) {
+        const { data: newClient, error: clientErr } = await (supabase.from('clients') as any)
+          .insert({
+            user_id: session.user.id,
+            name: data.clientDraft.name.toUpperCase(),
+            last_name: data.clientDraft.lastName.toUpperCase(),
+            phone: data.clientDraft.phone,
+            email: data.clientDraft.email?.toLowerCase() || null
+          })
+          .select()
+          .single();
+        
+        if (clientErr) throw clientErr;
+        if (newClient) finalClientId = newClient.id;
+      }
+
+      // 2. Cálculos y Ajustes de Venta
       const cartTotal = data.items.reduce((sum, i) => sum + (i.finalPrice * i.quantity), 0);
       const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
-      
       const roundingDiff = totalPaid - cartTotal;
       const finalItemsToSave = [...data.items];
 
@@ -59,45 +81,86 @@ export function useAtenea(session: any) {
 
       const isPending = (totalPaid < (cartTotal + roundingDiff)) && !data.forceCompleted;
       
+      // 3. Generación de Vale si el saldo es negativo
       let generatedVoucher = null;
       if (totalPaid < 0 || (cartTotal + roundingDiff) < 0) {
         const code = `VALE-${data.date.replace(/-/g, '').slice(2)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
-        await (supabase.from('vouchers') as any).insert({ user_id: session.user.id, code, initial_amount: Math.abs(totalPaid), current_amount: Math.abs(totalPaid), status: 'active' });
-        generatedVoucher = { code, amount: Math.abs(totalPaid), expires_at: new Date(Date.now() + 90*24*60*60*1000).toISOString() };
+        await (supabase.from('vouchers') as any).insert({ 
+          user_id: session.user.id, 
+          code, 
+          initial_amount: Math.abs(totalPaid), 
+          current_amount: Math.abs(totalPaid), 
+          status: 'active' 
+        });
+        generatedVoucher = { 
+          code, 
+          amount: Math.abs(totalPaid), 
+          expires_at: new Date(Date.now() + 90*24*60*60*1000).toISOString() 
+        };
       }
 
+      // 4. Marcar vales usados
       for (const p of data.payments) {
-        if (p.method === 'Vale' && p.voucherCode) await (supabase.from('vouchers') as any).update({ status: 'used' }).eq('code', p.voucherCode);
+        if (p.method === 'Vale' && p.voucherCode) {
+          await (supabase.from('vouchers') as any).update({ status: 'used' }).eq('code', p.voucherCode);
+        }
       }
 
-      const semanticId = data.isEdit ? data.originalClientNumber : 
-        `${data.items.some(i => i.isReturn) ? 'C' : (isPending ? 'S' : 'V')}${data.date.replace(/-/g, '').slice(2)}-${(sales.filter(s => s.date === data.date).length + 1).toString().padStart(3, '0')}`;
+      // 5. Generación de ID Semántico (CORREGIDO para evitar saltos)
+      let semanticId = data.originalClientNumber;
+      if (!data.isEdit) {
+        const prefix = data.items.some(i => i.isReturn) ? 'C' : (isPending ? 'S' : 'V');
+        const datePart = data.date.replace(/-/g, '').slice(2);
+        
+        // Obtenemos cuántas VENTAS ÚNICAS hubo hoy
+        const todaySales = sales.filter(s => s.date === data.date);
+        const uniqueGroups = new Set(todaySales.map(s => s.client_number));
+        const nextNum = uniqueGroups.size + 1;
+        
+        semanticId = `${prefix}${datePart}-${nextNum.toString().padStart(3, '0')}`;
+      }
 
-      if (data.isEdit) await (supabase.from('sales') as any).delete().eq('client_number', data.originalClientNumber);
+      // 6. Guardado de Items de Venta
+      if (data.isEdit) {
+        await (supabase.from('sales') as any).delete().eq('client_number', data.originalClientNumber);
+      }
       
-      await (supabase.from('sales') as any).insert(finalItemsToSave.map(item => ({
-        date: data.date, client_number: semanticId, 
+      const { error: saveErr } = await (supabase.from('sales') as any).insert(finalItemsToSave.map(item => ({
+        date: data.date, 
+        client_number: semanticId, 
         product_name: item.isReturn ? `(DEVOLUCIÓN) ${item.product}` : item.product,
-        quantity: item.quantity, price: item.finalPrice, list_price: item.listPrice, cost_price: item.cost_price,
-        payment_method: data.payments[0]?.method || 'Efectivo', payment_details: data.payments,
+        quantity: item.quantity, 
+        price: item.finalPrice, 
+        list_price: item.listPrice, 
+        cost_price: item.cost_price,
+        payment_method: data.payments[0]?.method || 'Efectivo', 
+        payment_details: data.payments,
         status: isPending ? 'pending' : 'completed', 
         expires_at: isPending ? new Date(Date.now() + 90*24*60*60*1000).toISOString() : null,
-        size: item.size, inventory_id: item.inventory_id, user_id: session.user.id
+        size: item.size, 
+        inventory_id: item.inventory_id, 
+        client_id: finalClientId, // Vínculo con la nueva tabla
+        user_id: session.user.id
       })));
 
+      if (saveErr) throw saveErr;
+
+      // 7. Actualización de Stock
       for (const item of data.items) {
         if (item.inventory_id && item.size) {
           const invItem = inventory.find(i => i.id === item.inventory_id);
           if (invItem) {
+            const currentStock = invItem.sizes[item.size] || 0;
+            const newQty = item.isReturn ? currentStock + item.quantity : currentStock - item.quantity;
             await (supabase.from('inventory') as any).update({ 
-              sizes: { ...invItem.sizes, [item.size]: (invItem.sizes[item.size] || 0) + (item.isReturn ? item.quantity : -item.quantity) } 
+              sizes: { ...invItem.sizes, [item.size]: newQty } 
             }).eq('id', invItem.id);
           }
         }
       }
       
       await fetchData();
-      return { success: true, voucher: generatedVoucher };
+      return { success: true, voucher: generatedVoucher, client_number: semanticId };
     } catch (error) {
       console.error(error);
       return { success: false, error };
@@ -118,7 +181,9 @@ export function useAtenea(session: any) {
             if (invItem) {
               const currentStock = invItem.sizes[item.size] || 0;
               const delta = Number(item.price) < 0 ? -item.quantity : item.quantity;
-              await (supabase.from('inventory') as any).update({ sizes: { ...invItem.sizes, [item.size]: currentStock + delta } }).eq('id', invItem.id);
+              await (supabase.from('inventory') as any).update({ 
+                sizes: { ...invItem.sizes, [item.size]: currentStock + delta } 
+              }).eq('id', invItem.id);
             }
           }
         }
@@ -137,7 +202,7 @@ export function useAtenea(session: any) {
         description: formData.description, 
         amount: parseFloat(formData.amount) || 0, 
         category: formData.category,
-        type: formData.type, // 'business' | 'personal'
+        type: formData.type,
         has_invoice_a: formData.hasInvoiceA, 
         invoice_amount: formData.hasInvoiceA ? (parseFloat(formData.invoiceAmount) || 0) : 0, 
       };
@@ -242,5 +307,64 @@ export function useAtenea(session: any) {
     }
   };
 
-  return { sales, expenses, inventory, vouchers, isSyncing, saveMultiSale, deleteTransaction, saveExpense, deleteExpense, fetchData, addInventory, updateInventory, deleteInventory };
+  const saveClient = async (client: Partial<Client>) => {
+    if (!session || !supabase) return;
+    setIsSyncing(true);
+    try {
+      const payload = {
+        user_id: session.user.id,
+        name: client.name?.toUpperCase(),
+        last_name: client.last_name?.toUpperCase(),
+        phone: client.phone,
+        email: client.email?.toLowerCase() || null,
+      };
+
+      if (client.id) {
+        await (supabase.from('clients') as any).update(payload).eq('id', client.id);
+      } else {
+        await (supabase.from('clients') as any).insert(payload);
+      }
+      await fetchData();
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving client:', error);
+      return { success: false, error };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    if (!supabase || !window.confirm('¿Borrar esta clienta?')) return;
+    setIsSyncing(true);
+    try {
+      await (supabase.from('clients') as any).delete().eq('id', id);
+      await fetchData();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      return { success: false, error };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  return { 
+    sales, 
+    expenses, 
+    inventory, 
+    vouchers, 
+    clients, 
+    isSyncing, 
+    saveMultiSale, 
+    deleteTransaction, 
+    saveExpense, 
+    deleteExpense, 
+    fetchData, 
+    addInventory, 
+    updateInventory, 
+    deleteInventory,
+    saveClient,
+    deleteClient
+  };
 }

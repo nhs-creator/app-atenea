@@ -20,12 +20,17 @@ const CartDisplay: React.FC<CartDisplayProps> = ({ items, itemFinalPrices, onRem
           key={item.id} 
           className="flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm"
         >
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-xs text-slate-700 truncate uppercase tracking-tighter">
-              {item.quantity > 1 && <span className="text-primary mr-1">{item.quantity}x</span>}
-              {item.product}
-            </p>
-          </div>
+<div className="min-w-0 flex-1">
+  <p className="font-bold text-xs text-slate-700 truncate uppercase tracking-tighter">
+    {item.quantity > 1 && <span className="text-primary mr-1">{item.quantity}x</span>}
+    {item.product}
+    {item.size && (
+      <span className="ml-1 text-slate-400 font-medium">
+        [{item.size}]
+      </span>
+    )}
+  </p>
+</div>
           
           <div className="flex items-center gap-1">
             <p className="font-black text-primary text-sm mr-2">
