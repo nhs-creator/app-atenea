@@ -138,8 +138,8 @@ export function useAtenea(session: any) {
         status: isPending ? 'pending' : 'completed', 
         expires_at: isPending ? new Date(Date.now() + 90*24*60*60*1000).toISOString() : null,
         size: item.size, 
-        inventory_id: item.inventory_id, 
-        client_id: finalClientId, // Vínculo con la nueva tabla
+        inventory_id: item.inventory_id || null, 
+        client_id: finalClientId || null, // Vínculo con la nueva tabla
         user_id: session.user.id
       })));
 
