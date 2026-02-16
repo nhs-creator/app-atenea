@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
-import { Plus, Search, Trash2, Package, Save, X, ChevronDown, Ruler, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { InventoryMovements } from './inventory/InventoryMovements';
+import InventoryFilters from './inventory/InventoryFilters';
+import InventoryReporte from './inventory/InventoryReporte';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
@@ -16,13 +19,15 @@ const InventoryCard = React.memo(({
   onEdit,
   onDeleteRequest, 
   deleteConfirmId, 
-  setDeleteConfirmId 
+  setDeleteConfirmId,
+  onShowHistory
 }: { 
   item: InventoryItem, 
   onEdit: (item: InventoryItem) => void,
   onDeleteRequest: (id: string) => void,
   deleteConfirmId: string | null,
-  setDeleteConfirmId: (id: string | null) => void
+  setDeleteConfirmId: (id: string | null) => void,
+  onShowHistory: (id: string, name: string) => void
 }) => {
   
   const realStock = useMemo(() => {
@@ -91,6 +96,14 @@ const InventoryCard = React.memo(({
         {/* Compact Actions Area */}
         <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100">
           <button 
+            onClick={() => onShowHistory(item.id, item.name)} 
+            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all active:scale-90"
+            aria-label="Historial"
+            title="Ver historial de movimientos"
+          >
+            <History className="w-5 h-5" />
+          </button>
+          <button 
             onClick={() => onEdit(item)} 
             className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white rounded-xl transition-all active:scale-90"
             aria-label="Editar"
@@ -122,24 +135,55 @@ const InventoryCard = React.memo(({
 });
 
 const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete }) => {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
+  
+  // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [visibleCount, setVisibleCount] = useState(25);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [selectedMaterial, setSelectedMaterial] = useState('');
+  const [stockLevel, setStockLevel] = useState<'all' | 'out' | 'low' | 'normal' | 'high'>('all');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
+  
+  // UI state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showMovements, setShowMovements] = useState<{id: string, name: string} | null>(null);
 
+  // Debounce search
   useEffect(() => {
-    const handler = setTimeout(() => { setDebouncedSearch(searchTerm); setVisibleCount(25); }, 300);
+    const handler = setTimeout(() => { 
+      setDebouncedSearch(searchTerm); 
+      setCurrentPage(1); // Reset to page 1 when search changes
+    }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedSubcategory, selectedMaterial, stockLevel]);
 
   const categories = config.categories || [];
   const subcategoriesMap = config.subcategories || {};
   const materials = config.materials || [];
 
+  // Get available subcategories for selected category
+  const availableSubcategories = useMemo(() => {
+    if (!selectedCategory) return [];
+    return subcategoriesMap[selectedCategory] || [];
+  }, [selectedCategory, subcategoriesMap]);
+
   const [formData, setFormData] = useState<InventoryFormData>({
-    name: '', category: categories[0] || '', subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '', minStock: ''
+    name: '', category: categories[0] || '', subcategory: '', material: '', sizes: {}, costPrice: '', sellingPrice: '', minStock: '', sku: '', barcode: ''
   });
 
   const activeSizeSystem = useMemo(() => {
@@ -177,7 +221,9 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
       sizes: mappedSizes,
       costPrice: String(item.cost_price || ''),
       sellingPrice: String(item.selling_price || ''),
-      minStock: String(item.min_stock || 0)
+      minStock: String(item.min_stock || 0),
+      sku: item.sku || '',
+      barcode: item.barcode || ''
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -201,7 +247,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         cost_price: parseFloat(formData.costPrice) || 0,
         selling_price: parseFloat(formData.sellingPrice) || 0,
         min_stock: parseInt(formData.minStock, 10) || 0,
-        last_updated: new Date().toISOString()
+        // updated_at se actualiza automáticamente via trigger
       } as any);
     } else {
       const dataToAdd: InventoryFormData = {
@@ -224,33 +270,72 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
 
   const filteredInventory = useMemo(() => {
     const lowSearch = debouncedSearch.toLowerCase();
-    return inventory.filter(item => 
-      item.name.toLowerCase().includes(lowSearch) ||
-      (item.subcategory && item.subcategory.toLowerCase().includes(lowSearch))
-    ).sort((a, b) => {
-       const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
-       const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
-       return dateB - dateA;
+    return inventory.filter(item => {
+      // Text search
+      const matchesSearch = !debouncedSearch || 
+        item.name.toLowerCase().includes(lowSearch) ||
+        (item.subcategory && item.subcategory.toLowerCase().includes(lowSearch));
+      
+      // Category filter
+      const matchesCategory = !selectedCategory || item.category === selectedCategory;
+      
+      // Subcategory filter
+      const matchesSubcategory = !selectedSubcategory || item.subcategory === selectedSubcategory;
+      
+      // Material filter
+      const matchesMaterial = !selectedMaterial || item.material === selectedMaterial;
+      
+      // Stock level filter
+      const matchesStockLevel = (() => {
+        if (stockLevel === 'all') return true;
+        if (stockLevel === 'out') return item.stock_total === 0;
+        if (stockLevel === 'low') return item.stock_total > 0 && item.stock_total <= 5;
+        if (stockLevel === 'normal') return item.stock_total > 5 && item.stock_total <= 20;
+        if (stockLevel === 'high') return item.stock_total > 20;
+        return true;
+      })();
+      
+      return matchesSearch && matchesCategory && matchesSubcategory && matchesMaterial && matchesStockLevel;
+    }).sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dateB - dateA;
     });
-  }, [inventory, debouncedSearch]);
+  }, [inventory, debouncedSearch, selectedCategory, selectedSubcategory, selectedMaterial, stockLevel]);
 
-  const displayedItems = useMemo(() => filteredInventory.slice(0, visibleCount), [filteredInventory, visibleCount]);
+  // Paginated items
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredInventory.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredInventory, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center px-1">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">Inventario</h2>
-          <p className="text-xs text-slate-500">{filteredInventory.length} productos</p>
+    <div className="space-y-4">
+      {/* Tab Selector */}
+      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-2 pb-2">
+        <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
+          <button 
+            onClick={() => setActiveTab('stock')} 
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              activeTab === 'stock' ? 'bg-white text-primary shadow-md scale-[1.02]' : 'text-slate-500'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" /> STOCK
+          </button>
+          <button 
+            onClick={() => setActiveTab('reporte')} 
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              activeTab === 'reporte' ? 'bg-white text-indigo-600 shadow-md scale-[1.02]' : 'text-slate-500'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" /> REPORTE STOCK
+          </button>
         </div>
-        <button 
-          onClick={() => { if(showForm) resetForm(); else setShowForm(true); }}
-          className={`w-12 h-12 rounded-2xl shadow-lg transition-all flex items-center justify-center ${showForm ? 'bg-slate-200 text-slate-600' : 'bg-primary text-white'}`}
-        >
-          {showForm ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
-        </button>
       </div>
 
+      {/* Form Modal (overlay, shown regardless of tab) */}
       {showForm && (
         <div className="bg-white rounded-3xl shadow-xl border border-teal-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <h3 className="font-bold text-teal-900 mb-5 flex items-center gap-2 text-lg">
@@ -293,6 +378,31 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
               </select>
             </div>
 
+            {/* SKU/Barcode fields hidden for future QR implementation
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">SKU (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={formData.sku || ''} 
+                  onChange={(e) => setFormData({...formData, sku: e.target.value.toUpperCase()})} 
+                  placeholder="Ej: SKU-001" 
+                  className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-mono uppercase focus:border-primary outline-none transition-all" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Código de Barras (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={formData.barcode || ''} 
+                  onChange={(e) => setFormData({...formData, barcode: e.target.value})} 
+                  placeholder="1234567890123" 
+                  className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-mono focus:border-primary outline-none transition-all" 
+                />
+              </div>
+            </div>
+            */}
+
             <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
               <label className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-2">
                 <Ruler className="w-3.5 h-3.5" /> Distribución de Talles
@@ -312,14 +422,33 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Precio Costo</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                  <input type="text" inputMode="decimal" value={formData.costPrice} onChange={(e) => setFormData({...formData, costPrice: e.target.value.replace(/[^\d.]/g, '')})} className="w-full h-12 pl-7 pr-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black" />
+                  <input 
+                    type="text" 
+                    inputMode="decimal" 
+                    value={formData.costPrice ? parseFloat(formData.costPrice).toLocaleString('es-AR') : ''} 
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/\./g, '').replace(/[^\d]/g, '');
+                      setFormData({...formData, costPrice: rawValue});
+                    }} 
+                    className="w-full h-12 pl-7 pr-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black" 
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Precio Venta</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold">$</span>
-                  <input type="text" inputMode="decimal" value={formData.sellingPrice} onChange={(e) => setFormData({...formData, sellingPrice: e.target.value.replace(/[^\d.]/g, '')})} className="w-full h-12 pl-7 pr-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-primary" required />
+                  <input 
+                    type="text" 
+                    inputMode="decimal" 
+                    value={formData.sellingPrice ? parseFloat(formData.sellingPrice).toLocaleString('es-AR') : ''} 
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/\./g, '').replace(/[^\d]/g, '');
+                      setFormData({...formData, sellingPrice: rawValue});
+                    }} 
+                    className="w-full h-12 pl-7 pr-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-primary" 
+                    required 
+                  />
                 </div>
               </div>
             </div>
@@ -334,35 +463,103 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         </div>
       )}
 
-      <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar prenda o subcategoría..." className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-primary outline-none font-bold text-slate-700" />
-      </div>
+      {/* Tab Content */}
+      {activeTab === 'stock' ? (
+        <div className="space-y-6 pb-24 animate-in fade-in duration-300">
+          {/* Filters Component */}
+          <InventoryFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedCategory={selectedCategory}
+            onCategoryChange={(val) => {
+              setSelectedCategory(val);
+              setSelectedSubcategory(''); // Reset subcategory when category changes
+            }}
+            selectedSubcategory={selectedSubcategory}
+            onSubcategoryChange={setSelectedSubcategory}
+            selectedMaterial={selectedMaterial}
+            onMaterialChange={setSelectedMaterial}
+            stockLevel={stockLevel}
+            onStockLevelChange={setStockLevel}
+            categories={categories}
+            subcategories={availableSubcategories}
+            materials={materials}
+            totalResults={filteredInventory.length}
+          />
 
-      <div className="space-y-4">
-        {displayedItems.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-200">
-             <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
-             <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">No hay productos</p>
+          {/* Product List */}
+          <div className="space-y-4">
+            {paginatedItems.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-200">
+                <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">
+                  {filteredInventory.length === 0 ? 'No hay productos que coincidan con los filtros' : 'No hay productos'}
+                </p>
+              </div>
+            ) : (
+              paginatedItems.map(item => (
+                <InventoryCard 
+                  key={item.id} 
+                  item={item} 
+                  onEdit={handleEdit}
+                  onDeleteRequest={onDelete}
+                  deleteConfirmId={deleteConfirmId}
+                  setDeleteConfirmId={setDeleteConfirmId}
+                  onShowHistory={(id, name) => setShowMovements({id, name})}
+                />
+              ))
+            )}
           </div>
-        ) : (
-          displayedItems.map(item => (
-            <InventoryCard 
-              key={item.id} 
-              item={item} 
-              onEdit={handleEdit}
-              onDeleteRequest={onDelete}
-              deleteConfirmId={deleteConfirmId}
-              setDeleteConfirmId={setDeleteConfirmId}
-            />
-          ))
-        )}
-        {filteredInventory.length > visibleCount && (
-          <button onClick={() => setVisibleCount(v => v + 25)} className="w-full py-5 text-primary font-black text-xs uppercase tracking-[0.2em] bg-indigo-50/50 rounded-3xl border border-indigo-100/50 hover:bg-indigo-50 transition-colors">
-            Ver más productos <ChevronDown className="w-4 h-4 inline ml-1" />
-          </button>
-        )}
-      </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Anterior
+              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-slate-600">
+                  Página <span className="text-primary text-lg">{currentPage}</span> de {totalPages}
+                </span>
+                <span className="text-xs text-slate-400 font-bold">
+                  ({filteredInventory.length} {filteredInventory.length === 1 ? 'producto' : 'productos'})
+                </span>
+              </div>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+              >
+                Siguiente <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <InventoryReporte inventory={inventory} />
+      )}
+
+      {/* Inventory Movements Modal */}
+      {showMovements && (
+        <InventoryMovements
+          inventoryId={showMovements.id}
+          inventoryName={showMovements.name}
+          onClose={() => setShowMovements(null)}
+        />
+      )}
+
+      {/* Floating Add Button */}
+      <button
+        onClick={() => setShowForm(true)}
+        className="fixed bottom-24 right-6 w-16 h-16 bg-primary text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"
+        aria-label="Agregar producto"
+      >
+        <Plus className="w-8 h-8" />
+      </button>
     </div>
   );
 };

@@ -101,7 +101,7 @@ SET default_tablespace = '';
 SET default_table_access_method = "heap";
 
 
-CREATE TABLE IF NOT EXISTS "public"."customers" (
+CREATE TABLE IF NOT EXISTS "public"."clients" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "user_id" "uuid",
     "name" "text" NOT NULL,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS "public"."customers" (
 );
 
 
-ALTER TABLE "public"."customers" OWNER TO "postgres";
+ALTER TABLE "public"."clients" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."expenses" (
@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS "public"."sales" (
     "expires_at" "date",
     "payment_details" "jsonb" DEFAULT '[]'::"jsonb",
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "customer_id" "uuid",
+    "client_id" "uuid",
     CONSTRAINT "sales_status_check" CHECK (("status" = ANY (ARRAY['completed'::"text", 'pending'::"text", 'cancelled'::"text", 'returned'::"text", 'exchanged'::"text"])))
 );
 
@@ -247,7 +247,7 @@ COMMENT ON TABLE "public"."vouchers" IS 'Tabla para gestionar notas de crédito 
 
 
 
-ALTER TABLE ONLY "public"."customers"
+ALTER TABLE ONLY "public"."clients"
     ADD CONSTRAINT "customers_pkey" PRIMARY KEY ("id");
 
 
@@ -302,11 +302,11 @@ ALTER TABLE ONLY "public"."vouchers"
 
 
 
-CREATE INDEX "idx_customers_phone" ON "public"."customers" USING "btree" ("phone");
+CREATE INDEX "idx_customers_phone" ON "public"."clients" USING "btree" ("phone");
 
 
 
-CREATE INDEX "idx_customers_user_id" ON "public"."customers" USING "btree" ("user_id");
+CREATE INDEX "idx_customers_user_id" ON "public"."clients" USING "btree" ("user_id");
 
 
 
@@ -350,7 +350,7 @@ CREATE OR REPLACE TRIGGER "trg_sales_updated_at" BEFORE UPDATE ON "public"."sale
 
 
 
-ALTER TABLE ONLY "public"."customers"
+ALTER TABLE ONLY "public"."clients"
     ADD CONSTRAINT "customers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
@@ -376,7 +376,7 @@ ALTER TABLE ONLY "public"."profiles"
 
 
 ALTER TABLE ONLY "public"."sales"
-    ADD CONSTRAINT "sales_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "sales_customer_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE SET NULL;
 
 
 
@@ -442,11 +442,11 @@ CREATE POLICY "RLS_Vouchers" ON "public"."vouchers" USING ((( SELECT "auth"."uid
 
 
 
-CREATE POLICY "Users can manage their own customers" ON "public"."customers" TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can manage their own customers" ON "public"."clients" TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
-ALTER TABLE "public"."customers" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."clients" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."expenses" ENABLE ROW LEVEL SECURITY;
@@ -668,9 +668,9 @@ GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."customers" TO "anon";
-GRANT ALL ON TABLE "public"."customers" TO "authenticated";
-GRANT ALL ON TABLE "public"."customers" TO "service_role";
+GRANT ALL ON TABLE "public"."clients" TO "anon";
+GRANT ALL ON TABLE "public"."clients" TO "authenticated";
+GRANT ALL ON TABLE "public"."clients" TO "service_role";
 
 
 

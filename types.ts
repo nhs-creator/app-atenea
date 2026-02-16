@@ -164,9 +164,13 @@ export interface InventoryItem {
   cost_price: number;
   selling_price: number;
   sizes: Record<string, number>;
-  min_stock: number;
+  stock_total: number;
+  min_stock?: number;
   image_url?: string;
+  sku?: string;
+  barcode?: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Voucher {
@@ -198,5 +202,7 @@ export interface InventoryFormData {
   costPrice: string;
   sellingPrice: string;
   sizes: Record<string, number>;
-  minStock: string;
+  minStock?: string;
+  sku?: string;
+  barcode?: string;
 }

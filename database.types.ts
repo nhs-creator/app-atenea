@@ -53,7 +53,7 @@ export interface Database {
           cost_price: number
           created_at: string
           id: string
-          last_updated: string
+          updated_at: string
           material: string | null
           name: string
           selling_price: number
@@ -61,13 +61,15 @@ export interface Database {
           stock_total: number
           subcategory: string | null
           user_id: string
+          sku: string | null
+          barcode: string | null
         }
         Insert: {
           category: string
           cost_price?: number
           created_at?: string
           id?: string
-          last_updated?: string
+          updated_at?: string
           material?: string | null
           name: string
           selling_price?: number
@@ -75,13 +77,15 @@ export interface Database {
           stock_total?: number // Opcional en el insert porque el trigger lo calcula
           subcategory?: string | null
           user_id?: string
+          sku?: string | null
+          barcode?: string | null
         }
         Update: {
           category?: string
           cost_price?: number
           created_at?: string
           id?: string
-          last_updated?: string
+          updated_at?: string
           material?: string | null
           name?: string
           selling_price?: number
@@ -89,6 +93,8 @@ export interface Database {
           stock_total?: number
           subcategory?: string | null
           user_id?: string
+          sku?: string | null
+          barcode?: string | null
         }
       }
       profiles: {

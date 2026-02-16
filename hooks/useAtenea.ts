@@ -143,21 +143,16 @@ export function useAtenea(session: any) {
         user_id: session.user.id
       })));
 
-      if (saveErr) throw saveErr;
-
-      // 7. Actualización de Stock
-      for (const item of data.items) {
-        if (item.inventory_id && item.size) {
-          const invItem = inventory.find(i => i.id === item.inventory_id);
-          if (invItem) {
-            const currentStock = invItem.sizes[item.size] || 0;
-            const newQty = item.isReturn ? currentStock + item.quantity : currentStock - item.quantity;
-            await (supabase.from('inventory') as any).update({ 
-              sizes: { ...invItem.sizes, [item.size]: newQty } 
-            }).eq('id', invItem.id);
-          }
+      if (saveErr) {
+        // Check for insufficient stock error
+        if (saveErr.message?.includes('Insufficient stock')) {
+          throw new Error('No hay suficiente stock disponible para completar esta venta. Por favor verifica el inventario.');
         }
+        throw saveErr;
       }
+
+      // 7. Stock se actualiza AUTOMÁTICAMENTE via trigger en la base de datos
+      // Ya no necesitamos actualizar manualmente - el trigger handle_sale_stock_change lo hace
       
       await fetchData();
       return { success: true, voucher: generatedVoucher, client_number: semanticId };
@@ -173,21 +168,13 @@ export function useAtenea(session: any) {
     if (!supabase) return;
     setIsSyncing(true);
     try {
-      const { data: items } = await (supabase.from('sales').select('*').eq('client_number', clientNumber) as any);
-      if (items) {
-        for (const item of items) {
-          if (item.inventory_id && item.size) {
-            const invItem = inventory.find(i => i.id === item.inventory_id);
-            if (invItem) {
-              const currentStock = invItem.sizes[item.size] || 0;
-              const delta = Number(item.price) < 0 ? -item.quantity : item.quantity;
-              await (supabase.from('inventory') as any).update({ 
-                sizes: { ...invItem.sizes, [item.size]: currentStock + delta } 
-              }).eq('id', invItem.id);
-            }
-          }
-        }
-      }
+      // Stock se restaura AUTOMÁTICAMENTE cuando actualizamos el status a 'cancelled'
+      // Primero actualizamos a 'cancelled' para que el trigger restaure el stock
+      await (supabase.from('sales') as any)
+        .update({ status: 'cancelled' })
+        .eq('client_number', clientNumber);
+      
+      // Ahora eliminamos (el stock ya fue restaurado por el trigger)
       await (supabase.from('sales') as any).delete().eq('client_number', clientNumber);
       await fetchData();
     } finally { setIsSyncing(false); }
@@ -279,7 +266,9 @@ export function useAtenea(session: any) {
         cost_price: item.cost_price,
         selling_price: item.selling_price,
         sizes: item.sizes,
-        last_updated: new Date().toISOString(),
+        sku: item.sku || undefined,
+        barcode: item.barcode || undefined,
+        // updated_at se actualiza automáticamente via trigger
       };
       await (supabase.from('inventory') as any).update(payload).eq('id', item.id).eq('user_id', session.user.id);
       await fetchData();
