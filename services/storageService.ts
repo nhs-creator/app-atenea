@@ -1,5 +1,5 @@
 import { Sale, Expense, InventoryItem, AppConfig } from '../types';
-import { STORAGE_KEYS, DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS, DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
+import { STORAGE_KEYS, DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS, DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP, DEFAULT_OPEN_DAYS } from '../constants';
 
 const SESSION_KEY = 'boutique_last_session';
 
@@ -69,7 +69,8 @@ export const getConfigLocally = (): AppConfig => {
       subcategories: DEFAULT_CATEGORY_MAP,
       materials: DEFAULT_MATERIALS,
       sizeSystems: DEFAULT_SIZE_SYSTEMS,
-      categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP
+      categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP,
+      openDays: DEFAULT_OPEN_DAYS
     };
   }
   const config = JSON.parse(data);
@@ -79,7 +80,8 @@ export const getConfigLocally = (): AppConfig => {
     subcategories: config.subcategories || DEFAULT_CATEGORY_MAP,
     materials: config.materials || DEFAULT_MATERIALS,
     sizeSystems: config.sizeSystems || DEFAULT_SIZE_SYSTEMS,
-    categorySizeMap: config.categorySizeMap || DEFAULT_CATEGORY_SIZE_MAP
+    categorySizeMap: config.categorySizeMap || DEFAULT_CATEGORY_SIZE_MAP,
+    openDays: config.openDays ?? DEFAULT_OPEN_DAYS
   };
 };
 

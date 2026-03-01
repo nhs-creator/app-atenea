@@ -7,11 +7,15 @@ interface StatsBreakdownProps {
   viewMode: 'business' | 'personal';
   topExpenses: { name: string, value: number }[];
   totalExpenses: number;
+  /** Monto a descontar del total (ej. compra de USD) - solo para vista personal */
+  excludeFromTotal?: number;
 }
 
 const StatsBreakdown: React.FC<StatsBreakdownProps> = ({ 
-  viewMode, topExpenses, totalExpenses 
+  viewMode, topExpenses, totalExpenses, excludeFromTotal = 0 
 }) => {
+  const totalDisplay = totalExpenses - excludeFromTotal;
+
   return (
     <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -47,10 +51,25 @@ const StatsBreakdown: React.FC<StatsBreakdownProps> = ({
                     </div>
                   </div>
                 </div>
-                <p className="text-sm font-black text-slate-600">-${value.toLocaleString('es-AR')}</p>
+                <div className="min-w-0 max-w-[45%] ml-2 text-right">
+                  <p className="text-xs font-black text-slate-600 truncate" title={`-$${value.toLocaleString('es-AR')}`}>-${value.toLocaleString('es-AR')}</p>
+                </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {topExpenses.length > 0 && (
+        <div className={`mt-4 pt-4 border-t-2 ${viewMode === 'business' ? 'border-rose-100' : 'border-pink-100'}`}>
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+              {excludeFromTotal > 0 ? 'Total (sin compra USD)' : 'Total'}
+            </span>
+            <p className={`text-sm font-black ${viewMode === 'business' ? 'text-rose-600' : 'text-pink-600'}`}>
+              -${totalDisplay.toLocaleString('es-AR')}
+            </p>
+          </div>
         </div>
       )}
     </div>

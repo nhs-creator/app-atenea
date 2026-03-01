@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Save, AlertCircle, X,
   ArrowDownCircle, Receipt
 } from 'lucide-react';
-import { BUSINESS_CATEGORIES, PERSONAL_CATEGORIES } from '../constants';
+import { BUSINESS_CATEGORIES, PERSONAL_CATEGORIES, DESC_KEYWORDS_TO_CATEGORY } from '../constants';
 import CategoryButton from './CategoryButton';
 
 interface ExpenseFormProps {
@@ -14,12 +14,27 @@ interface ExpenseFormProps {
   onCancelEdit?: () => void;
 }
 
+const parseUsdFromDescription = (desc: string): string => {
+  const match = desc?.match(/^(\d+)\s*DOLARES?/i);
+  return match ? match[1] : '';
+};
+
+const parseOptionalNotesFromDescription = (desc: string): string => {
+  const match = desc?.match(/^\d+\s*DOLARES?\s+-\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+};
+
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ formData, onChange, onSubmit, onCancelEdit }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const currentCategories = formData.type === 'personal' 
     ? PERSONAL_CATEGORIES 
     : BUSINESS_CATEGORIES;
+
+  const isDollarPurchase = formData.category === 'Compra de dólares';
+  const usdAmount = isDollarPurchase ? parseUsdFromDescription(formData.description) : '';
+  const arsAmount = isDollarPurchase ? formData.amount : '';
+  const optionalNotes = isDollarPurchase ? parseOptionalNotesFromDescription(formData.description) : '';
 
   const formatVisual = (num: string | number) => {
     if (!num) return '';
@@ -28,6 +43,36 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ formData, onChange, onSubmit,
   };
   
   const cleanNum = (val: string) => val.replace(/\D/g, '');
+
+  const suggestCategoryFromDescription = (desc: string): { category: string; newDescription?: string } | null => {
+    const lower = desc.toLowerCase().trim();
+    if (!lower) return null;
+    for (const { keywords, category } of DESC_KEYWORDS_TO_CATEGORY) {
+      if (keywords.some(kw => lower.includes(kw))) {
+        const exists = currentCategories.some(c => c.id === category);
+        if (!exists) continue;
+        // Compra de dólares: solo sugerir si hay un número, conservar el texto como descripción
+        if (category === 'Compra de dólares') {
+          const match = desc.match(/(\d+)\s*dolares?/i) || desc.match(/dolares?\s*(\d+)/i);
+          if (match) {
+            return { category, newDescription: desc.trim() };
+          }
+          continue; // sin número, no sugerir (evita perder el texto al cambiar de form)
+        }
+        return { category: category };
+      }
+    }
+    return null;
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    const suggested = suggestCategoryFromDescription(value);
+    onChange({
+      ...formData,
+      description: suggested?.newDescription ?? value,
+      ...(suggested && { category: suggested.category })
+    });
+  };
 
   return (
     <div className="space-y-4 pb-12 animate-in fade-in duration-300">
@@ -60,12 +105,54 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ formData, onChange, onSubmit,
       {/* 2. Datos del Gasto */}
       <div className="bg-white rounded-3xl shadow-xl p-5 border border-slate-100 space-y-4">
         <div className="space-y-4">
-          <input type="text" placeholder="¿EN QUÉ GASTASTE?" value={formData.description} onChange={(e) => onChange({...formData, description: e.target.value})} className="w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-sm outline-none focus:border-rose-400 transition-all uppercase tracking-tight" />
-          
-          <div className="relative">
-            <span className={`absolute left-5 top-1/2 -translate-y-1/2 font-black text-xl ${formData.type === 'personal' ? 'text-pink-500' : 'text-rose-500'}`}>$</span>
-            <input type="text" inputMode="decimal" placeholder="Monto total" value={formatVisual(formData.amount)} onChange={(e) => onChange({...formData, amount: cleanNum(e.target.value)})} className="w-full h-16 pl-10 pr-5 rounded-2xl bg-slate-50 border-2 border-slate-100 font-black text-2xl outline-none focus:border-rose-400 transition-all text-slate-800" />
-          </div>
+          {/* Campo de descripción siempre visible */}
+          <input
+            type="text"
+            placeholder="¿EN QUÉ GASTASTE?"
+            value={formData.description}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
+            className="w-full h-14 px-5 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-sm outline-none focus:border-rose-400 transition-all uppercase tracking-tight"
+          />
+
+          {/* Campos de compra de dólares (aparecen abajo cuando detecta la categoría) */}
+          {isDollarPurchase && (
+            <div className="bg-green-50/50 rounded-2xl p-4 border-2 border-green-100 space-y-4">
+              <p className="text-[10px] font-black text-green-600 uppercase tracking-widest text-center">Compra de dólares</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Cantidad USD</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-green-600">USD</span>
+                    <input type="text" inputMode="numeric" placeholder="100" value={usdAmount} onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      const base = val ? `${val} DOLARES` : '';
+                      onChange({ ...formData, description: optionalNotes ? `${base} - ${optionalNotes}`.trim() : base });
+                    }} className="w-full h-12 pl-12 pr-3 rounded-xl bg-white border-2 border-green-100 font-black text-lg outline-none focus:border-green-400 text-slate-800" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Pagaste en ARS</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-pink-500">$</span>
+                    <input type="text" inputMode="decimal" placeholder="144.000" value={formatVisual(arsAmount)} onChange={(e) => onChange({ ...formData, amount: cleanNum(e.target.value) })} className="w-full h-12 pl-8 pr-3 rounded-xl bg-white border-2 border-green-100 font-black text-lg outline-none focus:border-green-400 text-slate-800" />
+                  </div>
+                </div>
+              </div>
+              {usdAmount && arsAmount && parseInt(usdAmount, 10) > 0 && (
+                <p className="text-base font-black text-green-700 text-center">
+                  Cotización: ${(parseInt(cleanNum(arsAmount), 10) / parseInt(usdAmount, 10)).toLocaleString('es-AR')} por USD
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Monto total (oculto en compra de dólares: ya se completa en Pagaste en ARS) */}
+          {!isDollarPurchase && (
+            <div className="relative">
+              <span className={`absolute left-5 top-1/2 -translate-y-1/2 font-black text-xl ${formData.type === 'personal' ? 'text-pink-500' : 'text-rose-500'}`}>$</span>
+              <input type="text" inputMode="decimal" placeholder="Monto total" value={formatVisual(formData.amount)} onChange={(e) => onChange({...formData, amount: cleanNum(e.target.value)})} className="w-full h-16 pl-10 pr-5 rounded-2xl bg-slate-50 border-2 border-slate-100 font-black text-2xl outline-none focus:border-rose-400 transition-all text-slate-800" />
+            </div>
+          )}
         </div>
 
         {/* 3. Categorías Dinámicas (Grid de 4) */}

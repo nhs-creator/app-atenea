@@ -29,6 +29,14 @@ export type ExpenseCategory =
   | 'Ocio/Salidas'
   | 'Salud'
   | 'Vivienda'
+  | 'Expensas'
+  | 'Luz'
+  | 'Agua'
+  | 'Gas'
+  | 'ABL'
+  | 'Internet'
+  | 'Compra de dólares'
+  | 'Tarjeta de crédito'
   | 'Suscripciones'
   | 'Otros Personal';
 
@@ -184,6 +192,9 @@ export interface Voucher {
   created_at: string;
 }
 
+/** Días de la semana: 0=Domingo, 1=Lunes, ..., 6=Sábado (getDay de JS) */
+export const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'] as const;
+
 export interface AppConfig {
   categories: string[];
   subcategories: Record<string, string[]>;
@@ -192,6 +203,8 @@ export interface AppConfig {
   sizeSystems: Record<string, string[]>;
   /** Which size system each category uses (e.g. { "Prendas Superiores": "LETRAS" }) */
   categorySizeMap: Record<string, string>;
+  /** Días en que abre el local: 0=Domingo, 1=Lunes, ..., 6=Sábado. Usado por Stats para el gráfico de tendencia. */
+  openDays?: number[];
 }
 
 export interface InventoryFormData {

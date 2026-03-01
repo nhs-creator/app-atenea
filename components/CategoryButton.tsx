@@ -30,10 +30,12 @@ const CategoryButton: React.FC<CategoryButtonProps> = ({
         'cyan': 'bg-cyan-600 border-cyan-700 shadow-lg scale-105',
         'indigo': 'bg-indigo-600 border-indigo-700 shadow-lg scale-105',
         'emerald': 'bg-emerald-600 border-emerald-700 shadow-lg scale-105',
+        'green': 'bg-green-600 border-green-700 shadow-lg scale-105',
         'amber': 'bg-amber-600 border-amber-700 shadow-lg scale-105',
         'red': 'bg-red-600 border-red-700 shadow-lg scale-105',
         'teal': 'bg-teal-600 border-teal-700 shadow-lg scale-105',
         'pink': 'bg-pink-600 border-pink-700 shadow-lg scale-105',
+        'sky': 'bg-sky-600 border-sky-700 shadow-lg scale-105',
       };
       return `${baseClasses} ${activeColors[color] || ''}`;
     } else {
@@ -47,10 +49,12 @@ const CategoryButton: React.FC<CategoryButtonProps> = ({
         'cyan': 'hover:border-cyan-300 hover:bg-cyan-50/50',
         'indigo': 'hover:border-indigo-300 hover:bg-indigo-50/50',
         'emerald': 'hover:border-emerald-300 hover:bg-emerald-50/50',
+        'green': 'hover:border-green-300 hover:bg-green-50/50',
         'amber': 'hover:border-amber-300 hover:bg-amber-50/50',
         'red': 'hover:border-red-300 hover:bg-red-50/50',
         'teal': 'hover:border-teal-300 hover:bg-teal-50/50',
         'pink': 'hover:border-pink-300 hover:bg-pink-50/50',
+        'sky': 'hover:border-sky-300 hover:bg-sky-50/50',
       };
       return `${baseClasses} bg-white border-slate-100 hover:shadow-md ${hoverColors[color] || ''}`;
     }
@@ -72,10 +76,12 @@ const CategoryButton: React.FC<CategoryButtonProps> = ({
         'cyan': 'text-cyan-600',
         'indigo': 'text-indigo-600',
         'emerald': 'text-emerald-600',
+        'green': 'text-green-600',
         'amber': 'text-amber-600',
         'red': 'text-red-600',
         'teal': 'text-teal-600',
         'pink': 'text-pink-600',
+        'sky': 'text-sky-600',
       };
       return `${baseClasses} ${iconColors[color] || 'text-slate-600'}`;
     }

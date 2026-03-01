@@ -47,5 +47,11 @@
 3. **Realizar Cambio**: Busca la venta original en el "Historial", toca el botón **Indigo (↺)** y agrega la nueva prenda que lleva el cliente.
 4. **Corregir Error**: Usa el botón **Gris (✏️)** en el historial para volver a cargar una venta vieja en el formulario y sobrescribirla.
 
+## 📋 Versionado y Changelog
+
+- **Versión actual**: ver `package.json`
+- **Historial de cambios**: [CHANGELOG.md](./CHANGELOG.md)
+- **Guía para commits y releases**: [docs/VERSIONING.md](./docs/VERSIONING.md)
+
 ---
 *Desarrollado con foco en la eficiencia operativa y el control financiero.*

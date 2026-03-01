@@ -1,7 +1,8 @@
 import { 
   Package, Home, Zap, Landmark, History, Hammer, User, 
   ShoppingCart, Bus, Heart, Coffee, Briefcase, 
-  Megaphone, Clock, Tag
+  Megaphone, Clock, Tag, DollarSign,
+  Building2, Lightbulb, Droplets, Flame, FileText, Wifi, CreditCard
 } from 'lucide-react';
 import { PaymentMethod, ExpenseCategory, ExpenseCategoryMetadata } from './types';
 
@@ -84,6 +85,14 @@ export const CATEGORY_METADATA: Record<ExpenseCategory, ExpenseCategoryMetadata>
   },
 
   // Personal Categories
+  'Compra de dólares': { 
+    id: 'Compra de dólares', icon: DollarSign, type: 'personal', color: 'green',
+    styles: {
+      activeClasses: 'bg-green-600 border-2 border-green-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-green-300 hover:bg-green-50/50 hover:shadow-md',
+      iconColor: 'text-green-600', text: 'text-green-700', bg: 'bg-green-100'
+    }
+  },
   'Comida/Súper': { 
     id: 'Comida/Súper', icon: ShoppingCart, type: 'personal', color: 'emerald',
     styles: {
@@ -124,6 +133,62 @@ export const CATEGORY_METADATA: Record<ExpenseCategory, ExpenseCategoryMetadata>
       iconColor: 'text-teal-600', text: 'text-teal-700', bg: 'bg-teal-100'
     }
   },
+  'Expensas': { 
+    id: 'Expensas', icon: Building2, type: 'personal', color: 'teal',
+    styles: {
+      activeClasses: 'bg-teal-600 border-2 border-teal-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-teal-300 hover:bg-teal-50/50 hover:shadow-md',
+      iconColor: 'text-teal-600', text: 'text-teal-700', bg: 'bg-teal-100'
+    }
+  },
+  'Luz': { 
+    id: 'Luz', icon: Lightbulb, type: 'personal', color: 'yellow',
+    styles: {
+      activeClasses: 'bg-yellow-500 border-2 border-yellow-600 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-yellow-300 hover:bg-yellow-50/50 hover:shadow-md',
+      iconColor: 'text-yellow-600', text: 'text-yellow-700', bg: 'bg-yellow-100'
+    }
+  },
+  'Agua': { 
+    id: 'Agua', icon: Droplets, type: 'personal', color: 'sky',
+    styles: {
+      activeClasses: 'bg-sky-600 border-2 border-sky-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-sky-300 hover:bg-sky-50/50 hover:shadow-md',
+      iconColor: 'text-sky-600', text: 'text-sky-700', bg: 'bg-sky-100'
+    }
+  },
+  'Gas': { 
+    id: 'Gas', icon: Flame, type: 'personal', color: 'orange',
+    styles: {
+      activeClasses: 'bg-orange-600 border-2 border-orange-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-orange-300 hover:bg-orange-50/50 hover:shadow-md',
+      iconColor: 'text-orange-600', text: 'text-orange-700', bg: 'bg-orange-100'
+    }
+  },
+  'ABL': { 
+    id: 'ABL', icon: FileText, type: 'personal', color: 'slate',
+    styles: {
+      activeClasses: 'bg-slate-600 border-2 border-slate-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-slate-300 hover:bg-slate-50/50 hover:shadow-md',
+      iconColor: 'text-slate-600', text: 'text-slate-700', bg: 'bg-slate-100'
+    }
+  },
+  'Internet': { 
+    id: 'Internet', icon: Wifi, type: 'personal', color: 'violet',
+    styles: {
+      activeClasses: 'bg-violet-600 border-2 border-violet-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-violet-300 hover:bg-violet-50/50 hover:shadow-md',
+      iconColor: 'text-violet-600', text: 'text-violet-700', bg: 'bg-violet-100'
+    }
+  },
+  'Tarjeta de crédito': { 
+    id: 'Tarjeta de crédito', icon: CreditCard, type: 'personal', color: 'rose',
+    styles: {
+      activeClasses: 'bg-rose-600 border-2 border-rose-700 shadow-lg scale-105',
+      inactiveClasses: 'bg-white border-2 border-slate-100 hover:border-rose-300 hover:bg-rose-50/50 hover:shadow-md',
+      iconColor: 'text-rose-600', text: 'text-rose-700', bg: 'bg-rose-100'
+    }
+  },
   'Suscripciones': { 
     id: 'Suscripciones', icon: Clock, type: 'personal', color: 'indigo',
     styles: {
@@ -141,6 +206,22 @@ export const CATEGORY_METADATA: Record<ExpenseCategory, ExpenseCategoryMetadata>
     }
   },
 };
+
+/** Palabras clave en la descripción que sugieren automáticamente una categoría */
+export const DESC_KEYWORDS_TO_CATEGORY: { keywords: string[]; category: string }[] = [
+  { keywords: ['agua', 'aysa'], category: 'Agua' },
+  { keywords: ['luz', 'electricidad', 'edenor', 'edesur'], category: 'Luz' },
+  { keywords: ['gas', 'metrogas', 'gas natural'], category: 'Gas' },
+  { keywords: ['expensas', 'consorcio', 'administración'], category: 'Expensas' },
+  { keywords: ['abl', 'municipal', 'arba', 'agip'], category: 'ABL' },
+  { keywords: ['internet', 'wifi', 'fibertel', 'movistar', 'personal', 'telecentro', 'claro'], category: 'Internet' },
+  { keywords: ['dólar', 'dolar', 'usd'], category: 'Compra de dólares' },
+  { keywords: ['super', 'súper', 'comida', 'almacén', 'verduleria', 'carniceria', 'chino', 'supermercado'], category: 'Comida/Súper' },
+  { keywords: ['transporte', 'colectivo', 'subte', 'uber', 'taxi', 'nafta', 'combustible'], category: 'Transporte' },
+  { keywords: ['salud', 'medicina', 'farmacia', 'médico', 'doctor'], category: 'Salud' },
+  { keywords: ['alquiler', 'alquileres'], category: 'Vivienda' },
+  { keywords: ['tarjeta', 'crédito', 'credito', 'visa', 'mastercard', 'naranja', 'banco galicia', 'santander', 'bbva', 'pago tarjeta', 'resumen tarjeta', 'cuota'], category: 'Tarjeta de crédito' },
+];
 
 // Derived lists for easier iteration
 export const BUSINESS_CATEGORIES = Object.values(CATEGORY_METADATA)
@@ -204,6 +285,9 @@ export const DEFAULT_CATEGORY_SIZE_MAP: Record<string, string> = {
   'HOGAR/HOME': 'UNICO',
   'OTROS': 'UNICO'
 };
+
+/** Días que abre el local por defecto: Lunes a Sábado (1-6). 0=Domingo. */
+export const DEFAULT_OPEN_DAYS: number[] = [1, 2, 3, 4, 5, 6];
 
 export const PAYMENT_METHOD_COLORS: Record<string, { bg: string, text: string, dot: string }> = {
   'Efectivo - 10%': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },

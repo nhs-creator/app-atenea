@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { AppConfig } from '../types';
-import { Save, List, Plus, Trash2, Ruler } from 'lucide-react';
-import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
+import { AppConfig, WEEKDAY_NAMES } from '../types';
+import { Save, List, Plus, Trash2, Ruler, Store } from 'lucide-react';
+import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP, DEFAULT_OPEN_DAYS } from '../constants';
 
 interface SettingsViewProps {
   config: AppConfig;
@@ -15,6 +15,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   const [materials, setMaterials] = useState(config.materials);
   const [sizeSystems, setSizeSystems] = useState(config.sizeSystems || DEFAULT_SIZE_SYSTEMS);
   const [categorySizeMap, setCategorySizeMap] = useState(config.categorySizeMap || DEFAULT_CATEGORY_SIZE_MAP);
+  const [openDays, setOpenDays] = useState<number[]>(config.openDays ?? DEFAULT_OPEN_DAYS);
 
   const [newCat, setNewCat] = useState('');
   const [selectedCatForSub, setSelectedCatForSub] = useState(categories[0] || '');
@@ -42,7 +43,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
       subcategories: subs,
       materials: mats,
       sizeSystems,
-      categorySizeMap: sizeMap
+      categorySizeMap: sizeMap,
+      openDays
     });
     setCategories(cats);
     setSubcategories(subs);
@@ -149,8 +151,47 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
     setCategorySizeMap({ ...categorySizeMap, [cat]: systemKey });
   };
 
+  const toggleOpenDay = (day: number) => {
+    setOpenDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
   return (
     <div className="space-y-6 pb-10">
+      {/* 1. Días del local abierto */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="font-bold text-slate-700 flex items-center gap-2">
+            <Store className="w-4 h-4 text-emerald-500" />
+            Días que abre el local
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">Define qué días se muestran en el gráfico de tendencia de Reportes</p>
+        </div>
+        <div className="p-4">
+          <div className="flex flex-wrap gap-2">
+            {WEEKDAY_NAMES.map((name, day) => (
+              <label
+                key={day}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                  openDays.includes(day)
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={openDays.includes(day)}
+                  onChange={() => toggleOpenDay(day)}
+                  className="sr-only"
+                />
+                <span className="text-sm font-bold">{name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center px-1">
         <h2 className="text-xl font-bold text-slate-800">Ajustes</h2>
         <button

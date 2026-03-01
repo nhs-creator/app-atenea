@@ -1,9 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Expense, ExpenseCategory } from '../types';
 import { 
   Receipt, Search, ChevronLeft, ChevronRight, X, Calendar, Edit3, Trash2
 } from 'lucide-react';
 import { CATEGORY_METADATA } from '../constants';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+
+const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const parseMonthKey = (key: string) => {
+  if (!key || !key.includes('-')) return new Date();
+  const [y, m] = key.split('-').map(Number);
+  if (isNaN(y) || isNaN(m)) return new Date();
+  return new Date(y, m - 1, 1);
+};
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -12,26 +21,27 @@ interface ExpenseListProps {
 }
 
 const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonthDate, setSelectedMonthDate] = useState(new Date());
+  const [searchTerm, setSearchTerm] = useLocalStorage('atenea_expense_list_search', '');
+  const [monthKey, setMonthKey] = useLocalStorage('atenea_expense_list_month', getMonthKey(new Date()));
+  const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
 
   // --- Navegación de Meses ---
   const handlePrevMonth = () => {
-    const d = new Date(selectedMonthDate);
+    const d = parseMonthKey(monthKey);
     d.setMonth(d.getMonth() - 1);
-    setSelectedMonthDate(d);
+    setMonthKey(getMonthKey(d));
   };
 
   const handleNextMonth = () => {
-    const d = new Date(selectedMonthDate);
+    const d = parseMonthKey(monthKey);
     d.setMonth(d.getMonth() + 1);
-    setSelectedMonthDate(d);
+    setMonthKey(getMonthKey(d));
   };
 
   // --- Lógica de Filtrado ---
   const filteredExpenses = useMemo(() => {
     const startOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
-    const endOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
+    const endOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
     return expenses.filter(exp => {
       // Filtro de Tiempo

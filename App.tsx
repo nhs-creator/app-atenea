@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { 
   DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS,
-  DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP,
+  DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP, DEFAULT_OPEN_DAYS,
   BUSINESS_CATEGORIES, PERSONAL_CATEGORIES
 } from './constants';
 
@@ -77,7 +77,8 @@ const App: React.FC = () => {
     subcategories: DEFAULT_CATEGORY_MAP,
     materials: DEFAULT_MATERIALS,
     sizeSystems: DEFAULT_SIZE_SYSTEMS,
-    categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP
+    categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP,
+    openDays: DEFAULT_OPEN_DAYS
   });
 
   // 2. Cerebro de la App
@@ -214,8 +215,13 @@ const App: React.FC = () => {
         category: data.type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id, 
         hasInvoiceA: false, 
         invoiceAmount: '',
-        type: data.type
+        type: data.type,
+        isEdit: false
       });
+      if (data.isEdit) {
+        setActiveTab('list');
+        setHistoryMode('expense');
+      }
       setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     }
   };
@@ -332,7 +338,7 @@ const App: React.FC = () => {
 
         {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />}
         {activeTab === 'customers' && userRole === 'owner' && <ClientsView clients={atenea.clients} onAdd={atenea.saveClient} onUpdate={atenea.saveClient} onDelete={atenea.deleteClient} />}
-        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} />}
+        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} config={config} />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 

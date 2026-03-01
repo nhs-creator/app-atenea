@@ -8,7 +8,8 @@ export const useStatsMetrics = (
   sales: Sale[], 
   expenses: Expense[], 
   period: Period, 
-  selectedMonthDate: Date
+  selectedMonthDate: Date,
+  openDays: number[] = [1, 2, 3, 4, 5, 6] // Lunes-Sábado por defecto
 ) => {
   return useMemo(() => {
     // 1. Helpers de Fecha (Argentina)
@@ -41,21 +42,25 @@ export const useStatsMetrics = (
       return true;
     };
 
-    // 2. Generar eje de tiempo completo para la tendencia (evita huecos)
+    // 2. Generar eje de tiempo completo para la tendencia (solo días que abre el local)
+    const effectiveOpenDays = openDays.length > 0 ? openDays : [0, 1, 2, 3, 4, 5, 6]; // si vacío, todos
+    const isOpenDay = (date: Date) => effectiveOpenDays.includes(date.getDay());
     const trendLabels: string[] = [];
-    if (period === 'today') trendLabels.push(todayStr);
-    else if (period === 'yesterday') trendLabels.push(yesterdayStr);
-    else if (period === 'week') {
+    if (period === 'today') {
+      if (isOpenDay(now)) trendLabels.push(todayStr);
+    } else if (period === 'yesterday') {
+      if (isOpenDay(yesterday)) trendLabels.push(yesterdayStr);
+    } else if (period === 'week') {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        trendLabels.push(getARDateStr(d));
+        if (isOpenDay(d)) trendLabels.push(getARDateStr(d));
       }
     } else if (period === 'month') {
       const daysInMonth = endOfMonth.getDate();
       for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), i);
-        trendLabels.push(getARDateStr(d));
+        if (isOpenDay(d)) trendLabels.push(getARDateStr(d));
       }
     }
 
@@ -119,10 +124,17 @@ export const useStatsMetrics = (
     const netProfit = totalSales - businessExpenses;
     const finalBalance = netProfit - personalWithdrawals;
 
-    const salesTrend = trendLabels.map(label => ({
-      date: label.split('-').slice(2).join('/') + (period === 'month' ? '' : `/${label.split('-')[1]}`),
-      amount: salesByDay[label]
-    }));
+    const salesTrend = trendLabels.map(label => {
+      const [y, m, d] = label.split('-');
+      const shortDate = `${parseInt(d, 10)}/${parseInt(m, 10)}`;
+      const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+      const weekday = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dateObj.getDay()];
+      return {
+        date: shortDate,
+        amount: salesByDay[label],
+        tooltipLabel: `${weekday} ${shortDate}`
+      };
+    });
 
     const paymentDistribution = Object.entries(paymentTotals)
       .map(([name, value]) => ({ name, value }))
@@ -130,6 +142,27 @@ export const useStatsMetrics = (
 
     const sortCategories = (totals: Record<string, number>) => 
       Object.entries(totals).sort(([, a], [, b]) => b - a).filter(([, amount]) => amount > 0);
+
+    // 5. Compras de dólares (personal)
+    const parseUsdFromDescription = (desc: string): number => {
+      const match = desc?.match(/^(\d+)\s*DOLARES?/i);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    const dollarPurchasesRaw = filteredExpenses.filter(
+      e => e.category === 'Compra de dólares' && (e.type === 'personal' || !e.type)
+    );
+    const dollarPurchases = dollarPurchasesRaw
+      .map(e => {
+        const usd = parseUsdFromDescription(e.description);
+        const ars = Number(e.amount) || 0;
+        const rate = usd > 0 ? ars / usd : 0;
+        return { date: e.date, usd, ars, rate };
+      })
+      .filter(p => p.usd > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const totalUsd = dollarPurchases.reduce((s, p) => s + p.usd, 0);
+    const totalArs = dollarPurchases.reduce((s, p) => s + p.ars, 0);
+    const avgRate = totalUsd > 0 ? totalArs / totalUsd : 0;
 
     return {
       metrics: {
@@ -141,7 +174,13 @@ export const useStatsMetrics = (
       },
       topBusinessExpenses: sortCategories(businessCategoryTotals).map(([name, value]) => ({ name, value })),
       topPersonalExpenses: sortCategories(personalCategoryTotals).map(([name, value]) => ({ name, value })),
-      totalExpenses: businessExpenses + personalWithdrawals
+      totalExpenses: businessExpenses + personalWithdrawals,
+      dollarPurchases: {
+        items: dollarPurchases,
+        totalUsd,
+        totalArs,
+        avgRate
+      }
     };
-  }, [sales, expenses, period, selectedMonthDate]);
+  }, [sales, expenses, period, selectedMonthDate, openDays]);
 };
