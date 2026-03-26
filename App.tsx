@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import { 
-  Tab, MultiSaleData, ExpenseFormData, EntryMode, Sale, Expense, ProductDraft 
+import {
+  Tab, MultiSaleData, ExpenseFormData, EntryMode, Sale, Expense, ProductDraft
 } from './types';
 
 // Hooks
@@ -52,7 +53,7 @@ const initialSaleDraft: MultiSaleData = {
 };
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<'owner' | 'accountant' | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('form');
@@ -85,7 +86,12 @@ const App: React.FC = () => {
   const atenea = useAtenea(session);
 
   // --- LÓGICA DE CORRECCIÓN: Sincronizar pago con total al aplicar 10% ---
+  const prevPaymentsRef = useRef<string>('');
   useEffect(() => {
+    const currentKey = JSON.stringify(saleDraft.payments);
+    if (currentKey === prevPaymentsRef.current) return;
+    prevPaymentsRef.current = currentKey;
+
     if (saleDraft.items.length > 0 && saleDraft.payments.length === 1) {
       let currentTotal = 0;
       saleDraft.items.forEach(item => {
@@ -102,7 +108,7 @@ const App: React.FC = () => {
         setSaleDraft({ ...saleDraft, payments: newPayments });
       }
     }
-  }, [saleDraft.items, JSON.stringify(saleDraft.payments)]);
+  }, [saleDraft.items, saleDraft.payments]);
 
   // 3. Manejo de Sesión
   useEffect(() => {
@@ -115,7 +121,7 @@ const App: React.FC = () => {
           .select('role')
           .eq('id', userId)
           .single() as any);
-        
+
         if (profile && !error) {
           const role = profile.role as 'owner' | 'accountant';
           setUserRole(role);
@@ -125,7 +131,8 @@ const App: React.FC = () => {
           }
         }
       } catch (err) {
-        setUserRole('owner');
+        console.error('Failed to load profile:', err);
+        setUserRole(null);
       }
     };
 
@@ -141,11 +148,12 @@ const App: React.FC = () => {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (s) {
-        setSession(s);
-        setLoading(false);
-      }
+    // Solo usamos getSession para limpiar el timer si onAuthStateChange tarda
+    supabase.auth.getSession().then(() => {
+      clearTimeout(safetyTimer);
+    }).catch(() => {
+      clearTimeout(safetyTimer);
+      setLoading(false);
     });
 
     return () => subscription?.unsubscribe();
@@ -159,7 +167,17 @@ const App: React.FC = () => {
   const handleNewSale = async (data: MultiSaleData) => {
     if (userRole !== 'owner') return;
     const res = await atenea.saveMultiSale(data);
-    if (res?.success) {
+
+    if (!res) {
+      showToast('Error: no se pudo conectar');
+      return;
+    }
+    if (!res.success) {
+      const errMsg = res.error instanceof Error ? res.error.message : 'Error al guardar la venta';
+      showToast(errMsg);
+      return;
+    }
+    if (res.success) {
       if (data.sendWhatsApp) {
         const client = data.clientId 
           ? atenea.clients.find(c => c.id === data.clientId)
@@ -233,7 +251,7 @@ const App: React.FC = () => {
       date: sale.date,
       items: related.map((s: Sale) => ({
         id: s.id, product: s.product_name.replace('(DEVOLUCIÓN) ', ''),
-        quantity: s.quantity, listPrice: Number(s.list_price) || Number(s.price), finalPrice: Number(s.price),
+        quantity: s.quantity, listPrice: Number(s.list_price ?? s.price), finalPrice: Number(s.price),
         size: s.size || 'U', inventory_id: s.inventory_id, cost_price: Number(s.cost_price), isReturn: Number(s.price) < 0
       })),
       payments: sale.payment_details || [], isEdit: true, originalClientNumber: sale.client_number,

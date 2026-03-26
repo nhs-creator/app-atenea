@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { 
+import {
   Sale, Expense, InventoryItem, Voucher, Client,
-  MultiSaleData, ExpenseFormData, InventoryFormData 
+  MultiSaleData, ExpenseFormData, InventoryFormData
 } from '../types';
 
-export function useAtenea(session: any) {
+export function useAtenea(session: Session | null) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -14,22 +15,35 @@ export function useAtenea(session: any) {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!session || !supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
+      // Ventana de 24 meses: cubre todo el historial navegable sin cargar datos muy antiguos
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - 24);
+      const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+
       const [sRes, iRes, eRes, vRes, cRes] = await Promise.all([
-        supabase.from('sales').select('*').order('date', { ascending: false }).order('client_number', { ascending: false }).limit(1000),
+        supabase.from('sales').select('*').gte('date', cutoffStr).order('date', { ascending: false }).order('client_number', { ascending: false }),
         supabase.from('inventory').select('*').order('name'),
-        supabase.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
+        supabase.from('expenses').select('*').gte('date', cutoffStr).order('date', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('vouchers').select('*').eq('status', 'active').order('created_at', { ascending: false }),
         supabase.from('clients').select('*').order('name')
       ]);
       
-      if (sRes.data) setSales(sRes.data as any);
-      if (iRes.data) setInventory(iRes.data as any);
-      if (eRes.data) setExpenses(eRes.data as any);
-      if (vRes.data) setVouchers(vRes.data as any);
-      if (cRes.data) setClients(cRes.data as any);
+      const errors: string[] = [];
+      if (sRes.error) errors.push(`Sales: ${sRes.error.message}`);
+      if (iRes.error) errors.push(`Inventory: ${iRes.error.message}`);
+      if (eRes.error) errors.push(`Expenses: ${eRes.error.message}`);
+      if (vRes.error) errors.push(`Vouchers: ${vRes.error.message}`);
+      if (cRes.error) errors.push(`Clients: ${cRes.error.message}`);
+      if (errors.length > 0) console.error("Fetch errors:", errors);
+
+      if (sRes.data && !sRes.error) setSales(sRes.data as any);
+      if (iRes.data && !iRes.error) setInventory(iRes.data as any);
+      if (eRes.data && !eRes.error) setExpenses(eRes.data as any);
+      if (vRes.data && !vRes.error) setVouchers(vRes.data as any);
+      if (cRes.data && !cRes.error) setClients(cRes.data as any);
     } catch (error) {
       console.error("Error syncing:", error);
     } finally {
@@ -40,122 +54,50 @@ export function useAtenea(session: any) {
   useEffect(() => { if (session) fetchData(); }, [session, fetchData]);
 
   const saveMultiSale = async (data: MultiSaleData) => {
-    if (!session || !supabase) return null;
+    if (!session) return null;
     setIsSyncing(true);
     try {
-      // 1. Manejo de Cliente (Crear si es nuevo)
-      let finalClientId = data.clientId;
-      if (data.clientDraft && !finalClientId) {
-        const { data: newClient, error: clientErr } = await (supabase.from('clients') as any)
-          .insert({
-            user_id: session.user.id,
-            name: data.clientDraft.name.toUpperCase(),
-            last_name: data.clientDraft.lastName.toUpperCase(),
-            phone: data.clientDraft.phone,
-            email: data.clientDraft.email?.toLowerCase() || null
-          })
-          .select()
-          .single();
-        
-        if (clientErr) throw clientErr;
-        if (newClient) finalClientId = newClient.id;
-      }
+      const rpcPayload = {
+        p_date: data.date,
+        p_items: data.items.map(item => ({
+          product: item.product,
+          quantity: item.quantity,
+          listPrice: item.listPrice,
+          finalPrice: item.finalPrice,
+          size: item.size,
+          inventory_id: item.inventory_id || null,
+          cost_price: item.cost_price,
+          isReturn: item.isReturn || false,
+        })),
+        p_payments: data.payments,
+        p_client_id: data.clientId || null,
+        p_client_draft: data.clientDraft ? {
+          name: data.clientDraft.name,
+          lastName: data.clientDraft.lastName,
+          phone: data.clientDraft.phone,
+          email: data.clientDraft.email || null,
+        } : null,
+        p_is_edit: data.isEdit || false,
+        p_original_client_number: data.originalClientNumber || null,
+        p_force_completed: data.forceCompleted || false,
+      };
 
-      // 2. Cálculos y Ajustes de Venta
-      const cartTotal = data.items.reduce((sum, i) => sum + (i.finalPrice * i.quantity), 0);
-      const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
-      const roundingDiff = totalPaid - cartTotal;
-      const finalItemsToSave = [...data.items];
+      const { data: result, error } = await (supabase.rpc as any)('save_multi_sale', rpcPayload);
 
-      if (Math.abs(roundingDiff) > 0 && Math.abs(roundingDiff) < 1000) {
-        finalItemsToSave.push({
-          id: 'rounding-adjustment',
-          product: '💰 AJUSTE POR REDONDEO',
-          quantity: 1,
-          listPrice: 0,
-          finalPrice: roundingDiff,
-          size: 'U',
-          cost_price: 0
-        });
-      }
-
-      const isPending = (totalPaid < (cartTotal + roundingDiff)) && !data.forceCompleted;
-      
-      // 3. Generación de Vale si el saldo es negativo
-      let generatedVoucher = null;
-      if (totalPaid < 0 || (cartTotal + roundingDiff) < 0) {
-        const code = `VALE-${data.date.replace(/-/g, '').slice(2)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
-        await (supabase.from('vouchers') as any).insert({ 
-          user_id: session.user.id, 
-          code, 
-          initial_amount: Math.abs(totalPaid), 
-          current_amount: Math.abs(totalPaid), 
-          status: 'active' 
-        });
-        generatedVoucher = { 
-          code, 
-          amount: Math.abs(totalPaid), 
-          expires_at: new Date(Date.now() + 90*24*60*60*1000).toISOString() 
-        };
-      }
-
-      // 4. Marcar vales usados
-      for (const p of data.payments) {
-        if (p.method === 'Vale' && p.voucherCode) {
-          await (supabase.from('vouchers') as any).update({ status: 'used' }).eq('code', p.voucherCode);
-        }
-      }
-
-      // 5. Generación de ID Semántico (CORREGIDO para evitar saltos)
-      let semanticId = data.originalClientNumber;
-      if (!data.isEdit) {
-        const prefix = data.items.some(i => i.isReturn) ? 'C' : (isPending ? 'S' : 'V');
-        const datePart = data.date.replace(/-/g, '').slice(2);
-        
-        // Obtenemos cuántas VENTAS ÚNICAS hubo hoy
-        const todaySales = sales.filter(s => s.date === data.date);
-        const uniqueGroups = new Set(todaySales.map(s => s.client_number));
-        const nextNum = uniqueGroups.size + 1;
-        
-        semanticId = `${prefix}${datePart}-${nextNum.toString().padStart(3, '0')}`;
-      }
-
-      // 6. Guardado de Items de Venta
-      if (data.isEdit) {
-        await (supabase.from('sales') as any).delete().eq('client_number', data.originalClientNumber);
-      }
-      
-      const { error: saveErr } = await (supabase.from('sales') as any).insert(finalItemsToSave.map(item => ({
-        date: data.date, 
-        client_number: semanticId, 
-        product_name: item.isReturn ? `(DEVOLUCIÓN) ${item.product}` : item.product,
-        quantity: item.quantity, 
-        price: item.finalPrice, 
-        list_price: item.listPrice, 
-        cost_price: item.cost_price,
-        payment_method: data.payments[0]?.method || 'Efectivo', 
-        payment_details: data.payments,
-        status: isPending ? 'pending' : 'completed', 
-        expires_at: isPending ? new Date(Date.now() + 90*24*60*60*1000).toISOString() : null,
-        size: item.size, 
-        inventory_id: item.inventory_id || null, 
-        client_id: finalClientId || null, // Vínculo con la nueva tabla
-        user_id: session.user.id
-      })));
-
-      if (saveErr) {
-        // Check for insufficient stock error
-        if (saveErr.message?.includes('Insufficient stock')) {
+      if (error) {
+        if (error.message?.includes('Insufficient stock')) {
           throw new Error('No hay suficiente stock disponible para completar esta venta. Por favor verifica el inventario.');
         }
-        throw saveErr;
+        throw error;
       }
 
-      // 7. Stock se actualiza AUTOMÁTICAMENTE via trigger en la base de datos
-      // Ya no necesitamos actualizar manualmente - el trigger handle_sale_stock_change lo hace
-      
+      const rpcResult = result as { success: boolean; client_number: string; voucher: any } | null;
       await fetchData();
-      return { success: true, voucher: generatedVoucher, client_number: semanticId };
+      return {
+        success: true,
+        voucher: rpcResult?.voucher || null,
+        client_number: rpcResult?.client_number,
+      };
     } catch (error) {
       console.error(error);
       return { success: false, error };
@@ -165,40 +107,48 @@ export function useAtenea(session: any) {
   };
 
   const deleteTransaction = async (clientNumber: string) => {
-    if (!supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
       // Stock se restaura AUTOMÁTICAMENTE cuando actualizamos el status a 'cancelled'
       // Primero actualizamos a 'cancelled' para que el trigger restaure el stock
       await (supabase.from('sales') as any)
         .update({ status: 'cancelled' })
-        .eq('client_number', clientNumber);
-      
+        .eq('client_number', clientNumber)
+        .eq('user_id', session.user.id);
+
       // Ahora eliminamos (el stock ya fue restaurado por el trigger)
-      await (supabase.from('sales') as any).delete().eq('client_number', clientNumber);
+      await (supabase.from('sales') as any).delete().eq('client_number', clientNumber).eq('user_id', session.user.id);
       await fetchData();
     } finally { setIsSyncing(false); }
   };
 
   const saveExpense = async (formData: ExpenseFormData) => {
-    if (!session || !supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
+      const parsedAmount = parseFloat(formData.amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return { success: false, error: new Error('Monto inválido') };
+      }
+
       const payload: any = {
-        date: formData.date, 
-        description: formData.description, 
-        amount: parseFloat(formData.amount) || 0, 
+        date: formData.date,
+        description: formData.description,
+        amount: parsedAmount,
         category: formData.category,
         type: formData.type,
-        has_invoice_a: formData.hasInvoiceA, 
-        invoice_amount: formData.hasInvoiceA ? (parseFloat(formData.invoiceAmount) || 0) : 0, 
+        has_invoice_a: formData.hasInvoiceA,
+        invoice_amount: formData.hasInvoiceA ? (parseFloat(formData.invoiceAmount) || 0) : 0,
       };
 
       if (formData.isEdit && formData.id) {
-        await (supabase.from('expenses') as any).update(payload).eq('id', formData.id);
+        const { error } = await (supabase.from('expenses') as any).update(payload).eq('id', formData.id).eq('user_id', session.user.id);
+        if (error) throw error;
       } else {
         payload.user_id = session.user.id;
-        await (supabase.from('expenses') as any).insert(payload);
+        const { error } = await (supabase.from('expenses') as any).insert(payload);
+        if (error) throw error;
       }
       
       await fetchData();
@@ -212,10 +162,10 @@ export function useAtenea(session: any) {
   };
 
   const deleteExpense = async (id: string) => {
-    if (!supabase || !window.confirm('¿Borrar este gasto?')) return;
+    if (!session || !window.confirm('¿Borrar este gasto?')) return;
     setIsSyncing(true);
-    try { 
-      await (supabase.from('expenses') as any).delete().eq('id', id); 
+    try {
+      await (supabase.from('expenses') as any).delete().eq('id', id).eq('user_id', session.user.id);
       await fetchData(); 
       return { success: true }; 
     } catch (error) { 
@@ -226,7 +176,7 @@ export function useAtenea(session: any) {
   };
 
   const addInventory = async (data: InventoryFormData) => {
-    if (!session || !supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
       const sizesNum: Record<string, number> = {};
@@ -243,7 +193,8 @@ export function useAtenea(session: any) {
         selling_price: parseFloat(data.sellingPrice) || 0,
         sizes: sizesNum,
       };
-      await (supabase.from('inventory') as any).insert(payload);
+      const { error: insertErr } = await (supabase.from('inventory') as any).insert(payload);
+      if (insertErr) throw insertErr;
       await fetchData();
       return { success: true };
     } catch (error) {
@@ -255,7 +206,7 @@ export function useAtenea(session: any) {
   };
 
   const updateInventory = async (item: Partial<InventoryItem> & { id: string }) => {
-    if (!session || !supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
       const payload: Record<string, unknown> = {
@@ -270,7 +221,8 @@ export function useAtenea(session: any) {
         barcode: item.barcode || undefined,
         // updated_at se actualiza automáticamente via trigger
       };
-      await (supabase.from('inventory') as any).update(payload).eq('id', item.id).eq('user_id', session.user.id);
+      const { error: updateErr } = await (supabase.from('inventory') as any).update(payload).eq('id', item.id).eq('user_id', session.user.id);
+      if (updateErr) throw updateErr;
       await fetchData();
       return { success: true };
     } catch (error) {
@@ -282,10 +234,10 @@ export function useAtenea(session: any) {
   };
 
   const deleteInventory = async (id: string) => {
-    if (!supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
-      await (supabase.from('inventory') as any).delete().eq('id', id);
+      await (supabase.from('inventory') as any).delete().eq('id', id).eq('user_id', session.user.id);
       await fetchData();
       return { success: true };
     } catch (error) {
@@ -297,7 +249,7 @@ export function useAtenea(session: any) {
   };
 
   const saveClient = async (client: Partial<Client>) => {
-    if (!session || !supabase) return;
+    if (!session) return;
     setIsSyncing(true);
     try {
       const payload = {
@@ -309,9 +261,11 @@ export function useAtenea(session: any) {
       };
 
       if (client.id) {
-        await (supabase.from('clients') as any).update(payload).eq('id', client.id);
+        const { error } = await (supabase.from('clients') as any).update(payload).eq('id', client.id).eq('user_id', session.user.id);
+        if (error) throw error;
       } else {
-        await (supabase.from('clients') as any).insert(payload);
+        const { error } = await (supabase.from('clients') as any).insert(payload);
+        if (error) throw error;
       }
       await fetchData();
       return { success: true };
@@ -324,10 +278,10 @@ export function useAtenea(session: any) {
   };
 
   const deleteClient = async (id: string) => {
-    if (!supabase || !window.confirm('¿Borrar esta clienta?')) return;
+    if (!session || !window.confirm('¿Borrar esta clienta?')) return;
     setIsSyncing(true);
     try {
-      await (supabase.from('clients') as any).delete().eq('id', id);
+      await (supabase.from('clients') as any).delete().eq('id', id).eq('user_id', session.user.id);
       await fetchData();
       return { success: true };
     } catch (error) {
