@@ -29,15 +29,46 @@
 
 ## Pendiente
 
-### Limpieza post-migracion
-- [ ] Arreglar userId en entorno dev (correr fixUserIds con formato estable)
-- [ ] Eliminar dependencias Supabase: `lib/supabase.ts`, `hooks/useAtenea.ts`, `database.types.ts`
-- [ ] Eliminar directorio `supabase/migrations/`
-- [ ] Desinstalar `@supabase/supabase-js` de package.json
-- [ ] Eliminar campos `supabaseId` del schema (o mantener para auditoria)
-- [ ] Eliminar archivos de migracion: `convex/migration/`
+### Limpieza post-migracion (legacy Supabase)
+
+**Archivos a eliminar:**
+- [ ] `lib/supabase.ts` — cliente Supabase (ya no se importa en ningún lado activo)
+- [ ] `hooks/useAtenea.ts` — hook antiguo reemplazado por `useAteneaConvex.ts`
+- [ ] `database.types.ts` — tipos generados de Supabase
+- [ ] `supabase/migrations/` — directorio completo (4 archivos SQL)
+- [ ] `supabase/seed_inventory_categories.sql` — seed data (si existe)
+- [ ] `scripts/audit-schema.js` — script de auditoria Supabase
+- [ ] `scripts/README.md` — docs del script
+- [ ] `docs/CODE_CHANGES_SUMMARY.md` — referencia a Supabase
+- [ ] `docs/IMPLEMENTATION_SUMMARY.md` — referencia a Supabase
+- [ ] `docs/MIGRATION_GUIDE.md` — guia de migracion legacy
+- [ ] `docs/MIGRATION_SUCCESS.md` — reporte de migracion legacy
+- [ ] `docs/MIGRATION_TROUBLESHOOTING.md` — troubleshooting legacy
+- [ ] `docs/SCHEMA_AUDIT_REPORT.md` — auditoria legacy
+- [ ] `NEXT_STEPS.md` — pasos legacy
+- [ ] `dist/` — build viejo con referencias a Supabase (se regenera en deploy)
+- [ ] `convex/migration/` — scripts de migracion one-time (4 archivos)
+
+**Archivos a modificar:**
+- [ ] `package.json` — desinstalar `@supabase/supabase-js`
+- [ ] `public/sw.js` — quitar bypass de `supabase.co` (mantener solo `convex.cloud`)
+- [ ] `convex/schema.ts` — quitar campos `supabaseId` de todas las colecciones
+- [ ] `tests/hooks/useAtenea.test.ts` — reescribir tests para useAteneaConvex
+- [ ] `tests/hooks/useAtenea.inventory.test.ts` — reescribir tests para Convex
+
+**Tests legacy Supabase (reescribir o eliminar):**
+- [ ] `tests/hooks/useAtenea.test.ts`
+- [ ] `tests/hooks/useAtenea.inventory.test.ts`
+
+**Config/env:**
+- [ ] `.env` — eliminar `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
+- [ ] Convex env prod/dev — eliminar `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Rotar JWT_PRIVATE_KEY (`npx @convex-dev/auth` en prod)
-- [ ] Cerrar proyecto Supabase
+- [ ] Netlify env — eliminar env vars de Supabase si existen
+
+**Infraestructura:**
+- [ ] Cerrar proyecto Supabase (después de 2 semanas de verificación)
+- [ ] Arreglar userId en entorno dev (correr fixUserIds con formato estable)
 
 ### Config sync (mejora)
 - [ ] Migrar config de localStorage a coleccion `userConfig` en Convex
