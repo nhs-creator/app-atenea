@@ -1,5 +1,6 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "../lib/auth";
 
 export const saveClient = mutation({
   args: {
@@ -10,8 +11,8 @@ export const saveClient = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const data = {
       name: args.name.toUpperCase(),
@@ -22,13 +23,13 @@ export const saveClient = mutation({
 
     if (args.id) {
       const existing = await ctx.db.get(args.id);
-      if (!existing || existing.userId !== identity.tokenIdentifier) {
+      if (!existing || existing.userId !== userId) {
         throw new Error("Cliente no encontrado");
       }
       await ctx.db.patch(args.id, data);
     } else {
       await ctx.db.insert("clients", {
-        userId: identity.tokenIdentifier,
+        userId,
         ...data,
         totalSpent: 0,
       });
@@ -39,11 +40,11 @@ export const saveClient = mutation({
 export const deleteClient = mutation({
   args: { id: v.id("clients") },
   handler: async (ctx, { id }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(id);
-    if (!existing || existing.userId !== identity.tokenIdentifier) {
+    if (!existing || existing.userId !== userId) {
       throw new Error("Cliente no encontrado");
     }
     await ctx.db.delete(id);

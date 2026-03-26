@@ -1,6 +1,7 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { computeStockTotal } from "../lib/stockHelpers";
+import { getAuthUserId } from "../lib/auth";
 
 export const addInventory = mutation({
   args: {
@@ -15,13 +16,13 @@ export const addInventory = mutation({
     barcode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const stockTotal = computeStockTotal(args.sizes);
 
     const inventoryId = await ctx.db.insert("inventory", {
-      userId: identity.tokenIdentifier,
+      userId,
       name: args.name.trim().toUpperCase(),
       category: args.category.toUpperCase(),
       subcategory: args.subcategory?.toUpperCase(),
@@ -39,7 +40,7 @@ export const addInventory = mutation({
       if (qty > 0) {
         await ctx.db.insert("inventoryMovements", {
           inventoryId,
-          userId: identity.tokenIdentifier,
+          userId,
           movementType: "initial",
           size,
           quantityChange: qty,
@@ -68,11 +69,11 @@ export const updateInventory = mutation({
     barcode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(args.id);
-    if (!existing || existing.userId !== identity.tokenIdentifier) {
+    if (!existing || existing.userId !== userId) {
       throw new Error("Producto no encontrado");
     }
 
@@ -85,7 +86,7 @@ export const updateInventory = mutation({
         inventoryId: args.id,
         costPrice: args.costPrice ?? existing.costPrice,
         sellingPrice: args.sellingPrice ?? existing.sellingPrice,
-        changedBy: identity.tokenIdentifier,
+        changedBy: userId,
       });
     }
 
@@ -105,7 +106,7 @@ export const updateInventory = mutation({
         if (diff !== 0) {
           await ctx.db.insert("inventoryMovements", {
             inventoryId: args.id,
-            userId: identity.tokenIdentifier,
+            userId,
             movementType: "adjustment",
             size,
             quantityChange: diff,
@@ -138,11 +139,11 @@ export const updateInventory = mutation({
 export const deleteInventory = mutation({
   args: { id: v.id("inventory") },
   handler: async (ctx, { id }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(id);
-    if (!existing || existing.userId !== identity.tokenIdentifier) {
+    if (!existing || existing.userId !== userId) {
       throw new Error("Producto no encontrado");
     }
 

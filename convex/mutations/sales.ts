@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 import { computeNextSemanticId } from "../lib/semanticId";
 import { deductStock, restoreStock, syncClientStats } from "../lib/stockHelpers";
+import { getAuthUserId } from "../lib/auth";
 
 const paymentDetailValidator = v.object({
   method: v.string(),
@@ -48,9 +49,8 @@ export const saveMultiSale = mutation({
     forceCompleted: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const userId = identity.tokenIdentifier;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     // ================================================================
     // 1. Crear cliente si es nuevo
@@ -252,9 +252,8 @@ export const saveMultiSale = mutation({
 export const deleteTransaction = mutation({
   args: { clientNumber: v.string() },
   handler: async (ctx, { clientNumber }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const userId = identity.tokenIdentifier;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const sales = await ctx.db
       .query("sales")

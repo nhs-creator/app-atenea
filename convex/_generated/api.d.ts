@@ -10,8 +10,11 @@
 
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as lib_semanticId from "../lib/semanticId.js";
 import type * as lib_stockHelpers from "../lib/stockHelpers.js";
+import type * as migration_fixUserIds from "../migration/fixUserIds.js";
+import type * as migration_fixUserIdsMutation from "../migration/fixUserIdsMutation.js";
 import type * as migration_importData from "../migration/importData.js";
 import type * as migration_importMutations from "../migration/importMutations.js";
 import type * as mutations_clients from "../mutations/clients.js";
@@ -36,8 +39,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
+  "lib/auth": typeof lib_auth;
   "lib/semanticId": typeof lib_semanticId;
   "lib/stockHelpers": typeof lib_stockHelpers;
+  "migration/fixUserIds": typeof migration_fixUserIds;
+  "migration/fixUserIdsMutation": typeof migration_fixUserIdsMutation;
   "migration/importData": typeof migration_importData;
   "migration/importMutations": typeof migration_importMutations;
   "mutations/clients": typeof mutations_clients;

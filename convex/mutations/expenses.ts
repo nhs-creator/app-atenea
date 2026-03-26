@@ -1,5 +1,6 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "../lib/auth";
 
 export const saveExpense = mutation({
   args: {
@@ -13,14 +14,14 @@ export const saveExpense = mutation({
     invoiceAmount: v.number(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     if (args.amount <= 0) throw new Error("Monto inválido");
 
     if (args.id) {
       const existing = await ctx.db.get(args.id);
-      if (!existing || existing.userId !== identity.tokenIdentifier) {
+      if (!existing || existing.userId !== userId) {
         throw new Error("Gasto no encontrado");
       }
       await ctx.db.patch(args.id, {
@@ -34,7 +35,7 @@ export const saveExpense = mutation({
       });
     } else {
       await ctx.db.insert("expenses", {
-        userId: identity.tokenIdentifier,
+        userId,
         date: args.date,
         description: args.description,
         amount: args.amount,
@@ -50,11 +51,11 @@ export const saveExpense = mutation({
 export const deleteExpense = mutation({
   args: { id: v.id("expenses") },
   handler: async (ctx, { id }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(id);
-    if (!existing || existing.userId !== identity.tokenIdentifier) {
+    if (!existing || existing.userId !== userId) {
       throw new Error("Gasto no encontrado");
     }
     await ctx.db.delete(id);
