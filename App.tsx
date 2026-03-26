@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
+import { useConvexAuth } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "./convex/_generated/api";
 import {
   Tab, MultiSaleData, ExpenseFormData, EntryMode, Sale, Expense, ProductDraft
 } from './types';
 
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useAtenea } from './hooks/useAtenea';
+import { useAteneaConvex } from './hooks/useAteneaConvex';
 
 // Componentes
 import SalesForm from './components/SalesForm';
@@ -53,9 +55,11 @@ const initialSaleDraft: MultiSaleData = {
 };
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [userRole, setUserRole] = useState<'owner' | 'accountant' | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isLoading: loading, isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const profile = useQuery(api.queries.profiles.getMyProfile);
+  const userRole = profile?.role ?? null;
+
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
   const [toastMessage, setToastMessage] = useState<{msg: string, voucher?: any} | null>(null);
@@ -82,8 +86,8 @@ const App: React.FC = () => {
     openDays: DEFAULT_OPEN_DAYS
   });
 
-  // 2. Cerebro de la App
-  const atenea = useAtenea(session);
+  // 2. Cerebro de la App (Convex)
+  const atenea = useAteneaConvex();
 
   // --- LÓGICA DE CORRECCIÓN: Sincronizar pago con total al aplicar 10% ---
   const prevPaymentsRef = useRef<string>('');
@@ -110,54 +114,13 @@ const App: React.FC = () => {
     }
   }, [saleDraft.items, saleDraft.payments]);
 
-  // 3. Manejo de Sesión
+  // 3. Redirect accountant to stats on profile load
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 5000);
-
-    const loadProfile = async (userId: string) => {
-      try {
-        const { data: profile, error } = await (supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single() as any);
-
-        if (profile && !error) {
-          const role = profile.role as 'owner' | 'accountant';
-          setUserRole(role);
-          if (role === 'accountant') {
-            setActiveTab('stats');
-            setHistoryMode('expense');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        setUserRole(null);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      clearTimeout(safetyTimer);
-      setLoading(false);
-
-      if (currentSession) {
-        loadProfile(currentSession.user.id);
-      } else {
-        setUserRole(null);
-      }
-    });
-
-    // Solo usamos getSession para limpiar el timer si onAuthStateChange tarda
-    supabase.auth.getSession().then(() => {
-      clearTimeout(safetyTimer);
-    }).catch(() => {
-      clearTimeout(safetyTimer);
-      setLoading(false);
-    });
-
-    return () => subscription?.unsubscribe();
-  }, []);
+    if (userRole === 'accountant') {
+      setActiveTab('stats');
+      setHistoryMode('expense');
+    }
+  }, [userRole]);
 
   const showToast = (msg: string, voucher?: any) => {
     setToastMessage({ msg, voucher });
@@ -285,7 +248,7 @@ const App: React.FC = () => {
     </div>
   );
 
-  if (!session) return <LoginView onLogin={() => {}} />;
+  if (!isAuthenticated) return <LoginView onLogin={() => {}} />;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans text-slate-800">
@@ -306,7 +269,7 @@ const App: React.FC = () => {
               </button>
             </div>
           )}
-          <button onClick={() => supabase.auth.signOut()} className="p-2 text-rose-400 hover:text-rose-600 active:scale-90 transition-all"><LogOut className="w-5 h-5" /></button>
+          <button onClick={() => void signOut()} className="p-2 text-rose-400 hover:text-rose-600 active:scale-90 transition-all"><LogOut className="w-5 h-5" /></button>
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, ShoppingBag, ArrowRight, Mail } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuthActions } from "@convex-dev/auth/react";
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -11,6 +11,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { signIn } = useAuthActions();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +19,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      const { error } = await supabase!.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      await signIn("password", { email, password, flow: "signIn" });
       onLogin();
     } catch (err: any) {
       setError('Credenciales inválidas o acceso denegado');
@@ -66,7 +66,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               />
             </div>
           </div>
-          
+
           {error && (
             <p className="text-center text-red-500 text-xs font-bold animate-shake">
               {error}
@@ -78,7 +78,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             disabled={loading}
             className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
           >
-            {loading ? 'Verificando...' : 'Acceder al Sistema'} 
+            {loading ? 'Verificando...' : 'Acceder al Sistema'}
             {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>

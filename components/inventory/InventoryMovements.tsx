@@ -1,21 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { History, TrendingUp, TrendingDown, Package, AlertCircle, ArrowRight, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-
-interface Movement {
-  id: string;
-  inventory_id: string;
-  user_id: string;
-  movement_type: 'sale' | 'return' | 'restock' | 'adjustment' | 'transfer_in' | 'transfer_out' | 'initial' | 'cancel';
-  size: string;
-  quantity_change: number;
-  quantity_before: number;
-  quantity_after: number;
-  reference_type: string | null;
-  reference_id: string | null;
-  notes: string | null;
-  created_at: string;
-}
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 interface InventoryMovementsProps {
   inventoryId: string;
@@ -24,30 +11,10 @@ interface InventoryMovementsProps {
 }
 
 export function InventoryMovements({ inventoryId, inventoryName, onClose }: InventoryMovementsProps) {
-  const [movements, setMovements] = useState<Movement[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchMovements();
-  }, [inventoryId]);
-
-  const fetchMovements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('inventory_movements')
-        .select('*')
-        .eq('inventory_id', inventoryId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setMovements(data || []);
-    } catch (error) {
-      console.error('Error fetching movements:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const movements = useQuery(api.queries.inventoryMovements.listByInventory, {
+    inventoryId: inventoryId as Id<"inventory">,
+  });
+  const loading = movements === undefined;
 
   const getMovementIcon = (type: string) => {
     switch (type) {
@@ -85,8 +52,8 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
     return 'text-slate-600 bg-slate-50 border-slate-200';
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -99,15 +66,17 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
     } else if (isYesterday) {
       return `Ayer ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
     } else {
-      return date.toLocaleString('es-AR', { 
-        day: '2-digit', 
-        month: '2-digit', 
+      return date.toLocaleString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
         year: '2-digit',
-        hour: '2-digit', 
-        minute: '2-digit' 
+        hour: '2-digit',
+        minute: '2-digit'
       });
     }
   };
+
+  const movementsList = movements ?? [];
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -146,7 +115,7 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
                 </div>
               ))}
             </div>
-          ) : movements.length === 0 ? (
+          ) : movementsList.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <History className="w-8 h-8 text-slate-400" />
@@ -157,27 +126,27 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
             </div>
           ) : (
             <div className="space-y-3">
-              {movements.map((movement) => (
+              {movementsList.map((movement) => (
                 <div
-                  key={movement.id}
+                  key={movement._id}
                   className="bg-slate-50 rounded-2xl border border-slate-100 p-4 hover:shadow-sm transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="mt-0.5">
-                        {getMovementIcon(movement.movement_type)}
+                        {getMovementIcon(movement.movementType)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-black text-sm text-slate-900">
-                            {getMovementLabel(movement.movement_type)}
+                            {getMovementLabel(movement.movementType)}
                           </span>
                           <span className="text-[10px] font-bold text-slate-500 uppercase">
                             Talle {movement.size}
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium">
-                          {formatDate(movement.created_at)}
+                          {formatDate(movement._creationTime)}
                         </p>
                         {movement.notes && (
                           <p className="text-xs text-slate-500 mt-1 italic">
@@ -186,9 +155,9 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
                         )}
                       </div>
                     </div>
-                    <div className={`rounded-xl border px-3 py-1.5 text-center ${getMovementColor(movement.quantity_change)}`}>
+                    <div className={`rounded-xl border px-3 py-1.5 text-center ${getMovementColor(movement.quantityChange)}`}>
                       <div className="text-xs font-black">
-                        {movement.quantity_change > 0 ? '+' : ''}{movement.quantity_change}
+                        {movement.quantityChange > 0 ? '+' : ''}{movement.quantityChange}
                       </div>
                     </div>
                   </div>
@@ -196,11 +165,11 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
                   {/* Stock change visualization */}
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-mono text-slate-600">
-                      {movement.quantity_before}
+                      {movement.quantityBefore}
                     </span>
                     <ArrowRight className="w-3 h-3 text-slate-400" />
                     <span className="font-mono font-bold text-slate-900">
-                      {movement.quantity_after}
+                      {movement.quantityAfter}
                     </span>
                     <span className="text-slate-500 ml-1">unidades</span>
                   </div>
@@ -211,12 +180,12 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
         </div>
 
         {/* Footer with summary */}
-        {movements.length > 0 && (
+        {movementsList.length > 0 && (
           <div className="p-6 border-t border-slate-100 bg-slate-50">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-2xl font-black text-emerald-600">
-                  {movements.filter(m => m.quantity_change > 0).length}
+                  {movementsList.filter(m => m.quantityChange > 0).length}
                 </div>
                 <div className="text-xs font-bold text-slate-600 uppercase">
                   Entradas
@@ -224,7 +193,7 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
               </div>
               <div>
                 <div className="text-2xl font-black text-red-600">
-                  {movements.filter(m => m.quantity_change < 0).length}
+                  {movementsList.filter(m => m.quantityChange < 0).length}
                 </div>
                 <div className="text-xs font-bold text-slate-600 uppercase">
                   Salidas
@@ -232,7 +201,7 @@ export function InventoryMovements({ inventoryId, inventoryName, onClose }: Inve
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900">
-                  {movements.length}
+                  {movementsList.length}
                 </div>
                 <div className="text-xs font-bold text-slate-600 uppercase">
                   Total

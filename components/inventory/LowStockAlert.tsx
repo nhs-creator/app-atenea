@@ -1,45 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { AlertTriangle, Package, TrendingDown } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface LowStockItem {
-  id: string;
-  user_id: string;
+  _id: string;
   name: string;
-  sku: string | null;
-  barcode: string | null;
+  sku?: string;
+  barcode?: string;
   category: string;
-  subcategory: string;
-  stock_total: number;
-  selling_price: number;
+  subcategory?: string;
+  stockTotal: number;
+  sellingPrice: number;
   size: string;
   quantity: number;
-  alert_level: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW' | 'OK';
+  alertLevel: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW';
 }
 
 export function LowStockAlert() {
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchLowStock();
-  }, []);
-
-  const fetchLowStock = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('low_stock_items')
-        .select('*')
-        .order('quantity', { ascending: true });
-
-      if (error) throw error;
-      setLowStockItems(data || []);
-    } catch (error) {
-      console.error('Error fetching low stock:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const rawItems = useQuery(api.queries.inventory.lowStockItems);
+  const loading = rawItems === undefined;
+  const lowStockItems: LowStockItem[] = (rawItems ?? []) as LowStockItem[];
 
   const getAlertColor = (level: string) => {
     switch (level) {
@@ -116,13 +97,13 @@ export function LowStockAlert() {
       <div className="space-y-3">
         {lowStockItems.map((item) => (
           <div
-            key={`${item.id}-${item.size}`}
-            className={`rounded-2xl border p-4 ${getAlertColor(item.alert_level)}`}
+            key={`${item._id}-${item.size}`}
+            className={`rounded-2xl border p-4 ${getAlertColor(item.alertLevel)}`}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1">
                 <div className="mt-0.5">
-                  {getAlertIcon(item.alert_level)}
+                  {getAlertIcon(item.alertLevel)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-black text-sm uppercase leading-tight mb-1">
@@ -144,18 +125,18 @@ export function LowStockAlert() {
                     </span>
                     <span className="opacity-50">•</span>
                     <span className="font-bold opacity-70">
-                      ${item.selling_price.toLocaleString('es-AR')}
+                      ${item.sellingPrice.toLocaleString('es-AR')}
                     </span>
                   </div>
                 </div>
               </div>
               <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide ${
-                item.alert_level === 'OUT_OF_STOCK' ? 'bg-red-100 text-red-700' :
-                item.alert_level === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
+                item.alertLevel === 'OUT_OF_STOCK' ? 'bg-red-100 text-red-700' :
+                item.alertLevel === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
                 'bg-amber-100 text-amber-700'
               }`}>
-                {item.alert_level === 'OUT_OF_STOCK' ? 'Sin Stock' :
-                 item.alert_level === 'CRITICAL' ? 'Crítico' :
+                {item.alertLevel === 'OUT_OF_STOCK' ? 'Sin Stock' :
+                 item.alertLevel === 'CRITICAL' ? 'Crítico' :
                  'Bajo'}
               </div>
             </div>

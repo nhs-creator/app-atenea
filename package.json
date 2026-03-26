@@ -7,16 +7,25 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "audit:schema": "node scripts/audit-schema.js"
+    "audit:schema": "node scripts/audit-schema.js",
+    "test": "bun test",
+    "test:run": "bun test --no-watch"
   },
   "dependencies": {
+    "@auth/core": "^0.37.4",
+    "@convex-dev/auth": "^0.0.91",
     "@supabase/supabase-js": "^2.89.0",
+    "convex": "^1.34.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.23",

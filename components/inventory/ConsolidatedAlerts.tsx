@@ -1,21 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { AlertTriangle, Package, TrendingDown } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-
-interface LowStockItem {
-  id: string;
-  user_id: string;
-  name: string;
-  sku: string | null;
-  barcode: string | null;
-  category: string;
-  subcategory: string;
-  stock_total: number;
-  selling_price: number;
-  size: string;
-  quantity: number;
-  alert_level: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW' | 'OK';
-}
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface ConsolidatedAlert {
   productId: string;
@@ -32,50 +18,31 @@ interface ConsolidatedAlert {
 }
 
 export function ConsolidatedAlerts() {
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchLowStock();
-  }, []);
-
-  const fetchLowStock = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('low_stock_items')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setLowStockItems(data || []);
-    } catch (error) {
-      console.error('Error fetching low stock:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const rawItems = useQuery(api.queries.inventory.lowStockItems);
+  const loading = rawItems === undefined;
+  const lowStockItems = rawItems ?? [];
 
   // Group items by product (one alert per product)
   const consolidatedAlerts = useMemo(() => {
     const grouped = new Map<string, ConsolidatedAlert>();
     
     lowStockItems.forEach(item => {
-      if (!grouped.has(item.id)) {
-        grouped.set(item.id, {
-          productId: item.id,
+      if (!grouped.has(item._id)) {
+        grouped.set(item._id, {
+          productId: item._id,
           productName: item.name,
           category: item.category,
-          subcategory: item.subcategory,
+          subcategory: item.subcategory ?? '',
           lowSizes: [],
-          totalStock: item.stock_total,
-          sellingPrice: item.selling_price
+          totalStock: item.stockTotal,
+          sellingPrice: item.sellingPrice
         });
       }
-      
-      grouped.get(item.id)!.lowSizes.push({
+
+      grouped.get(item._id)!.lowSizes.push({
         size: item.size,
         quantity: item.quantity,
-        alert_level: item.alert_level
+        alert_level: item.alertLevel
       });
     });
     

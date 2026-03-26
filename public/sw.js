@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atenea-v2';
+const CACHE_NAME = 'atenea-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -38,8 +38,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // IMPORTANTE: Bypass total para Supabase para evitar race conditions
-  if (event.request.url.includes('supabase.co')) {
+  // IMPORTANTE: Bypass total para Convex y Supabase para evitar race conditions
+  if (event.request.url.includes('convex.cloud') || event.request.url.includes('convex.site') || event.request.url.includes('supabase.co')) {
     return; // El SW no interviene en estas peticiones
   }
 
