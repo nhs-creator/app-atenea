@@ -12,6 +12,28 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.2.0] - 2026-04-03
+
+### Añadido
+
+- **Sistema de contadoras**: El owner puede crear cuentas de contadora desde Settings con email y contraseña, sin signup público.
+- **Vista restringida para contadoras**: Las contadoras ven solo Movimientos (ingresos + egresos del negocio) y Reportes, sin acceso a gastos personales, inventario, clientes ni configuración.
+- **Auto-creación de perfil**: Al primer login se crea el perfil automáticamente; el primer usuario es owner, los demás quedan pendientes de aprobación.
+- **Pantalla de espera para usuarios pendientes**: Usuarios no asignados ven una pantalla indicando que su cuenta está pendiente.
+- **Scoping de datos para contadoras**: Las contadoras ven los datos del owner asignado via `getEffectiveUserId`.
+
+### Cambiado
+
+- **Navegación de contadoras**: Incluye botones de Movimientos y Reporte.
+- **Backend migrado de Supabase a Convex**: Auth, userId estable y deploy a producción.
+
+### Corregido
+
+- **Contadora no podía acceder**: Faltaba el perfil en la tabla `profiles` tras la migración desde Supabase.
+- **Estabilización de userId en Convex auth**: Formato del identificador consistente entre sesiones.
+
+---
+
 ## [1.0.0] - 2025-03-01
 
 ### Corregido

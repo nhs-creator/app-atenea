@@ -1,9 +1,9 @@
 import { query } from "../_generated/server";
-import { getAuthUserId } from "../lib/auth";
+import { getEffectiveUserId } from "../lib/auth";
 
 export const listInventory = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     return ctx.db
@@ -15,7 +15,7 @@ export const listInventory = query({
 
 export const lowStockItems = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     const items = await ctx.db

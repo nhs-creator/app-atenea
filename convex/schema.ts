@@ -21,7 +21,7 @@ export default defineSchema({
   profiles: defineTable({
     userId: v.string(),
     storeName: v.optional(v.string()),
-    role: v.union(v.literal("owner"), v.literal("accountant")),
+    role: v.union(v.literal("owner"), v.literal("accountant"), v.literal("pending")),
     supabaseId: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])

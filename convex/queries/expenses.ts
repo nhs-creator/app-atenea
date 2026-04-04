@@ -1,11 +1,11 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "../lib/auth";
+import { getEffectiveUserId } from "../lib/auth";
 
 export const listExpenses = query({
   args: { cutoffDate: v.string() },
   handler: async (ctx, { cutoffDate }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     return ctx.db

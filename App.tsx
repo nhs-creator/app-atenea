@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useConvexAuth } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "./convex/_generated/api";
 import {
   Tab, MultiSaleData, ExpenseFormData, EntryMode, Sale, Expense, ProductDraft
@@ -59,6 +59,16 @@ const App: React.FC = () => {
   const { signOut } = useAuthActions();
   const profile = useQuery(api.queries.profiles.getMyProfile);
   const userRole = profile?.role ?? null;
+  const ensureProfileMutation = useMutation(api.mutations.profiles.ensureProfile);
+
+  // Auto-crear perfil la primera vez que un usuario se autentica
+  const ensuredRef = useRef(false);
+  useEffect(() => {
+    if (isAuthenticated && profile === null && !ensuredRef.current) {
+      ensuredRef.current = true;
+      ensureProfileMutation().catch(console.error);
+    }
+  }, [isAuthenticated, profile]);
 
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
@@ -250,6 +260,21 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) return <LoginView onLogin={() => {}} />;
 
+  if (userRole === 'pending') return (
+    <div className="flex flex-col h-screen items-center justify-center bg-slate-50 gap-6 px-6 text-center">
+      <div className="bg-amber-100 p-4 rounded-2xl">
+        <ShoppingBag className="w-8 h-8 text-amber-600" />
+      </div>
+      <div>
+        <h2 className="font-bold text-lg text-slate-800">Cuenta pendiente de aprobacion</h2>
+        <p className="text-sm text-slate-500 mt-2">El dueno del local debe asignarte un rol para que puedas acceder.</p>
+      </div>
+      <button onClick={() => void signOut()} className="text-sm text-rose-500 font-bold flex items-center gap-2 mt-4">
+        <LogOut className="w-4 h-4" /> Cerrar sesion
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans text-slate-800">
       <header className="bg-white sticky top-0 z-40 border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
@@ -312,14 +337,14 @@ const App: React.FC = () => {
             {historyMode === 'sale' ? (
               <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} />
             ) : (
-              <ExpenseList expenses={atenea.expenses} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
+              <ExpenseList expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
             )}
           </div>
         )}
 
         {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />}
         {activeTab === 'customers' && userRole === 'owner' && <ClientsView clients={atenea.clients} onAdd={atenea.saveClient} onUpdate={atenea.saveClient} onDelete={atenea.deleteClient} />}
-        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} config={config} />}
+        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} inventory={atenea.inventory} config={config} />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 
@@ -349,10 +374,16 @@ const App: React.FC = () => {
               </button>
             </>
           ) : (
-            <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-full transition-all ${activeTab === 'list' ? 'text-primary scale-110' : 'text-slate-400'}`}>
-              <List />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Movimientos</span>
-            </button>
+            <>
+              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+                <Receipt className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Movimientos</span>
+              </button>
+              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
+                <BarChart2 className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Reporte</span>
+              </button>
+            </>
           )}
         </div>
       </nav>
