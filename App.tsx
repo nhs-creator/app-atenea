@@ -22,6 +22,7 @@ import SettingsView from './components/SettingsView';
 import ClientsView from './components/ClientsView';
 import LoginView from './components/LoginView';
 import AccountantDesktopView from './components/accountant/AccountantDesktopView';
+import OwnerDesktopView from './components/owner/OwnerDesktopView';
 
 // Iconos
 import { 
@@ -300,6 +301,101 @@ const App: React.FC = () => {
         expenses={atenea.expenses.filter((e) => e.type === 'business')}
         isSyncing={atenea.isSyncing}
       />
+    );
+  }
+
+  // Vista de escritorio para la dueña — mismo shell que la contadora pero con las 7 secciones del owner.
+  // Envuelve los componentes mobile existentes en contenedores centrados con ancho apropiado por sección.
+  if (userRole === 'owner' && isDesktop) {
+    return (
+      <>
+        <OwnerDesktopView
+          activeSection={activeTab}
+          onSectionChange={setActiveTab}
+          isSyncing={atenea.isSyncing}
+        >
+          {activeTab === 'form' && (
+            <div className="max-w-3xl mx-auto animate-in fade-in duration-500">
+              <SalesForm
+                onSubmit={handleNewSale}
+                inventory={atenea.inventory}
+                vouchers={atenea.vouchers}
+                clients={atenea.clients}
+                initialData={saleDraft}
+                onChange={setSaleDraft}
+                onCancelEdit={() => setSaleDraft(initialSaleDraft)}
+                nextSaleNumber={atenea.sales.length + 1}
+              />
+            </div>
+          )}
+
+          {activeTab === 'expenses' && (
+            <div className="max-w-3xl mx-auto flex flex-col space-y-4 animate-in fade-in duration-500">
+              <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
+                <button onClick={() => setExpenseDraft({ ...expenseDraft, type: 'business', category: BUSINESS_CATEGORIES[0].id })} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'business' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
+                  <ShoppingBag className="w-4 h-4" /> NEGOCIO
+                </button>
+                <button onClick={() => setExpenseDraft({ ...expenseDraft, type: 'personal', category: PERSONAL_CATEGORIES[0].id })} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'personal' ? 'bg-white text-pink-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
+                  <PlusCircle className="w-4 h-4" /> PERSONAL
+                </button>
+              </div>
+              <ExpenseForm
+                formData={expenseDraft}
+                onChange={setExpenseDraft}
+                onSubmit={handleNewExpense}
+                onCancelEdit={() => setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: expenseDraft.type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id, hasInvoiceA: false, invoiceAmount: '', type: expenseDraft.type, isEdit: false })}
+              />
+            </div>
+          )}
+
+          {activeTab === 'list' && (
+            <div className="max-w-5xl mx-auto flex flex-col space-y-4 animate-in fade-in duration-500">
+              <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner max-w-md">
+                <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
+                <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
+              </div>
+              {historyMode === 'sale' ? (
+                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} />
+              ) : (
+                <ExpenseList expenses={atenea.expenses} onDelete={atenea.deleteExpense} onEdit={handleEditExpense} />
+              )}
+            </div>
+          )}
+
+          {activeTab === 'inventory' && (
+            <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
+              <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />
+            </div>
+          )}
+
+          {activeTab === 'stats' && (
+            <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
+              <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} config={config} />
+            </div>
+          )}
+
+          {activeTab === 'customers' && (
+            <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
+              <ClientsView clients={atenea.clients} onAdd={atenea.saveClient} onUpdate={atenea.saveClient} onDelete={atenea.deleteClient} />
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-3xl mx-auto animate-in fade-in duration-500">
+              <SettingsView config={config} onSaveConfig={setConfig} />
+            </div>
+          )}
+        </OwnerDesktopView>
+
+        {toastMessage && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
+            <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-widest">{toastMessage.msg}</span>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

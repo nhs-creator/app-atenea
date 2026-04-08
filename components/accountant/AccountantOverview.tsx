@@ -1,43 +1,33 @@
 import React, { useState, useMemo } from 'react';
-import { Sale, Expense } from '../../types';
+import { Sale, Expense, PaymentSplit } from '../../types';
 import {
-  ArrowUpCircle, ArrowDownCircle, Receipt, TrendingUp, ShoppingBag,
+  ArrowUpCircle, ArrowDownCircle, Receipt, TrendingUp, ShoppingBag, CreditCard,
 } from 'lucide-react';
-
-type Period = 'mtd' | 'lastm' | 'ytd' | 'all';
+import { PeriodSelector, PeriodMode, getPeriodRange, getPeriodLabel } from './sharedPeriod';
 
 interface Props {
   sales: Sale[];
   expenses: Expense[];
 }
 
+const PAYMENT_COLORS: Record<string, string> = {
+  Efectivo: 'bg-emerald-500',
+  Transferencia: 'bg-blue-600',
+  Débito: 'bg-amber-500',
+  Crédito: 'bg-rose-600',
+  Vale: 'bg-orange-600',
+};
+
 const formatARS = (n: number) => Math.abs(Math.round(n)).toLocaleString('es-AR');
 const monthLabel = (d: Date) =>
   new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(d).replace('.', '');
 
-const periodLabels: Record<Period, string> = {
-  mtd: 'Este mes',
-  lastm: 'Mes pasado',
-  ytd: 'Este año',
-  all: 'Histórico',
-};
-
-function getPeriodRange(period: Period): { from: string; to: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  if (period === 'mtd') return { from: fmt(new Date(y, m, 1)), to: fmt(new Date(y, m + 1, 0)) };
-  if (period === 'lastm') return { from: fmt(new Date(y, m - 1, 1)), to: fmt(new Date(y, m, 0)) };
-  if (period === 'ytd') return { from: fmt(new Date(y, 0, 1)), to: fmt(new Date(y, 11, 31)) };
-  return { from: '0000-00-00', to: '9999-99-99' };
-}
-
 const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
-  const [period, setPeriod] = useState<Period>('mtd');
+  const [mode, setMode] = useState<PeriodMode>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
   const data = useMemo(() => {
-    const { from, to } = getPeriodRange(period);
+    const { from, to } = getPeriodRange(mode, selectedMonth);
 
     const fSales = sales.filter(
       (s) => s.date >= from && s.date <= to && s.status !== 'cancelled'
@@ -50,11 +40,34 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
     const operaciones = new Set(fSales.map((s) => s.client_number)).size;
     const ticketProm = operaciones > 0 ? ingresos / operaciones : 0;
 
-    // Monthly trend last 6 months
+    // Payment method breakdown — group by client_number to avoid double counting
+    const transactionPayments = new Map<string, PaymentSplit[]>();
+    for (const s of fSales) {
+      if (!transactionPayments.has(s.client_number)) {
+        transactionPayments.set(s.client_number, s.payment_details || []);
+      }
+    }
+    const paymentMap = new Map<string, number>();
+    let paymentTotal = 0;
+    for (const payments of transactionPayments.values()) {
+      for (const p of payments) {
+        paymentMap.set(p.method, (paymentMap.get(p.method) || 0) + p.amount);
+        paymentTotal += p.amount;
+      }
+    }
+    const paymentBreakdown = Array.from(paymentMap.entries())
+      .map(([method, amount]) => ({
+        method,
+        amount,
+        pct: paymentTotal > 0 ? (amount / paymentTotal) * 100 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    // Monthly trend — 6 months ending at selectedMonth
     const months: { key: string; label: string; sales: number; expenses: number }[] = [];
-    const now = new Date();
+    const anchor = mode === 'month' ? selectedMonth : new Date();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       months.push({ key, label: monthLabel(d), sales: 0, expenses: 0 });
     }
@@ -75,25 +88,30 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 6);
 
-    return { ingresos, egresos, resultado, operaciones, ticketProm, months, maxBar, recentSales };
-  }, [sales, expenses, period]);
+    return {
+      ingresos,
+      egresos,
+      resultado,
+      operaciones,
+      ticketProm,
+      paymentBreakdown,
+      months,
+      maxBar,
+      recentSales,
+    };
+  }, [sales, expenses, mode, selectedMonth]);
+
+  const periodSubtitle = getPeriodLabel(mode, selectedMonth);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Period chips */}
-      <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner max-w-md">
-        {(Object.keys(periodLabels) as Period[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
-              period === p ? 'bg-white text-primary shadow-md scale-[1.02]' : 'text-slate-500'
-            }`}
-          >
-            {periodLabels[p]}
-          </button>
-        ))}
-      </div>
+      {/* Period selector */}
+      <PeriodSelector
+        mode={mode}
+        selectedMonth={selectedMonth}
+        onModeChange={setMode}
+        onMonthChange={setSelectedMonth}
+      />
 
       {/* Hero result card */}
       <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
@@ -103,8 +121,8 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
           }`}
         />
         <div className="relative z-10">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
-            Ganancia operativa · {periodLabels[period]}
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 capitalize">
+            Ganancia operativa · {periodSubtitle}
           </p>
           <p
             className={`text-6xl font-black tracking-tighter mb-6 ${
@@ -176,7 +194,7 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
         />
       </div>
 
-      {/* Trend + recent activity */}
+      {/* Trend chart + payment methods */}
       <div className="grid grid-cols-3 gap-4">
         {/* Trend chart */}
         <div className="col-span-2 bg-white rounded-2xl border-2 border-slate-100 shadow-sm p-6">
@@ -203,7 +221,7 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
                 <div key={i} className="border-t border-dashed border-slate-100" />
               ))}
             </div>
-            {data.months.map((m, i) => (
+            {data.months.map((m) => (
               <div
                 key={m.key}
                 className="relative flex-1 h-full flex items-end justify-center gap-1.5 group"
@@ -240,33 +258,89 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
           </div>
         </div>
 
-        {/* Recent activity */}
+        {/* Payment methods breakdown */}
         <div className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm p-6">
-          <div className="mb-4">
-            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em]">
-              Últimas operaciones
+          <div className="mb-5">
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              Cobros del período
             </p>
-            <h3 className="text-lg font-black text-slate-800 tracking-tight">Actividad reciente</h3>
+            <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+              Por medio de pago
+            </h3>
           </div>
-          <div className="space-y-2">
-            {data.recentSales.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-xs font-bold text-slate-400">
-                  Sin operaciones en el período.
-                </p>
-              </div>
-            )}
-            {data.recentSales.map((s) => (
+
+          {data.paymentBreakdown.length === 0 ? (
+            <div className="text-center py-6">
+              <CreditCard className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+              <p className="text-xs font-bold text-slate-400">Sin cobros en el período.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {data.paymentBreakdown.map((p) => {
+                const colorClass = PAYMENT_COLORS[p.method] || 'bg-slate-500';
+                return (
+                  <div key={p.method}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className={`${colorClass} text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter`}
+                      >
+                        {p.method}
+                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[10px] font-black text-slate-400 tracking-tighter">
+                          {p.pct.toFixed(0)}%
+                        </span>
+                        <span className="text-sm font-black text-slate-800 tracking-tighter">
+                          ${formatARS(p.amount)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${colorClass} rounded-full transition-all`}
+                        style={{ width: `${p.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent activity */}
+      <div className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm p-6">
+        <div className="mb-4">
+          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em]">
+            Últimas operaciones
+          </p>
+          <h3 className="text-lg font-black text-slate-800 tracking-tight">Actividad reciente</h3>
+        </div>
+        <div className="space-y-2">
+          {data.recentSales.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-xs font-bold text-slate-400">Sin operaciones en el período.</p>
+            </div>
+          )}
+          {data.recentSales.map((s) => {
+            const firstMethod = s.payment_details && s.payment_details.length > 0 ? s.payment_details[0].method : null;
+            const dotColor = firstMethod ? PAYMENT_COLORS[firstMethod] || 'bg-slate-400' : 'bg-slate-300';
+            return (
               <div
                 key={s.id}
-                className="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"
+                className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0"
               >
+                <div className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} title={firstMethod ?? ''} />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-700 truncate uppercase tracking-tighter">
                     {s.product_name}
                   </p>
                   <p className="text-[9px] font-bold text-slate-400 mt-0.5">
                     {s.date} · #{s.client_number}
+                    {s.payment_details && s.payment_details.length > 1 && (
+                      <span className="text-primary"> · {s.payment_details.length} medios</span>
+                    )}
                   </p>
                 </div>
                 <div
@@ -277,8 +351,8 @@ const AccountantOverview: React.FC<Props> = ({ sales, expenses }) => {
                   {s.price < 0 ? '−' : '+'}${formatARS(s.price * s.quantity)}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>

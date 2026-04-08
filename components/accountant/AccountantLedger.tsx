@@ -1,12 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { Sale, Expense } from '../../types';
+import { Sale, Expense, PaymentSplit } from '../../types';
 import {
-  Search, X, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Calendar, Receipt,
+  Search, X, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Receipt,
+  ChevronDown, FileText, Package, CreditCard,
 } from 'lucide-react';
+import { PeriodSelector, PeriodMode, getPeriodRange } from './sharedPeriod';
 
 interface Props {
   sales: Sale[];
   expenses: Expense[];
+}
+
+interface SaleItemDetail {
+  name: string;
+  quantity: number;
+  size: string;
+  price: number;
+  listPrice: number;
+}
+
+interface ExpenseDetail {
+  hasInvoiceA: boolean;
+  invoiceAmount: number;
 }
 
 type LedgerEntry = {
@@ -18,9 +33,22 @@ type LedgerEntry = {
   reference: string;
   amount: number;
   isReturn: boolean;
+  // Sale-only details
+  paymentDetails?: PaymentSplit[];
+  saleItems?: SaleItemDetail[];
+  // Expense-only details
+  expense?: ExpenseDetail;
 };
 
 type FilterType = 'all' | 'income' | 'expense';
+
+const PAYMENT_COLORS: Record<string, string> = {
+  Efectivo: 'bg-emerald-500',
+  Transferencia: 'bg-blue-600',
+  Débito: 'bg-amber-500',
+  Crédito: 'bg-rose-600',
+  Vale: 'bg-orange-600',
+};
 
 const formatARS = (n: number) => Math.abs(Math.round(n)).toLocaleString('es-AR');
 const formatDate = (s: string) => {
@@ -32,14 +60,18 @@ const formatDate = (s: string) => {
 const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [mode, setMode] = useState<PeriodMode>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const entries: LedgerEntry[] = useMemo(() => {
+    const { from, to } = getPeriodRange(mode, selectedMonth);
+
     // Group sales by client_number — one row per transaction
     const salesGrouped = new Map<string, Sale[]>();
     for (const s of sales) {
       if (s.status === 'cancelled') continue;
+      if (s.date < from || s.date > to) continue;
       const key = s.client_number;
       if (!salesGrouped.has(key)) salesGrouped.set(key, []);
       salesGrouped.get(key)!.push(s);
@@ -67,38 +99,50 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
         reference: `#${cn}`,
         amount: total,
         isReturn: total < 0,
+        paymentDetails: items[0].payment_details,
+        saleItems: items.map((it) => ({
+          name: it.product_name,
+          quantity: it.quantity,
+          size: it.size || 'U',
+          price: it.price,
+          listPrice: Number(it.list_price ?? it.price),
+        })),
       };
     });
 
-    const expenseEntries: LedgerEntry[] = expenses.map((e) => ({
-      id: `e-${e.id}`,
-      date: e.date,
-      type: 'expense',
-      description: e.description || '(sin descripción)',
-      category: e.category,
-      reference: e.has_invoice_a ? 'Fact. A' : '—',
-      amount: e.amount,
-      isReturn: false,
-    }));
+    const expenseEntries: LedgerEntry[] = expenses
+      .filter((e) => e.date >= from && e.date <= to)
+      .map((e) => ({
+        id: `e-${e.id}`,
+        date: e.date,
+        type: 'expense',
+        description: e.description || '(sin descripción)',
+        category: e.category,
+        reference: e.has_invoice_a ? 'Fact. A' : '—',
+        amount: e.amount,
+        isReturn: false,
+        expense: {
+          hasInvoiceA: e.has_invoice_a,
+          invoiceAmount: e.invoice_amount,
+        },
+      }));
 
     let combined = [...saleEntries, ...expenseEntries];
 
-    if (filter !== 'all') combined = combined.filter((e) => e.type === filter);
+    if (filter !== 'all') combined = combined.filter((en) => en.type === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
       combined = combined.filter(
-        (e) =>
-          e.description.toLowerCase().includes(q) ||
-          e.category.toLowerCase().includes(q) ||
-          e.reference.toLowerCase().includes(q)
+        (en) =>
+          en.description.toLowerCase().includes(q) ||
+          en.category.toLowerCase().includes(q) ||
+          en.reference.toLowerCase().includes(q)
       );
     }
-    if (dateFrom) combined = combined.filter((e) => e.date >= dateFrom);
-    if (dateTo) combined = combined.filter((e) => e.date <= dateTo);
 
     combined.sort((a, b) => b.date.localeCompare(a.date));
     return combined;
-  }, [sales, expenses, filter, search, dateFrom, dateTo]);
+  }, [sales, expenses, filter, search, mode, selectedMonth]);
 
   const totals = useMemo(() => {
     let ingresos = 0;
@@ -106,7 +150,7 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
     for (const e of entries) {
       if (e.type === 'income') {
         if (e.amount >= 0) ingresos += e.amount;
-        else egresos += Math.abs(e.amount); // returns count as outflow
+        else egresos += Math.abs(e.amount);
       } else {
         egresos += e.amount;
       }
@@ -114,34 +158,46 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
     return { ingresos, egresos, neto: ingresos - egresos };
   }, [entries]);
 
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
-      {/* Filter chips + summary */}
-      <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner max-w-md">
-        <button
-          onClick={() => setFilter('all')}
-          className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
-            filter === 'all' ? 'bg-white text-slate-800 shadow-md scale-[1.02]' : 'text-slate-500'
-          }`}
-        >
-          Todo
-        </button>
-        <button
-          onClick={() => setFilter('income')}
-          className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
-            filter === 'income' ? 'bg-white text-emerald-600 shadow-md scale-[1.02]' : 'text-slate-500'
-          }`}
-        >
-          Ingresos
-        </button>
-        <button
-          onClick={() => setFilter('expense')}
-          className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
-            filter === 'expense' ? 'bg-white text-rose-500 shadow-md scale-[1.02]' : 'text-slate-500'
-          }`}
-        >
-          Egresos
-        </button>
+      {/* Period selector + type filter chips row */}
+      <div className="flex flex-wrap items-center gap-3">
+        <PeriodSelector
+          mode={mode}
+          selectedMonth={selectedMonth}
+          onModeChange={setMode}
+          onMonthChange={setSelectedMonth}
+        />
+        <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner ml-auto">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
+              filter === 'all' ? 'bg-white text-slate-800 shadow-md scale-[1.02]' : 'text-slate-500'
+            }`}
+          >
+            Todo
+          </button>
+          <button
+            onClick={() => setFilter('income')}
+            className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
+              filter === 'income' ? 'bg-white text-emerald-600 shadow-md scale-[1.02]' : 'text-slate-500'
+            }`}
+          >
+            Ingresos
+          </button>
+          <button
+            onClick={() => setFilter('expense')}
+            className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
+              filter === 'expense' ? 'bg-white text-rose-500 shadow-md scale-[1.02]' : 'text-slate-500'
+            }`}
+          >
+            Egresos
+          </button>
+        </div>
       </div>
 
       {/* Summary strip */}
@@ -192,48 +248,30 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
         </div>
       </div>
 
-      {/* Search + date filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-          <input
-            type="text"
-            placeholder="Buscar concepto, categoría..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-slate-400" />
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="h-12 px-3 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-xs text-slate-600 outline-none focus:border-primary transition-all"
-          />
-          <span className="text-xs font-black text-slate-400">→</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="h-12 px-3 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-xs text-slate-600 outline-none focus:border-primary transition-all"
-          />
-        </div>
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+        <input
+          type="text"
+          placeholder="Buscar concepto, categoría..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-12 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Ledger table */}
       <div className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm overflow-hidden">
         {/* Header row */}
-        <div className="grid grid-cols-[100px_120px_minmax(0,1fr)_180px_100px_140px] gap-4 px-6 py-4 bg-slate-50 border-b-2 border-slate-100">
+        <div className="grid grid-cols-[100px_120px_minmax(0,1fr)_180px_100px_140px_36px] gap-4 px-6 py-4 bg-slate-50 border-b-2 border-slate-100">
           <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Fecha</div>
           <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Tipo</div>
           <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Concepto</div>
@@ -246,6 +284,7 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
           <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter text-right">
             Monto
           </div>
+          <div></div>
         </div>
 
         {/* Rows */}
@@ -265,55 +304,222 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
             const isExpense = e.type === 'expense';
             const isReturn = e.isReturn;
             const negative = isExpense || isReturn;
+            const isExpanded = expandedId === e.id;
             return (
-              <div
-                key={e.id}
-                className="grid grid-cols-[100px_120px_minmax(0,1fr)_180px_100px_140px] gap-4 px-6 py-3.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors items-center"
-              >
-                <div className="text-xs font-bold text-slate-500">{formatDate(e.date)}</div>
-                <div>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded-lg ${
-                      isReturn
-                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                        : isExpense
-                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                    }`}
-                  >
-                    {isReturn ? (
-                      <>
-                        <RefreshCcw className="w-2.5 h-2.5" /> Devol.
-                      </>
-                    ) : isExpense ? (
-                      <>
-                        <ArrowDownCircle className="w-2.5 h-2.5" /> Egreso
-                      </>
-                    ) : (
-                      <>
-                        <ArrowUpCircle className="w-2.5 h-2.5" /> Ingreso
-                      </>
-                    )}
-                  </span>
-                </div>
+              <React.Fragment key={e.id}>
                 <div
-                  className="text-sm font-black text-slate-700 truncate uppercase tracking-tighter"
-                  title={e.description}
-                >
-                  {e.description}
-                </div>
-                <div className="text-xs font-bold text-slate-500 truncate">{e.category}</div>
-                <div className="text-[10px] font-black text-slate-400 text-right uppercase tracking-tighter">
-                  {e.reference}
-                </div>
-                <div
-                  className={`text-sm font-black tracking-tighter text-right ${
-                    negative ? 'text-rose-600' : 'text-emerald-600'
+                  onClick={() => toggleExpand(e.id)}
+                  className={`grid grid-cols-[100px_120px_minmax(0,1fr)_180px_100px_140px_36px] gap-4 px-6 py-3.5 border-b border-slate-100 cursor-pointer transition-colors items-center ${
+                    isExpanded ? 'bg-slate-50' : 'hover:bg-slate-50'
                   }`}
                 >
-                  {negative ? '−' : '+'}${formatARS(e.amount)}
+                  <div className="text-xs font-bold text-slate-500">{formatDate(e.date)}</div>
+                  <div>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded-lg ${
+                        isReturn
+                          ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                          : isExpense
+                          ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                          : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      }`}
+                    >
+                      {isReturn ? (
+                        <>
+                          <RefreshCcw className="w-2.5 h-2.5" /> Devol.
+                        </>
+                      ) : isExpense ? (
+                        <>
+                          <ArrowDownCircle className="w-2.5 h-2.5" /> Egreso
+                        </>
+                      ) : (
+                        <>
+                          <ArrowUpCircle className="w-2.5 h-2.5" /> Ingreso
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div
+                    className="text-sm font-black text-slate-700 truncate uppercase tracking-tighter"
+                    title={e.description}
+                  >
+                    {e.description}
+                  </div>
+                  <div className="text-xs font-bold text-slate-500 truncate">{e.category}</div>
+                  <div className="text-[10px] font-black text-slate-400 text-right uppercase tracking-tighter">
+                    {e.reference}
+                  </div>
+                  <div
+                    className={`text-sm font-black tracking-tighter text-right ${
+                      negative ? 'text-rose-600' : 'text-emerald-600'
+                    }`}
+                  >
+                    {negative ? '−' : '+'}${formatARS(e.amount)}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-300 transition-transform ${
+                        isExpanded ? 'rotate-180 text-primary' : ''
+                      }`}
+                    />
+                  </div>
                 </div>
-              </div>
+
+                {/* Expanded panel */}
+                {isExpanded && (
+                  <div className="bg-slate-50 border-b-2 border-slate-100 px-7 py-5 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {e.type === 'income' ? (
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Productos */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Package className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Productos
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {e.saleItems?.filter(it => it.name !== '💰 AJUSTE POR REDONDEO').map((it, i) => {
+                              const lineTotal = it.price * it.quantity;
+                              const lineList = it.listPrice * it.quantity;
+                              const hasDiscount = it.listPrice > it.price;
+                              return (
+                                <div key={i} className="flex items-center justify-between text-xs gap-3">
+                                  <span className="font-bold text-slate-600 truncate uppercase tracking-tighter">
+                                    {it.quantity > 1 && (
+                                      <span className="text-primary mr-1">{it.quantity}×</span>
+                                    )}
+                                    {it.name}
+                                    <span className="text-[9px] text-slate-400 font-black ml-1">
+                                      ({it.size})
+                                    </span>
+                                  </span>
+                                  <div className="flex flex-col items-end shrink-0">
+                                    {hasDiscount && (
+                                      <span className="text-[9px] text-slate-300 line-through">
+                                        ${lineList.toLocaleString('es-AR')}
+                                      </span>
+                                    )}
+                                    <span
+                                      className={`font-black tracking-tighter ${
+                                        hasDiscount ? 'text-emerald-500' : 'text-slate-700'
+                                      }`}
+                                    >
+                                      ${Math.abs(lineTotal).toLocaleString('es-AR')}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Medios de pago */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Medios de pago
+                            </span>
+                          </div>
+                          {e.paymentDetails && e.paymentDetails.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {e.paymentDetails.map((p, i) => {
+                                const colorClass = PAYMENT_COLORS[p.method] || 'bg-slate-500';
+                                return (
+                                  <div
+                                    key={i}
+                                    className={`${colorClass} px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm`}
+                                  >
+                                    <span className="text-[9px] font-black text-white uppercase tracking-tighter">
+                                      {p.method}
+                                    </span>
+                                    <span className="text-[11px] font-black text-white tracking-tighter">
+                                      ${formatARS(p.amount)}
+                                    </span>
+                                    {p.installments && p.installments > 1 && (
+                                      <span className="text-[9px] font-black text-white/80">
+                                        / {p.installments} cuotas
+                                      </span>
+                                    )}
+                                    {p.voucherCode && (
+                                      <span className="text-[9px] font-black text-white/80">
+                                        vale {p.voucherCode}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs font-bold text-slate-400 italic">
+                              Sin desglose registrado.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <ArrowDownCircle className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Detalle del egreso
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-baseline justify-between text-xs gap-3">
+                              <span className="font-bold text-slate-400 uppercase tracking-tighter">
+                                Categoría
+                              </span>
+                              <span className="font-black text-slate-700 uppercase tracking-tighter">
+                                {e.category}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline justify-between text-xs gap-3">
+                              <span className="font-bold text-slate-400 uppercase tracking-tighter">
+                                Descripción
+                              </span>
+                              <span className="font-bold text-slate-600 text-right truncate">
+                                {e.description}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <FileText className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Comprobante
+                            </span>
+                          </div>
+                          {e.expense?.hasInvoiceA ? (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 inline-flex items-center gap-3">
+                              <FileText className="w-4 h-4 text-indigo-600" />
+                              <div>
+                                <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
+                                  Factura A
+                                </p>
+                                <p className="text-sm font-black text-indigo-700 tracking-tighter">
+                                  ${formatARS(e.expense.invoiceAmount)}
+                                </p>
+                                <p className="text-[9px] font-bold text-indigo-500/70 mt-0.5">
+                                  Discriminado del total
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs font-bold text-slate-400 italic">
+                              Sin factura A discriminada.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>

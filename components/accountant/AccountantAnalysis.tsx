@@ -1,18 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Sale, Expense } from '../../types';
 import {
-  ArrowUpCircle, ArrowDownCircle, Banknote, FileText, TrendingUp, Percent,
+  ArrowUpCircle, ArrowDownCircle, Banknote, FileText, Percent,
 } from 'lucide-react';
-
-type Period = 'mtd' | 'lastm' | 'q' | 'ytd' | 'all';
-
-const periodLabels: Record<Period, string> = {
-  mtd: 'Este mes',
-  lastm: 'Mes pasado',
-  q: 'Trimestre',
-  ytd: 'Este año',
-  all: 'Histórico',
-};
+import { PeriodSelector, PeriodMode, getPeriodRange, getPeriodLabel } from './sharedPeriod';
 
 interface Props {
   sales: Sale[];
@@ -23,26 +14,12 @@ const formatARS = (n: number) => Math.abs(Math.round(n)).toLocaleString('es-AR')
 const monthLabel = (d: Date) =>
   new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(d).replace('.', '');
 
-function getPeriodRange(period: Period): { from: string; to: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  if (period === 'mtd') return { from: fmt(new Date(y, m, 1)), to: fmt(new Date(y, m + 1, 0)) };
-  if (period === 'lastm') return { from: fmt(new Date(y, m - 1, 1)), to: fmt(new Date(y, m, 0)) };
-  if (period === 'q') {
-    const qStart = Math.floor(m / 3) * 3;
-    return { from: fmt(new Date(y, qStart, 1)), to: fmt(new Date(y, qStart + 3, 0)) };
-  }
-  if (period === 'ytd') return { from: fmt(new Date(y, 0, 1)), to: fmt(new Date(y, 11, 31)) };
-  return { from: '0000-00-00', to: '9999-99-99' };
-}
-
 const AccountantAnalysis: React.FC<Props> = ({ sales, expenses }) => {
-  const [period, setPeriod] = useState<Period>('mtd');
+  const [mode, setMode] = useState<PeriodMode>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
   const data = useMemo(() => {
-    const { from, to } = getPeriodRange(period);
+    const { from, to } = getPeriodRange(mode, selectedMonth);
 
     const fSales = sales.filter(
       (s) => s.date >= from && s.date <= to && s.status !== 'cancelled'
@@ -73,11 +50,11 @@ const AccountantAnalysis: React.FC<Props> = ({ sales, expenses }) => {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    // Monthly history (12 months)
+    // Monthly history — 12 months ending at selectedMonth (or "now" in 'all' mode)
     const months: { key: string; label: string; sales: number; expenses: number; result: number }[] = [];
-    const now = new Date();
+    const anchor = mode === 'all' ? new Date() : selectedMonth;
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       months.push({ key, label: monthLabel(d), sales: 0, expenses: 0, result: 0 });
     }
@@ -107,24 +84,19 @@ const AccountantAnalysis: React.FC<Props> = ({ sales, expenses }) => {
       months,
       maxAbs,
     };
-  }, [sales, expenses, period]);
+  }, [sales, expenses, mode, selectedMonth]);
+
+  const periodSubtitle = getPeriodLabel(mode, selectedMonth);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Period chips */}
-      <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner max-w-xl">
-        {(Object.keys(periodLabels) as Period[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-tighter transition-all ${
-              period === p ? 'bg-white text-slate-800 shadow-md scale-[1.02]' : 'text-slate-500'
-            }`}
-          >
-            {periodLabels[p]}
-          </button>
-        ))}
-      </div>
+      {/* Period selector */}
+      <PeriodSelector
+        mode={mode}
+        selectedMonth={selectedMonth}
+        onModeChange={setMode}
+        onMonthChange={setSelectedMonth}
+      />
 
       {/* Hero result */}
       <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
@@ -134,8 +106,8 @@ const AccountantAnalysis: React.FC<Props> = ({ sales, expenses }) => {
           }`}
         />
         <div className="relative z-10">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
-            Resultado del ejercicio · {periodLabels[period]}
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 capitalize">
+            Resultado del ejercicio · {periodSubtitle}
           </p>
           <p
             className={`text-7xl font-black tracking-tighter mb-2 ${

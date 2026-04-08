@@ -12,6 +12,29 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.4.0] - 2026-04-08
+
+### Añadido
+
+- **Vista de escritorio para la dueña**: Nuevo `OwnerDesktopView` (`components/owner/OwnerDesktopView.tsx`) que envuelve los 7 componentes mobile existentes en un shell con sidebar de navegación + topbar sticky. Se activa cuando `userRole === 'owner'` y viewport ≥ 1180px. Las 7 secciones (Ingresos, Gastos, Historial, Stock, Reporte, Clientas, Configuración) están accesibles desde el sidebar con sus colores semánticos del bottom-nav móvil. El estado `activeTab` existente se reutiliza como section state — cero duplicación. El toast de confirmación se preserva en desktop via fragment wrapper.
+- **Selector de período compartido para la contadora**: Nuevo `components/accountant/sharedPeriod.tsx` con `PeriodSelector`, `getPeriodRange` y `getPeriodLabel`. Tres modos `[Mes] [Año] [Todo]` + navegador de mes con chevrons (mismo patrón que `StatsHeader.tsx:43-58`). En modo `Mes` los chevrons cambian de mes en mes; en modo `Año` cambian de año en año; en `Todo` el navegador desaparece. Si se hace click a un chevron desde modo `Todo`, vuelve automáticamente a `Mes`.
+- **Filas expandibles en `AccountantLedger`**: Click en una fila despliega un panel `bg-slate-50` con detalle. Para ventas: lista de productos (con cantidad, talle, descuento del 10% tachado) en una columna y pills coloreadas de medios de pago en otra (reusa `PAYMENT_COLORS` de `SalesList.tsx`). Las pills muestran cuotas y código de vale cuando aplican. Para gastos: categoría, descripción completa y card de Factura A discriminada cuando corresponde. Solo una fila puede estar expandida a la vez.
+- **Card "Cobros por medio de pago" en `AccountantOverview`**: Desglose agregado de los cobros del período por medio de pago. Cada método se muestra con su pill coloreada, porcentaje del total y barra de progreso horizontal. La agregación deduplica por `client_number` para no doble-contar las múltiples filas de una transacción.
+- **Indicador de medio de pago en bitácora**: La sección "Actividad reciente" del Resumen ahora muestra un dot coloreado a la izquierda de cada operación con el primer medio de pago, y `· N medios` cuando la venta se cobró con múltiples métodos.
+
+### Cambiado
+
+- **Sistema de período de la contadora unificado**: Las 3 secciones (Resumen, Movimientos, Reporte) ahora usan el mismo `PeriodSelector` con el mismo state model (`mode: PeriodMode`, `selectedMonth: Date`). Antes cada sección tenía su propio set de chips (`mtd/lastm/ytd/all` en Overview/Ledger, `mtd/lastm/q/ytd/all` en Analysis).
+- **Gráficos anclados al mes seleccionado**: El chart de "últimos 6 meses" en `AccountantOverview` y el de "12 meses" en `AccountantAnalysis` ahora se anclan a `selectedMonth` (en modo `month` y `ytd`) en lugar de a `now`. En modo `all` siguen anclados a hoy.
+- **Filtros de fecha en Movimientos reemplazados**: Los inputs `dateFrom`/`dateTo` se reemplazaron por el `PeriodSelector`. El filtro `Todo/Ingresos/Egresos` y el buscador se mantienen.
+- **Modo Trimestre quitado de `AccountantAnalysis`**: Para mantener consistencia con las otras 2 secciones de la contadora. La navegación quarter-by-quarter se cubre clickeando 3 veces el chevron de mes.
+
+### Notas
+
+- Cero cambios en el código del owner mobile, en Convex, en hooks o en types. El UI del owner mobile, la vista mobile de la contadora y el `AccountantDesktopView` v1.3.0 siguen funcionando intactos en sus respectivos viewports.
+
+---
+
 ## [1.3.0] - 2026-04-08
 
 ### Añadido
