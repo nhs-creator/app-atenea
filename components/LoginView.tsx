@@ -19,7 +19,11 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      await signIn("password", { email, password, flow: "signIn" });
+      await signIn("password", {
+        email: email.toLowerCase().trim(),
+        password,
+        flow: "signIn",
+      });
       onLogin();
     } catch (err: any) {
       setError('Credenciales inválidas o acceso denegado');

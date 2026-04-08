@@ -1,0 +1,18 @@
+/* Atenea — Accountant Desktop View
+   Minimal scoped styles. Visual language matches the rest of the app
+   (slate / teal / rose / emerald, system fonts, rounded-2xl cards). */
+
+.accountant-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.accountant-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.accountant-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0; /* slate-200 */
+  border-radius: 9999px;
+}
+.accountant-scroll::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1; /* slate-300 */
+}

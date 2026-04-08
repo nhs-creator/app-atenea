@@ -25,6 +25,7 @@ import type * as mutations_inventory from "../mutations/inventory.js";
 import type * as mutations_profiles from "../mutations/profiles.js";
 import type * as mutations_sales from "../mutations/sales.js";
 import type * as queries_clients from "../queries/clients.js";
+import type * as queries_debug_stats from "../queries/debug_stats.js";
 import type * as queries_expenses from "../queries/expenses.js";
 import type * as queries_internal_profiles from "../queries/internal_profiles.js";
 import type * as queries_inventory from "../queries/inventory.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   "mutations/profiles": typeof mutations_profiles;
   "mutations/sales": typeof mutations_sales;
   "queries/clients": typeof queries_clients;
+  "queries/debug_stats": typeof queries_debug_stats;
   "queries/expenses": typeof queries_expenses;
   "queries/internal_profiles": typeof queries_internal_profiles;
   "queries/inventory": typeof queries_inventory;

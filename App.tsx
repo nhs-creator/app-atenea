@@ -21,6 +21,7 @@ import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
 import ClientsView from './components/ClientsView';
 import LoginView from './components/LoginView';
+import AccountantDesktopView from './components/accountant/AccountantDesktopView';
 
 // Iconos
 import { 
@@ -39,6 +40,21 @@ const getTodayAR = () => {
     year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
 };
+
+// Accountant gets a dedicated desktop layout on wider screens.
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(query).matches;
+  });
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
 
 const initialProductDraft: ProductDraft = {
   name: '', price: '', quantity: '1', size: '', inventoryId: ''
@@ -73,6 +89,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
   const [toastMessage, setToastMessage] = useState<{msg: string, voucher?: any} | null>(null);
+  const isDesktop = useMediaQuery('(min-width: 1180px)');
 
   // 1. Persistencia Global
   const [saleDraft, setSaleDraft] = useLocalStorage<MultiSaleData>('atenea_sale_draft', initialSaleDraft);
@@ -274,6 +291,17 @@ const App: React.FC = () => {
       </button>
     </div>
   );
+
+  // Vista de escritorio dedicada para la contadora — toma el control completo de la pantalla.
+  if (userRole === 'accountant' && isDesktop) {
+    return (
+      <AccountantDesktopView
+        sales={atenea.sales}
+        expenses={atenea.expenses.filter((e) => e.type === 'business')}
+        isSyncing={atenea.isSyncing}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans text-slate-800">

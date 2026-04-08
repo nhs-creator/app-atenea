@@ -12,6 +12,22 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.3.0] - 2026-04-08
+
+### Añadido
+
+- **Vista de escritorio para contadoras**: Layout dedicado con sidebar de navegación que se activa en pantallas ≥ 1180px cuando el usuario tiene rol `accountant`. Incluye tres secciones:
+  - **Resumen**: hero card con ganancia operativa del período, KPIs (ingresos brutos, egresos, operaciones, ticket promedio), gráfico de tendencia de 6 meses y feed de actividad reciente.
+  - **Movimientos**: cards de totales (ingresos, egresos, saldo neto), buscador, filtros por tipo y rango de fechas, y tabla de transacciones con sales agrupadas por `client_number` y pills de estado (Ingreso/Egreso/Devolución).
+  - **Reporte**: hero con resultado del ejercicio, estado de resultados (margen bruto, COGS, gastos operativos), KPIs de margen % y facturado A, curva anual de 12 meses con tooltips, y composición de egresos por rubro con barras horizontales.
+- Layout responsive: en pantallas < 1180px la contadora sigue viendo el bottom-nav móvil existente sin cambios.
+
+### Corregido
+
+- **Login de contadora con `InvalidAccountId`**: La normalización del email (lowercase + trim) se aplicaba solo al crear la cuenta en `createAccountant`, pero no al iniciar sesión en `LoginView`. Si el teclado del celular capitalizaba la primera letra o agregaba un espacio al final, la búsqueda en `authAccounts` fallaba. Ahora `LoginView` normaliza el email antes de pasarlo al provider Password.
+
+---
+
 ## [1.2.0] - 2026-04-03
 
 ### Añadido
