@@ -4,8 +4,9 @@ import { api } from '../../convex/_generated/api';
 import { Sale, PaymentSplit } from '../../types';
 import {
   ChevronLeft, ChevronRight, Calendar, FileBarChart, AlertCircle,
-  TrendingUp, Banknote,
+  TrendingUp, Banknote, Download,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Props {
   sales: Sale[];
@@ -159,30 +160,127 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
     setEditValue('');
   };
 
+  const downloadExcel = () => {
+    const MONTH_NAMES = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+
+    // Sheet 1: Cuadro de cobros mensual
+    const cobrosHeaders = [
+      'Período', 'Efectivo', 'Transferencia', 'Débito', 'Crédito',
+      'Total sin ef.', 'Total', 'Facturado', 'Dif. sin facturar',
+    ];
+
+    const cobrosRows = monthlyData.map((row, idx) => {
+      const facturado = billingMap[row.yearMonth] || 0;
+      const dif = row.totalSinEf - facturado;
+      return [
+        MONTH_NAMES[idx],
+        row.efectivo,
+        row.transferencia,
+        row.debito,
+        row.credito,
+        row.totalSinEf,
+        row.total,
+        facturado,
+        dif,
+      ];
+    });
+
+    const anualRow = [
+      'ANUAL',
+      annualTotals.efectivo,
+      annualTotals.transferencia,
+      annualTotals.debito,
+      annualTotals.credito,
+      annualTotals.totalSinEf,
+      annualTotals.total,
+      annualTotals.facturado,
+      annualTotals.totalSinEf - annualTotals.facturado,
+    ];
+
+    const cobrosData = [cobrosHeaders, ...cobrosRows, anualRow];
+
+    const wb = XLSX.utils.book_new();
+
+    const wsCobros = XLSX.utils.aoa_to_sheet(cobrosData);
+
+    // Column widths
+    wsCobros['!cols'] = [
+      { wch: 14 },
+      { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, wsCobros, `Cobros ${year}`);
+
+    // Sheet 2: Encuadre monotributo (visible categories)
+    if (visibleCategories.length > 0) {
+      const monoHeaders = [
+        'Categoría', 'Tope anual', 'Monto monotributo/mes',
+        'Acumulado digital', 'Margen disponible', '% del tope',
+      ];
+      const monoRows = visibleCategories.map((c) => {
+        const dif = c.maxBilling - annualTotals.totalSinEf;
+        const pctUsed = c.maxBilling > 0
+          ? parseFloat(((annualTotals.totalSinEf / c.maxBilling) * 100).toFixed(1))
+          : 0;
+        return [
+          c.letter,
+          c.maxBilling,
+          c.totalGoods,
+          annualTotals.totalSinEf,
+          dif,
+          pctUsed,
+        ];
+      });
+      const wsMono = XLSX.utils.aoa_to_sheet([monoHeaders, ...monoRows]);
+      wsMono['!cols'] = [
+        { wch: 12 }, { wch: 16 }, { wch: 22 },
+        { wch: 18 }, { wch: 18 }, { wch: 12 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsMono, 'Monotributo');
+    }
+
+    XLSX.writeFile(wb, `Reporte_Fiscal_${year}.xlsx`);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Year selector */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center bg-white px-2 py-1.5 rounded-2xl border-2 border-slate-100 shadow-sm gap-1">
-          <button
-            onClick={() => setYear((y) => y - 1)}
-            className="p-2 text-slate-400 hover:text-primary active:scale-75 transition-all"
-            aria-label="Año anterior"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2 px-3">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span className="font-black text-sm uppercase tracking-widest text-slate-700">
-              Año {year}
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-white px-2 py-1.5 rounded-2xl border-2 border-slate-100 shadow-sm gap-1">
+            <button
+              onClick={() => setYear((y) => y - 1)}
+              className="p-2 text-slate-400 hover:text-primary active:scale-75 transition-all"
+              aria-label="Año anterior"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 px-3">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="font-black text-sm uppercase tracking-widest text-slate-700">
+                Año {year}
+              </span>
+            </div>
+            <button
+              onClick={() => setYear((y) => y + 1)}
+              className="p-2 text-slate-400 hover:text-primary active:scale-75 transition-all"
+              aria-label="Año siguiente"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
+
           <button
-            onClick={() => setYear((y) => y + 1)}
-            className="p-2 text-slate-400 hover:text-primary active:scale-75 transition-all"
-            aria-label="Año siguiente"
+            onClick={downloadExcel}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-2xl shadow-sm transition-all"
+            aria-label="Descargar Excel"
           >
-            <ChevronRight className="w-5 h-5" />
+            <Download className="w-4 h-4" />
+            <span className="text-xs font-black uppercase tracking-wider">Excel</span>
           </button>
         </div>
 

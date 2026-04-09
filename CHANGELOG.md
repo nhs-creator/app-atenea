@@ -12,6 +12,14 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.5.1] - 2026-04-08
+
+### Añadido
+
+- **Exportación Excel en la sección Fiscal (contadora)**: Botón junto al selector de año que genera `Reporte_Fiscal_{año}.xlsx` con SheetJS (`xlsx`). Hoja **Cobros**: 12 meses + fila anual (Efectivo, Transferencia, Débito, Crédito, Total sin ef., Total, Facturado, Dif. sin facturar). Hoja **Monotributo**: categorías visibles con tope anual, cuota mensual, acumulado digital, margen y % del tope.
+
+---
+
 ## [1.5.0] - 2026-04-08
 
 ### Añadido

@@ -1,5 +1,16 @@
 # Novedades de Atenea Finanzas
 
+## v1.5.1 — 8 de abril de 2026
+
+### Nuevo: Descargar el cuadro fiscal en Excel
+
+En la misma pantalla donde la contadora ve el año fiscal completo, ahora puede **bajar un archivo de Excel** con un solo toque.
+
+- El archivo incluye **mes por mes** todos los cobros por medio de pago, los totales, lo cargado como facturado y la diferencia sin facturar, más una **fila con el resumen del año completo**.
+- También trae una segunda parte con el **encuadre de monotributo** que estaba viendo en pantalla (topes, margen y porcentaje usado), para archivarlo o compartirlo sin copiar números a mano.
+
+---
+
 ## v1.5.0 — 8 de abril de 2026
 
 ### Nuevo: Cuadro fiscal para la contadora
