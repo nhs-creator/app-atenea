@@ -23,9 +23,39 @@ export default defineSchema({
     storeName: v.optional(v.string()),
     role: v.union(v.literal("owner"), v.literal("accountant"), v.literal("pending")),
     supabaseId: v.optional(v.string()),
+    // Letra de la categoría de monotributo actual de la dueña (A..K). Editable desde Settings.
+    monotributoCategory: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_supabaseId", ["supabaseId"]),
+
+  // --- Monotributo: escala de categorías editable por la dueña ---
+  monotributoCategories: defineTable({
+    userId: v.string(),
+    letter: v.string(), // "A" .. "K"
+    order: v.number(),  // 0..10 — para ordenar
+    maxBilling: v.number(),
+    surfaceLimit: v.optional(v.string()),
+    electricityLimit: v.optional(v.string()),
+    rentLimit: v.optional(v.number()),
+    unitPriceLimit: v.optional(v.number()),
+    taxServices: v.optional(v.number()),
+    taxGoods: v.number(),
+    sipa: v.number(),
+    obraSocial: v.number(),
+    totalServices: v.optional(v.number()),
+    totalGoods: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_letter", ["userId", "letter"]),
+
+  // --- Facturado mensual: campo manual ingresado por la contadora o dueña ---
+  monthlyBilling: defineTable({
+    userId: v.string(),
+    yearMonth: v.string(), // "2026-01"
+    facturado: v.number(),
+  })
+    .index("by_userId_yearMonth", ["userId", "yearMonth"]),
 
   accountantAssignments: defineTable({
     ownerId: v.id("profiles"),

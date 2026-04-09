@@ -1,5 +1,27 @@
 # Novedades de Atenea Finanzas
 
+## v1.5.0 — 8 de abril de 2026
+
+### Nuevo: Cuadro fiscal para la contadora
+
+La contadora tiene una nueva sección llamada **Fiscal** en su panel lateral con todo lo que necesita para hacer el control mensual y planificar el monotributo.
+
+- **Cuadro de cobros mensual**: una tabla con los 12 meses del año mostrando, para cada mes, cuánto se cobró por efectivo, transferencia, débito y crédito por separado, más el total con y sin efectivo. Se puede navegar entre años con las flechas.
+- **Facturado manual**: en cada mes hay un campo editable donde la contadora carga lo que ya se facturó. La app calcula automáticamente cuánto queda sin facturar y qué porcentaje del cobro digital del mes representa esa diferencia.
+- **Totales anuales** al pie de la tabla con todo lo cobrado y lo facturado en el año.
+- **Tarjetas de monotributo**: cuatro tarjetas que muestran la categoría actual de la dueña y las tres siguientes, con el tope de facturación anual de cada una, cuánto margen queda hasta llegar al tope (o cuánto se excedió, si pasó), una barra de progreso visual y el monto mensual del monotributo a pagar en cada categoría.
+
+### Nuevo: Configuración del monotributo para la dueña
+
+En **Configuración**, la dueña tiene una nueva sección **Monotributo** para administrar la escala AFIP que usa la contadora.
+
+- Botón para cargar las 11 categorías oficiales AFIP (A a K) con los valores actuales 2026 de un solo click.
+- Selector visual para marcar en qué categoría está actualmente.
+- Lista editable de todas las categorías: tocando el lápiz se puede actualizar el tope anual o el monto mensual de cualquier escalón. Útil cuando AFIP actualiza los valores y hay que reflejarlos.
+- La categoría actual queda resaltada en verde.
+
+---
+
 ## v1.4.0 — 8 de abril de 2026
 
 ### Nuevo: Vista de escritorio para la dueña

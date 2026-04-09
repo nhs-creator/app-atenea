@@ -12,6 +12,28 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.5.0] - 2026-04-08
+
+### Añadido
+
+- **Sección Fiscal en la vista de la contadora**: Cuarta sección en la sidebar (`AccountantFiscal.tsx`) con dos vistas:
+  - **Cuadro de cobros mensual**: tabla de 12 filas (ene-dic) × 9 columnas (Período, Efectivo, Transferencia, Débito, Crédito, Total sin ef, Total, Facturado, Dif sin facturar). Los cobros se computan agrupando ventas por `client_number` para no doble-contar `payment_details`. Vale se excluye intencionalmente. Selector de año con chevrons. Footer con totales anuales sobre fondo `bg-slate-900`.
+  - **Categorías de monotributo**: 4 cards horizontales mostrando la categoría actual del owner + las 3 siguientes. Cada card tiene tope de facturación anual, margen disponible (con barra de progreso ámbar/rojo según porcentaje), y monto mensual a pagar (`totalGoods`). La actual queda destacada en `bg-slate-900` con badge "Actual".
+- **Facturado mensual editable**: Click en una celda de "Facturado" abre un input que parsea formato AR (`1.234.567,89`). Se guarda en la nueva tabla `monthlyBilling` vía `upsertMonthlyBilling`. El % sin facturar se calcula automáticamente como `(total_sin_ef − facturado) / total_sin_ef * 100`.
+- **Schema Convex `monotributoCategories`**: Tabla per-user con 12 campos por categoría (letra, orden, tope de facturación, superficie, electricidad, alquiler, precio unitario, impuesto servicios/muebles, sipa, obra social, totales). Índices `by_userId` y `by_userId_letter`.
+- **Schema Convex `monthlyBilling`**: Tabla per-user con `yearMonth` (formato `YYYY-MM`) y `facturado` (número). Índice compuesto `by_userId_yearMonth`.
+- **Campo `monotributoCategory` en `profiles`**: Letra de la categoría actual de la dueña (opcional). La contadora la lee vía `getEffectiveUserId`.
+- **Queries Convex `monotributo.ts`**: `listCategories`, `getCurrentCategory`, `listMonthlyBilling` (todas vía `getEffectiveUserId` para soporte de la contadora).
+- **Mutations Convex `monotributo.ts`**: `seedDefaultCategories` (owner only, idempotente, hardcodea las 11 categorías AFIP A-K con los valores 2026), `updateCategory` (owner only), `setCurrentCategory` (owner only), `upsertMonthlyBilling` (owner o contadora vía `getEffectiveUserId`).
+- **Sección "Monotributo" en `SettingsView.tsx`**: Nueva tarjeta para la dueña con botón "Inicializar valores AFIP", selector de categoría actual (botones A-K), y lista editable de las 11 categorías con click-to-edit del tope anual y monto mensual.
+
+### Notas
+
+- La sección Fiscal es exclusiva del desktop view de la contadora (`AccountantDesktopView` ≥ 1180px). El sidebar ahora tiene 4 entradas: Resumen, Movimientos, Reporte, Fiscal.
+- Vale como medio de pago se excluye del cuadro de cobros porque representa saldo a favor previo, no un cobro real del período.
+
+---
+
 ## [1.4.0] - 2026-04-08
 
 ### Añadido

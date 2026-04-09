@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { Sale, Expense } from '../../types';
 import {
-  ShoppingBag, LogOut, BarChart2, Receipt, LayoutDashboard,
+  ShoppingBag, LogOut, BarChart2, Receipt, LayoutDashboard, FileBarChart,
 } from 'lucide-react';
 import AccountantOverview from './AccountantOverview';
 import AccountantLedger from './AccountantLedger';
 import AccountantAnalysis from './AccountantAnalysis';
+import AccountantFiscal from './AccountantFiscal';
 import './accountant.css';
 
-type Section = 'overview' | 'ledger' | 'analysis';
+type Section = 'overview' | 'ledger' | 'analysis' | 'fiscal';
 
 interface Props {
   sales: Sale[];
@@ -21,6 +22,7 @@ const sections = [
   { id: 'overview' as Section, label: 'Resumen', subtitle: 'Vista general', icon: LayoutDashboard, color: 'primary' },
   { id: 'ledger' as Section, label: 'Movimientos', subtitle: 'Ingresos y egresos', icon: Receipt, color: 'indigo' },
   { id: 'analysis' as Section, label: 'Reporte', subtitle: 'Análisis del período', icon: BarChart2, color: 'slate' },
+  { id: 'fiscal' as Section, label: 'Fiscal', subtitle: 'Cobros y monotributo', icon: FileBarChart, color: 'emerald' },
 ];
 
 const formatLongDate = (d: Date) =>
@@ -69,6 +71,8 @@ const AccountantDesktopView: React.FC<Props> = ({ sales, expenses, isSyncing }) 
                 ? 'bg-primary/10 text-primary'
                 : s.color === 'indigo'
                 ? 'bg-indigo-50 text-indigo-600'
+                : s.color === 'emerald'
+                ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-slate-100 text-slate-800'
               : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600';
             return (
@@ -114,6 +118,8 @@ const AccountantDesktopView: React.FC<Props> = ({ sales, expenses, isSyncing }) 
                   ? 'text-primary'
                   : activeSection.color === 'indigo'
                   ? 'text-indigo-600'
+                  : activeSection.color === 'emerald'
+                  ? 'text-emerald-600'
                   : 'text-slate-500'
               }`}
             >
@@ -146,6 +152,7 @@ const AccountantDesktopView: React.FC<Props> = ({ sales, expenses, isSyncing }) 
           {section === 'overview' && <AccountantOverview sales={sales} expenses={expenses} />}
           {section === 'ledger' && <AccountantLedger sales={sales} expenses={expenses} />}
           {section === 'analysis' && <AccountantAnalysis sales={sales} expenses={expenses} />}
+          {section === 'fiscal' && <AccountantFiscal sales={sales} />}
         </div>
       </main>
     </div>
