@@ -23,8 +23,11 @@ const StatsSummary: React.FC<StatsSummaryProps> = ({ viewMode, metrics }) => {
       <div className="bg-slate-900 rounded-[2.5rem] p-7 text-white shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
         <div className="absolute top-0 right-0 w-40 h-40 bg-rose-500/20 -mr-10 -mt-10 rounded-full blur-3xl"></div>
         <div className="relative z-10">
-          <p className="text-xs font-black text-slate-300 uppercase tracking-[0.15em] mb-1">
-            Ganancia Operativa (Ventas - Gastos)
+          <p className="text-sm font-black text-slate-200 uppercase tracking-[0.15em]">
+            Ganancia del negocio
+          </p>
+          <p className="text-[11px] font-bold text-slate-400 mb-1">
+            Ventas menos gastos del local
           </p>
           <p className={`text-4xl font-black tracking-tighter mb-4 ${metrics.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             ${format(metrics.netProfit)}
