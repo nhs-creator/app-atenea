@@ -23,27 +23,27 @@ const StatsSummary: React.FC<StatsSummaryProps> = ({ viewMode, metrics }) => {
       <div className="bg-slate-900 rounded-[2.5rem] p-7 text-white shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
         <div className="absolute top-0 right-0 w-40 h-40 bg-rose-500/20 -mr-10 -mt-10 rounded-full blur-3xl"></div>
         <div className="relative z-10">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+          <p className="text-xs font-black text-slate-300 uppercase tracking-[0.15em] mb-1">
             Ganancia Operativa (Ventas - Gastos)
           </p>
           <p className={`text-4xl font-black tracking-tighter mb-4 ${metrics.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             ${format(metrics.netProfit)}
           </p>
           
-          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-emerald-400 opacity-80">
-                <ArrowUpCircle className="w-3 h-3" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Ventas</span>
+          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <ArrowUpCircle className="w-4 h-4" />
+                <span className="text-[11px] font-black uppercase tracking-tight">Ventas</span>
               </div>
-              <p className="text-base font-bold text-slate-200">${format(metrics.totalSales)}</p>
+              <p className="text-2xl font-black text-white tracking-tight">${format(metrics.totalSales)}</p>
             </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-rose-400 opacity-80">
-                <ArrowDownCircle className="w-3 h-3" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Gastos Negocio</span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-rose-400">
+                <ArrowDownCircle className="w-4 h-4" />
+                <span className="text-[11px] font-black uppercase tracking-tight">Gastos Negocio</span>
               </div>
-              <p className="text-base font-bold text-slate-200">${format(metrics.businessExpenses)}</p>
+              <p className="text-2xl font-black text-white tracking-tight">${format(metrics.businessExpenses)}</p>
             </div>
           </div>
         </div>

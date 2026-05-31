@@ -22,6 +22,12 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({
   viewMode, onViewModeChange,
   selectedMonthDate, onPrevMonth, onNextMonth
 }) => {
+  // Nombres de los meses vecinos, para que las flechas indiquen a dónde llevan
+  const prevMonthLabel = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() - 1, 1)
+    .toLocaleDateString('es-AR', { month: 'long' });
+  const nextMonthLabel = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 1)
+    .toLocaleDateString('es-AR', { month: 'long' });
+
   return (
     <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-2 pb-2 space-y-3">
       {/* 1. Selector de Período con opción AYER */}
@@ -42,8 +48,9 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({
       {/* 2. Navegación Mes (si aplica) */}
       {period === 'month' && (
         <div className="flex items-center justify-between bg-white px-2 py-2 rounded-2xl border border-slate-100 shadow-sm animate-in slide-in-from-top-2">
-          <button onClick={onPrevMonth} className="p-2 text-slate-400 active:scale-75 transition-all">
+          <button onClick={onPrevMonth} className="flex items-center gap-1 py-2 pr-2 text-slate-500 active:scale-90 transition-all">
             <ChevronLeft className="w-5 h-5" />
+            <span className="text-[11px] font-bold capitalize">{prevMonthLabel}</span>
           </button>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-primary" />
@@ -51,7 +58,8 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({
               {selectedMonthDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
             </span>
           </div>
-          <button onClick={onNextMonth} className="p-2 text-slate-400 active:scale-75 transition-all">
+          <button onClick={onNextMonth} className="flex items-center gap-1 py-2 pl-2 text-slate-500 active:scale-90 transition-all">
+            <span className="text-[11px] font-bold capitalize">{nextMonthLabel}</span>
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
