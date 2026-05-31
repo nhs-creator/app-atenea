@@ -238,7 +238,7 @@ const AssistantView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div key={i} className="flex justify-start">
+            <div key={i} className="flex flex-col items-start">
               <div className="max-w-[90%] bg-white border border-slate-200 text-slate-800 rounded-3xl rounded-bl-lg px-4 py-3 text-base font-semibold shadow-sm whitespace-pre-wrap break-words leading-relaxed">
                 {m.pending && !m.content ? (
                   <span className="flex items-center gap-2 text-slate-400">
@@ -248,6 +248,20 @@ const AssistantView: React.FC = () => {
                   cleanText(m.content)
                 )}
               </div>
+              {m.tools && (m.tools.includes('record_sale') || m.tools.includes('record_expense')) && (
+                <div className="mt-1.5 ml-1 flex flex-wrap gap-1.5">
+                  {m.tools.includes('record_sale') && (
+                    <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                      ✓ Venta guardada
+                    </span>
+                  )}
+                  {m.tools.includes('record_expense') && (
+                    <span className="text-xs font-black text-rose-700 bg-rose-100 px-2.5 py-1 rounded-full">
+                      ✓ Gasto guardado
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )
         )}
