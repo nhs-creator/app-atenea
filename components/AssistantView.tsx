@@ -64,12 +64,16 @@ const AssistantView: React.FC = () => {
   };
 
   // ─────────────── Input de voz (Groq Whisper via Convex) ───────────────
+  const BAR_COUNT = 28;
   const transcribe = useAction(api.assistant.transcribe.transcribeAudio);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [waveform, setWaveform] = useState<number[]>(() => new Array(BAR_COUNT).fill(0));
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const pickMime = (): string => {
     const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
@@ -77,11 +81,49 @@ const AssistantView: React.FC = () => {
     return candidates.find((c) => MediaRecorder.isTypeSupported(c)) ?? 'audio/webm';
   };
 
+  const startWaveform = (stream: MediaStream) => {
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctxAudio = new Ctx();
+      audioCtxRef.current = ctxAudio;
+      const source = ctxAudio.createMediaStreamSource(stream);
+      const analyser = ctxAudio.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.6;
+      source.connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(buf);
+        const bandSize = Math.max(1, Math.floor(buf.length / BAR_COUNT));
+        const next = new Array(BAR_COUNT);
+        for (let i = 0; i < BAR_COUNT; i++) {
+          let sum = 0;
+          for (let j = 0; j < bandSize; j++) sum += buf[i * bandSize + j] ?? 0;
+          next[i] = sum / bandSize / 255;
+        }
+        setWaveform(next);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (err) {
+      console.warn('waveform', err);
+    }
+  };
+
+  const stopWaveform = () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    setWaveform(new Array(BAR_COUNT).fill(0));
+  };
+
   const startRecording = async () => {
     if (recording || transcribing || sending) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      startWaveform(stream);
       const mimeType = pickMime();
       const mr = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
@@ -90,6 +132,7 @@ const AssistantView: React.FC = () => {
       };
       mr.onstop = async () => {
         setRecording(false);
+        stopWaveform();
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size === 0) return;
@@ -97,7 +140,10 @@ const AssistantView: React.FC = () => {
         try {
           const buffer = await blob.arrayBuffer();
           const text = await transcribe({ audio: buffer, mimeType });
-          if (text && text.trim()) await handleSend(text.trim());
+          // No enviar solo: lo dejamos en el cuadro para que lo revise y envíe.
+          if (text && text.trim()) {
+            setInput((prev) => (prev.trim() ? prev.trim() + ' ' : '') + text.trim());
+          }
         } catch (err) {
           console.error('transcribe', err);
         } finally {
@@ -120,9 +166,12 @@ const AssistantView: React.FC = () => {
 
   const toggleMic = () => (recording ? stopRecording() : startRecording());
 
-  // Limpiar el micrófono al desmontar.
+  // Limpiar micrófono + waveform al desmontar.
   useEffect(() => {
-    return () => streamRef.current?.getTracks().forEach((t) => t.stop());
+    return () => {
+      stopWaveform();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
   return (
@@ -185,18 +234,26 @@ const AssistantView: React.FC = () => {
       {/* Estado de voz */}
       {(recording || transcribing) && (
         <div className="pt-2">
-          <div className={`flex items-center justify-center gap-2 rounded-2xl py-2.5 text-base font-black ${recording ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-            {recording ? (
-              <>
-                <span className="w-3 h-3 bg-rose-500 rounded-full animate-pulse" />
-                Escuchando… tocá el cuadrado para terminar
-              </>
-            ) : (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Entendiendo lo que dijiste…
-              </>
-            )}
-          </div>
+          {recording ? (
+            <div className="bg-rose-50 rounded-2xl py-3 px-4">
+              <div className="flex items-center justify-center gap-[3px] h-10">
+                {waveform.map((v, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 bg-rose-500 rounded-full transition-[height] duration-75"
+                    style={{ height: `${Math.max(4, v * 40)}px` }}
+                  />
+                ))}
+              </div>
+              <p className="text-center text-sm font-black text-rose-600 mt-1.5">
+                Escuchando… tocá el cuadrado rojo para terminar
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 rounded-2xl py-2.5 text-base font-black bg-emerald-50 text-emerald-600">
+              <Loader2 className="w-4 h-4 animate-spin" /> Entendiendo lo que dijiste…
+            </div>
+          )}
         </div>
       )}
 
