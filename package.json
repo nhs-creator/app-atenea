@@ -17,6 +17,7 @@
     "@convex-dev/auth": "^0.0.91",
     "@supabase/supabase-js": "^2.89.0",
     "convex": "^1.34.0",
+    "groq-sdk": "^0.7.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

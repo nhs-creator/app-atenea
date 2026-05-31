@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
-import { Sparkles, Send, Loader2 } from 'lucide-react';
+import { Sparkles, Send, Loader2, Mic, Square } from 'lucide-react';
 
 // Limpia markdown básico (negritas, viñetas, encabezados) para que nunca se vean
 // asteriscos crudos en el chat.
@@ -63,6 +63,68 @@ const AssistantView: React.FC = () => {
     }
   };
 
+  // ─────────────── Input de voz (Groq Whisper via Convex) ───────────────
+  const transcribe = useAction(api.assistant.transcribe.transcribeAudio);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const pickMime = (): string => {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    if (typeof MediaRecorder === 'undefined') return 'audio/webm';
+    return candidates.find((c) => MediaRecorder.isTypeSupported(c)) ?? 'audio/webm';
+  };
+
+  const startRecording = async () => {
+    if (recording || transcribing || sending) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = pickMime();
+      const mr = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        setRecording(false);
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (blob.size === 0) return;
+        setTranscribing(true);
+        try {
+          const buffer = await blob.arrayBuffer();
+          const text = await transcribe({ audio: buffer, mimeType });
+          if (text && text.trim()) await handleSend(text.trim());
+        } catch (err) {
+          console.error('transcribe', err);
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mr.start(100);
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch (err) {
+      console.error('mic', err);
+      alert('No pude acceder al micrófono. Fijate de darle permiso a la app.');
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== 'inactive') mr.stop();
+  };
+
+  const toggleMic = () => (recording ? stopRecording() : startRecording());
+
+  // Limpiar el micrófono al desmontar.
+  useEffect(() => {
+    return () => streamRef.current?.getTracks().forEach((t) => t.stop());
+  }, []);
+
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] animate-in fade-in duration-500">
       {/* Encabezado */}
@@ -120,18 +182,47 @@ const AssistantView: React.FC = () => {
         )}
       </div>
 
+      {/* Estado de voz */}
+      {(recording || transcribing) && (
+        <div className="pt-2">
+          <div className={`flex items-center justify-center gap-2 rounded-2xl py-2.5 text-base font-black ${recording ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+            {recording ? (
+              <>
+                <span className="w-3 h-3 bg-rose-500 rounded-full animate-pulse" />
+                Escuchando… tocá el cuadrado para terminar
+              </>
+            ) : (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Entendiendo lo que dijiste…
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Barra de envío */}
       <div className="pt-3">
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-full p-1.5 shadow-lg">
+          {/* Micrófono */}
+          <button
+            onClick={toggleMic}
+            disabled={sending || transcribing}
+            className={`p-3 rounded-full shadow-md active:scale-90 transition-all disabled:opacity-40 ${
+              recording ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 text-slate-600'
+            }`}
+            aria-label={recording ? 'Terminar de hablar' : 'Hablar'}
+          >
+            {recording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </button>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSend(input);
             }}
-            placeholder="Escribí tu pregunta…"
-            className="flex-1 bg-transparent px-4 py-2.5 text-base font-semibold text-slate-800 placeholder:text-slate-400 outline-none"
-            disabled={sending}
+            placeholder={recording ? 'Hablá…' : 'Escribí o hablá…'}
+            className="flex-1 bg-transparent px-3 py-2.5 text-base font-semibold text-slate-800 placeholder:text-slate-400 outline-none"
+            disabled={sending || recording}
           />
           <button
             onClick={() => handleSend(input)}
