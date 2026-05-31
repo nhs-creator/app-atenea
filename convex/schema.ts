@@ -206,4 +206,45 @@ export default defineSchema({
     openDays: v.array(v.number()),
   })
     .index("by_userId", ["userId"]),
+
+  // --- Asistente conversacional (Atenea IA) ---
+  // Conversaciones del chat. `summary` + `summarizedUpTo` implementan la
+  // compactación: los mensajes anteriores a `summarizedUpTo` quedan resumidos
+  // y se descartan del contexto que se manda al modelo.
+  assistantConversations: defineTable({
+    userId: v.string(),
+    title: v.optional(v.string()),
+    messages: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+        tools: v.optional(v.array(v.string())),
+        pending: v.optional(v.boolean()),
+        createdAt: v.number(),
+      })
+    ),
+    summary: v.optional(v.string()),
+    summarizedUpTo: v.optional(v.number()),
+    processed: v.boolean(),
+    lastActivityAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_activity", ["userId", "lastActivityAt"])
+    .index("by_processed_activity", ["processed", "lastActivityAt"]),
+
+  // RAG de memoria: resúmenes de conversaciones cerradas, vectorizados.
+  assistantMemories: defineTable({
+    userId: v.string(),
+    summary: v.string(),
+    embedding: v.array(v.float64()),
+    source: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["userId"],
+    }),
 });
