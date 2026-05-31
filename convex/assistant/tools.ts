@@ -158,6 +158,19 @@ export const TOOL_DEFS = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "learn_term",
+    description:
+      "Guarda en el diccionario personal de la dueña una abreviatura o término propio de ella y qué significa. Usalo cuando ella ACLARA qué quiso decir con algo que no entendiste o que es jerga suya (ej. te dice que 'modal m/c' es 'modal crepé', o que 'T.S' es 'talle S'). Así la próxima vez ya lo entendés. No lo uses para palabras comunes, solo para términos propios de ella.",
+    input_schema: {
+      type: "object",
+      properties: {
+        term: { type: "string", description: "El término o abreviatura tal como lo dice ella (ej: 'modal m/c')." },
+        meaning: { type: "string", description: "Qué significa (ej: 'modal crepé')." },
+      },
+      required: ["term", "meaning"],
+    },
+  },
+  {
     name: "record_expense",
     description:
       "Registra un gasto. Usalo SOLO cuando pida anotar un gasto. Confirmá monto, descripción y si es del negocio o personal antes de llamarlo.",
@@ -378,6 +391,17 @@ export async function executeTool(
             facturado_este_mes: fmt(r.revenueNow),
           })),
         });
+      }
+      case "learn_term": {
+        const term = String(input.term ?? "").trim();
+        const meaning = String(input.meaning ?? "").trim();
+        if (!term || !meaning) return "No pude guardar el término (faltan datos).";
+        await ctx.runMutation(internal.assistant.vocabulary.upsertTermInternal, {
+          userId,
+          term,
+          meaning,
+        });
+        return `Aprendido: "${term}" = "${meaning}". Lo voy a recordar para la próxima.`;
       }
       case "record_expense": {
         const amount = Number(input.amount);

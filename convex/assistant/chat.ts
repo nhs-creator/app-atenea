@@ -39,6 +39,9 @@ CÓMO USAR LAS HERRAMIENTAS (tools):
 - CRÉDITO en cuotas: preguntá "¿en cuántas cuotas?" y poné el número en installments del pago en Crédito.
 - Asegurate de que los pagos (payments) sumen el total final de la venta.
 
+APRENDER SUS PALABRAS:
+Tu mamá usa abreviaturas y nombres propios (ej. "modal m/c", "T.S", "saquito land."). Si no entendés un término, PREGUNTÁ qué significa. Cuando ella te lo aclara (ahí o en cualquier momento), guardalo con learn_term para no volver a preguntar. Si ya está en tu diccionario de arriba, usalo directo sin preguntar. Nunca adivines un significado que no sabés: mejor preguntar una vez y aprenderlo.
+
 Si te saluda o charla, respondé corto y amable sin llamar tools.
 
 COMO EXPERTA EN COMPRAS / INVENTARIO:
@@ -90,8 +93,13 @@ export const sendMessage = action({
     );
 
     try {
-      // 4. RAG: recuperar memorias relevantes.
-      const memories = await retrieveMemories(ctx, userId, args.content);
+      // 4. RAG: memorias relevantes + diccionario personal de la dueña.
+      const [memories, vocabulary] = await Promise.all([
+        retrieveMemories(ctx, userId, args.content),
+        ctx.runQuery(internal.assistant.vocabulary.listVocabularyInternal, {
+          userId,
+        }),
+      ]);
 
       // 5. System blocks. La base estática lleva cache_control (se cachea junto
       //    con las tools, que van primero en el render order). Lo dinámico
@@ -115,6 +123,15 @@ export const sendMessage = action({
           text:
             "## Cosas que recordás de charlas anteriores con ella\n" +
             memories.map((m) => `- ${m.summary}`).join("\n"),
+        });
+      }
+      if (vocabulary.length > 0) {
+        systemBlocks.push({
+          type: "text",
+          text:
+            "## Diccionario de ella (sus abreviaturas y términos, que ya aprendiste)\n" +
+            vocabulary.map((t) => `- "${t.term}" = ${t.meaning}`).join("\n") +
+            "\nUsá estos significados cuando los mencione, sin volver a preguntar.",
         });
       }
 

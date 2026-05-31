@@ -263,6 +263,18 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_conversation_status", ["conversationId", "status"]),
 
+  // Diccionario personal: abreviaturas/términos propios de la dueña que el
+  // asistente aprende con el uso (ej. "modal m/c" = "modal crepé").
+  assistantVocabulary: defineTable({
+    userId: v.string(),
+    term: v.string(), // como lo dice ella, normalizado a minúsculas
+    meaning: v.string(), // qué significa
+    useCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_term", ["userId", "term"]),
+
   // RAG de memoria: resúmenes de conversaciones cerradas, vectorizados.
   assistantMemories: defineTable({
     userId: v.string(),
