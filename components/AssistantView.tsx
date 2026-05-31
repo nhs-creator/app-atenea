@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
-import { Sparkles, Send, Loader2, Mic, Square } from 'lucide-react';
+import { Sparkles, Send, Loader2, Mic, Square, PenSquare } from 'lucide-react';
 
 // Limpia markdown básico (negritas, viñetas, encabezados) para que nunca se vean
 // asteriscos crudos en el chat.
@@ -29,19 +29,34 @@ const AssistantView: React.FC = () => {
 
   const createConversation = useMutation(api.assistant.conversations.createConversation);
   const sendMessage = useAction(api.assistant.chat.sendMessage);
+  const conversations = useQuery(api.assistant.conversations.listConversations);
   const conversation = useQuery(
     api.assistant.conversations.getConversation,
     conversationId ? { conversationId } : 'skip'
   );
 
-  // Crear (o reusar) una conversación al abrir.
-  const createdRef = useRef(false);
+  // Al abrir: retomar la última conversación; si no hay ninguna, crear una.
+  const initRef = useRef(false);
   useEffect(() => {
-    if (!conversationId && !createdRef.current) {
-      createdRef.current = true;
+    if (conversationId || conversations === undefined) return;
+    if (conversations.length > 0) {
+      setConversationId(conversations[0]._id);
+    } else if (!initRef.current) {
+      initRef.current = true;
       createConversation().then(setConversationId).catch(console.error);
     }
-  }, [conversationId]);
+  }, [conversations, conversationId]);
+
+  const handleNewChat = async () => {
+    if (sending || recording || transcribing) return;
+    setInput('');
+    try {
+      const id = await createConversation();
+      setConversationId(id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const messages = conversation?.messages ?? [];
 
@@ -185,6 +200,13 @@ const AssistantView: React.FC = () => {
           <h2 className="text-lg font-black text-slate-800 tracking-tight">Atenea</h2>
           <p className="text-xs font-bold text-slate-400">Tu asistente del local</p>
         </div>
+        <button
+          onClick={handleNewChat}
+          className="ml-auto flex items-center gap-1.5 text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-2 rounded-full active:scale-95 transition-all"
+          aria-label="Nueva conversación"
+        >
+          <PenSquare className="w-4 h-4" /> Nueva
+        </button>
       </div>
 
       {/* Mensajes */}
