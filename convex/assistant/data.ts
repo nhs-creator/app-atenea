@@ -61,6 +61,54 @@ export const financialSummary = internalQuery({
   },
 });
 
+/** Ventas agrupadas por medio de pago en el período. */
+export const paymentBreakdown = internalQuery({
+  args: { userId: v.string(), fromDate: v.string() },
+  handler: async (ctx, { userId, fromDate }) => {
+    const sales = await ctx.db
+      .query("sales")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).gte("date", fromDate)
+      )
+      .collect();
+
+    const totals: Record<string, number> = {
+      Efectivo: 0,
+      Transferencia: 0,
+      Débito: 0,
+      Crédito: 0,
+      Vale: 0,
+    };
+    // Dedupe por transacción (clientNumber) para no contar dos veces los pagos
+    // cuando una venta tiene varias filas de productos.
+    const processed = new Set<string>();
+    for (const s of sales) {
+      if (s.status === "cancelled" || s.status === "returned") continue;
+      if (processed.has(s.clientNumber)) continue;
+      processed.add(s.clientNumber);
+      const details = Array.isArray(s.paymentDetails) ? s.paymentDetails : [];
+      if (details.length > 0) {
+        for (const p of details) {
+          if (totals[p.method] !== undefined)
+            totals[p.method] += Number(p.amount) || 0;
+        }
+      } else {
+        const method = s.paymentMethod || "Efectivo";
+        const qty = s.quantity || 1;
+        const subtotal =
+          s.productName === "💰 AJUSTE POR REDONDEO"
+            ? Number(s.price) || 0
+            : (Number(s.price) || 0) * qty;
+        if (totals[method] !== undefined) totals[method] += subtotal;
+      }
+    }
+    return Object.entries(totals)
+      .filter(([, amount]) => amount > 0)
+      .map(([method, amount]) => ({ method, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  },
+});
+
 /** Gastos agrupados por categoría en el período (filtrable por tipo). */
 export const expensesByCategory = internalQuery({
   args: {

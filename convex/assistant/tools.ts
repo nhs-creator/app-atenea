@@ -59,6 +59,16 @@ export const TOOL_DEFS = [
     },
   },
   {
+    name: "get_payment_breakdown",
+    description:
+      "Devuelve cuánto se vendió por cada medio de pago (Efectivo, Transferencia, Débito, Crédito) en el período. Usalo cuando pregunten cuánto entró por efectivo, por transferencia, por tarjeta, o el desglose por medio de pago.",
+    input_schema: {
+      type: "object",
+      properties: { period: PERIOD_PROP },
+      required: ["period"],
+    },
+  },
+  {
     name: "get_expenses_breakdown",
     description:
       "Devuelve los gastos agrupados por categoría en el período. Usalo cuando pregunten en qué se gastó la plata o cuánto se gastó en una categoría puntual.",
@@ -162,6 +172,21 @@ export async function executeTool(
           ganancia_negocio: fmt(s.netProfit),
           quedo_en_caja: fmt(s.finalBalance),
           cantidad_ventas: s.salesCount,
+        });
+      }
+      case "get_payment_breakdown": {
+        const period = String(input.period ?? "month");
+        const rows = await ctx.runQuery(
+          internal.assistant.data.paymentBreakdown,
+          { userId, fromDate: periodFrom(period) }
+        );
+        if (rows.length === 0)
+          return JSON.stringify({ periodo: period, por_medio: [] });
+        const total = rows.reduce((sum, r) => sum + r.amount, 0);
+        return JSON.stringify({
+          periodo: period,
+          por_medio: rows.map((r) => ({ medio: r.method, monto: fmt(r.amount) })),
+          total: fmt(total),
         });
       }
       case "get_expenses_breakdown": {
