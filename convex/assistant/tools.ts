@@ -192,30 +192,57 @@ export const TOOL_DEFS = [
   {
     name: "record_sale",
     description:
-      "Registra una venta rápida (no descuenta stock). Usalo SOLO cuando la usuaria pida explícitamente anotar una venta por el chat. Confirmá producto, precio, cantidad y medio de pago antes de llamarlo.",
+      "Registra una venta (un ticket) por el chat. Puede tener VARIOS productos y VARIOS medios de pago (pago combinado, ej. parte en efectivo y parte por transferencia). No descuenta stock. Usalo SOLO cuando la usuaria pida anotar una venta, y después de confirmar.",
     input_schema: {
       type: "object",
       properties: {
-        productName: { type: "string", description: "Nombre del producto vendido." },
-        price: { type: "number", description: "Precio unitario en pesos." },
-        quantity: { type: "integer", description: "Cantidad (por defecto 1)." },
-        paymentMethod: {
-          type: "string",
-          enum: ["Efectivo", "Transferencia", "Débito", "Crédito"],
-          description: "Medio de pago.",
+        items: {
+          type: "array",
+          description: "Los productos de la venta.",
+          items: {
+            type: "object",
+            properties: {
+              product: { type: "string", description: "Nombre del producto." },
+              price: {
+                type: "number",
+                description: "Precio unitario de lista en pesos (antes de descuento).",
+              },
+              quantity: { type: "integer", description: "Cantidad (por defecto 1)." },
+            },
+            required: ["product", "price"],
+          },
+        },
+        payments: {
+          type: "array",
+          description:
+            "Cómo pagó. Puede ser UN medio o VARIOS (pago combinado). Cada entrada con su monto. La suma debería dar el total de la venta.",
+          items: {
+            type: "object",
+            properties: {
+              method: {
+                type: "string",
+                enum: ["Efectivo", "Transferencia", "Débito", "Crédito", "Vale"],
+                description: "Medio de pago.",
+              },
+              amount: {
+                type: "number",
+                description: "Monto pagado con este medio, en pesos.",
+              },
+              installments: {
+                type: "integer",
+                description: "Cuotas (solo si es Crédito en cuotas). Omitir si es un pago.",
+              },
+            },
+            required: ["method", "amount"],
+          },
         },
         discountPercent: {
           type: "number",
           description:
-            "Opcional. Porcentaje de descuento (ej: 10 para 10%). Típico en pagos en efectivo. Si no hay descuento, omitilo.",
-        },
-        installments: {
-          type: "integer",
-          description:
-            "Opcional. Cantidad de cuotas cuando paga en crédito (ej: 3). Si es un pago único, omitilo.",
+            "Opcional. % de descuento de toda la venta (típico en efectivo, ej: 10). Omitir si no hay descuento.",
         },
       },
-      required: ["productName", "price", "paymentMethod"],
+      required: ["items", "payments"],
     },
   },
 ];
@@ -370,31 +397,42 @@ export async function executeTool(
         return `Gasto registrado: ${input.description} por ${fmt(amount)} (${type === "personal" ? "personal" : "negocio"}).`;
       }
       case "record_sale": {
-        const price = Number(input.price);
-        const quantity =
-          typeof input.quantity === "number" ? input.quantity : 1;
+        const rawItems = Array.isArray(input.items) ? input.items : [];
+        const rawPayments = Array.isArray(input.payments) ? input.payments : [];
+        if (rawItems.length === 0 || rawPayments.length === 0)
+          return "Necesito al menos un producto y un medio de pago para anotar la venta.";
         const discountPercent =
           typeof input.discountPercent === "number" && input.discountPercent > 0
             ? input.discountPercent
             : undefined;
-        const installments =
-          typeof input.installments === "number" && input.installments > 1
-            ? input.installments
-            : undefined;
         const r = await ctx.runMutation(internal.assistant.data.recordSale, {
           userId,
           date: todayAR(),
-          productName: String(input.productName ?? "Venta"),
-          quantity,
-          price,
-          paymentMethod: String(input.paymentMethod ?? "Efectivo"),
+          items: (rawItems as any[]).map((it) => ({
+            product: String(it?.product ?? "Producto"),
+            price: Number(it?.price) || 0,
+            quantity: typeof it?.quantity === "number" ? it.quantity : 1,
+          })),
+          payments: (rawPayments as any[]).map((p) => ({
+            method: String(p?.method ?? "Efectivo"),
+            amount: Number(p?.amount) || 0,
+            installments: typeof p?.installments === "number" ? p.installments : undefined,
+          })),
           discountPercent,
-          installments,
         });
-        let msg = `Venta registrada: ${quantity}x ${input.productName} por ${fmt(r.finalAmount)} (${input.paymentMethod}`;
-        if (discountPercent) msg += `, ${discountPercent}% desc.`;
-        if (installments) msg += `, ${installments} cuotas`;
-        msg += ").";
+        const medios = r.payments
+          .map(
+            (p) =>
+              `${fmt(p.amount)} en ${p.method}${
+                "installments" in p && (p as any).installments
+                  ? ` (${(p as any).installments} cuotas)`
+                  : ""
+              }`
+          )
+          .join(" + ");
+        let msg = `Venta anotada por ${fmt(r.total)}: ${medios}`;
+        if (discountPercent) msg += ` · ${discountPercent}% desc.`;
+        msg += ".";
         return msg;
       }
       default:
