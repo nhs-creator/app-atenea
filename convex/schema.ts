@@ -233,6 +233,36 @@ export default defineSchema({
     .index("by_userId_activity", ["userId", "lastActivityAt"])
     .index("by_processed_activity", ["processed", "lastActivityAt"]),
 
+  // Ventas propuestas por el asistente, pendientes de confirmación en el modal.
+  assistantSaleProposals: defineTable({
+    userId: v.string(),
+    conversationId: v.id("assistantConversations"),
+    clientLabel: v.optional(v.string()),
+    items: v.array(
+      v.object({
+        product: v.string(),
+        quantity: v.number(),
+        price: v.number(), // precio final unitario
+        listPrice: v.optional(v.number()),
+      })
+    ),
+    payments: v.array(
+      v.object({
+        method: v.string(),
+        amount: v.number(),
+        installments: v.optional(v.number()),
+      })
+    ),
+    discountPercent: v.optional(v.number()),
+    total: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+  }).index("by_conversation_status", ["conversationId", "status"]),
+
   // RAG de memoria: resúmenes de conversaciones cerradas, vectorizados.
   assistantMemories: defineTable({
     userId: v.string(),

@@ -1,5 +1,5 @@
 import type { GenericActionCtx } from "convex/server";
-import type { DataModel } from "../_generated/dataModel";
+import type { DataModel, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
 type ActionCtx = GenericActionCtx<DataModel>;
@@ -190,12 +190,17 @@ export const TOOL_DEFS = [
     },
   },
   {
-    name: "record_sale",
+    name: "propose_sale",
     description:
-      "Registra una venta (un ticket) por el chat. Puede tener VARIOS productos y VARIOS medios de pago (pago combinado, ej. parte en efectivo y parte por transferencia). No descuenta stock. Usalo SOLO cuando la usuaria pida anotar una venta, y después de confirmar.",
+      "Prepara UNA venta (un ticket de una clienta) para confirmar. NO la guarda: le muestra a la usuaria un cartelito con los datos y la venta se guarda recién cuando ella toca Confirmar. Puede tener varios productos y varios medios de pago (pago combinado). Si en el mismo mensaje hay ventas de clientas DISTINTAS, llamá propose_sale UNA VEZ POR CADA clienta (un ticket por clienta).",
     input_schema: {
       type: "object",
       properties: {
+        clientLabel: {
+          type: "string",
+          description:
+            "Opcional. Nombre o referencia de la clienta, si lo menciona (ej: 'Marta'). Sirve para distinguir cuando son varias clientas.",
+        },
         items: {
           type: "array",
           description: "Los productos de la venta.",
@@ -251,6 +256,7 @@ export const TOOL_DEFS = [
 export async function executeTool(
   ctx: ActionCtx,
   userId: string,
+  conversationId: Id<"assistantConversations">,
   name: string,
   input: Record<string, unknown>
 ): Promise<string> {
@@ -396,44 +402,49 @@ export async function executeTool(
         });
         return `Gasto registrado: ${input.description} por ${fmt(amount)} (${type === "personal" ? "personal" : "negocio"}).`;
       }
-      case "record_sale": {
+      case "propose_sale": {
         const rawItems = Array.isArray(input.items) ? input.items : [];
         const rawPayments = Array.isArray(input.payments) ? input.payments : [];
         if (rawItems.length === 0 || rawPayments.length === 0)
-          return "Necesito al menos un producto y un medio de pago para anotar la venta.";
-        const discountPercent =
+          return "Necesito al menos un producto y un medio de pago para preparar la venta.";
+        const disc =
           typeof input.discountPercent === "number" && input.discountPercent > 0
             ? input.discountPercent
             : undefined;
-        const r = await ctx.runMutation(internal.assistant.data.recordSale, {
-          userId,
-          date: todayAR(),
-          items: (rawItems as any[]).map((it) => ({
+        let total = 0;
+        const items = (rawItems as any[]).map((it) => {
+          const qty = typeof it?.quantity === "number" && it.quantity > 0 ? it.quantity : 1;
+          const list = Number(it?.price) || 0;
+          const unit = disc ? Math.round(list * (1 - disc / 100)) : list;
+          total += unit * qty;
+          return {
             product: String(it?.product ?? "Producto"),
-            price: Number(it?.price) || 0,
-            quantity: typeof it?.quantity === "number" ? it.quantity : 1,
-          })),
-          payments: (rawPayments as any[]).map((p) => ({
-            method: String(p?.method ?? "Efectivo"),
-            amount: Number(p?.amount) || 0,
-            installments: typeof p?.installments === "number" ? p.installments : undefined,
-          })),
-          discountPercent,
+            quantity: qty,
+            price: unit,
+            ...(disc ? { listPrice: list } : {}),
+          };
         });
-        const medios = r.payments
-          .map(
-            (p) =>
-              `${fmt(p.amount)} en ${p.method}${
-                "installments" in p && (p as any).installments
-                  ? ` (${(p as any).installments} cuotas)`
-                  : ""
-              }`
-          )
-          .join(" + ");
-        let msg = `Venta anotada por ${fmt(r.total)}: ${medios}`;
-        if (discountPercent) msg += ` · ${discountPercent}% desc.`;
-        msg += ".";
-        return msg;
+        const payments = (rawPayments as any[]).map((p) => ({
+          method: String(p?.method ?? "Efectivo"),
+          amount: Math.round(Number(p?.amount) || 0),
+          ...(typeof p?.installments === "number" && p.installments > 1
+            ? { installments: p.installments }
+            : {}),
+        }));
+        const clientLabel =
+          typeof input.clientLabel === "string" && input.clientLabel.trim()
+            ? input.clientLabel.trim()
+            : undefined;
+        await ctx.runMutation(internal.assistant.sales.createProposalInternal, {
+          userId,
+          conversationId,
+          clientLabel,
+          items,
+          payments,
+          discountPercent: disc,
+          total,
+        });
+        return "Propuesta de venta lista. Decile a la usuaria que revise el cartelito en pantalla y toque Confirmar. NO digas que ya quedó guardada — todavía NO se guardó, se guarda cuando ella confirma.";
       }
       default:
         return `Tool desconocida: ${name}`;

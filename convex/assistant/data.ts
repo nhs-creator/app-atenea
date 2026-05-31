@@ -1,7 +1,6 @@
 import { internalQuery, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getEffectiveUserId } from "../lib/auth";
-import { computeNextSemanticId } from "../lib/semanticId";
 
 /**
  * Resuelve el userId efectivo del usuario autenticado (maneja el caso contadora
@@ -328,84 +327,5 @@ export const recordExpense = internalMutation({
       invoiceAmount: 0,
     });
     return { id };
-  },
-});
-
-/**
- * Registra una venta rápida (sin descontar inventario). Pensada para cargas por
- * voz/chat. Para ventas con stock + medios de pago detallados se sigue usando el
- * formulario normal.
- */
-export const recordSale = internalMutation({
-  args: {
-    userId: v.string(),
-    date: v.string(),
-    items: v.array(
-      v.object({
-        product: v.string(),
-        price: v.number(), // precio de lista unitario (antes de descuento)
-        quantity: v.optional(v.number()),
-      })
-    ),
-    payments: v.array(
-      v.object({
-        method: v.string(),
-        amount: v.number(),
-        installments: v.optional(v.number()),
-      })
-    ),
-    discountPercent: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    if (args.items.length === 0) throw new Error("Sin productos");
-    if (args.payments.length === 0) throw new Error("Sin medios de pago");
-    const disc =
-      args.discountPercent && args.discountPercent > 0 ? args.discountPercent : 0;
-
-    // ID semántico igual que las ventas manuales (V<fecha>-NNN).
-    const todaySales = await ctx.db
-      .query("sales")
-      .withIndex("by_userId_date", (q) =>
-        q.eq("userId", args.userId).eq("date", args.date)
-      )
-      .collect();
-    const existing = [...new Set(todaySales.map((s) => s.clientNumber))];
-    const clientNumber = computeNextSemanticId(existing, args.date, {
-      isReturn: false,
-      isPending: false,
-    });
-
-    const payments = args.payments.map((p) => ({
-      method: p.method,
-      amount: Math.round(p.amount),
-      ...(p.installments && p.installments > 1
-        ? { installments: p.installments }
-        : {}),
-    }));
-
-    const noteParts = ["Cargada por el asistente"];
-    if (disc) noteParts.push(`${disc}% desc.`);
-
-    let total = 0;
-    for (const it of args.items) {
-      const qty = it.quantity && it.quantity > 0 ? it.quantity : 1;
-      const unit = disc ? Math.round(it.price * (1 - disc / 100)) : it.price;
-      if (unit <= 0) continue;
-      total += unit * qty;
-      await ctx.db.insert("sales", {
-        userId: args.userId,
-        date: args.date,
-        clientNumber,
-        productName: it.product,
-        quantity: qty,
-        price: unit,
-        ...(disc ? { listPrice: it.price } : {}),
-        paymentMethod: payments[0]?.method || "Efectivo",
-        paymentDetails: payments,
-        status: "completed",
-        notes: noteParts.join(" · "),
-      });
-    }
-    return { clientNumber, total, payments, disc };
   },
 });

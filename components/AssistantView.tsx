@@ -34,6 +34,36 @@ const AssistantView: React.FC = () => {
     api.assistant.conversations.getConversation,
     conversationId ? { conversationId } : 'skip'
   );
+  const pendingProposals = useQuery(
+    api.assistant.sales.listPendingProposals,
+    conversationId ? { conversationId } : 'skip'
+  );
+  const confirmProposals = useMutation(api.assistant.sales.confirmProposals);
+  const cancelProposals = useMutation(api.assistant.sales.cancelProposals);
+  const [confirming, setConfirming] = useState(false);
+
+  const money = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
+
+  const handleConfirmSale = async () => {
+    if (!conversationId || confirming) return;
+    setConfirming(true);
+    try {
+      await confirmProposals({ conversationId });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleCancelSale = async () => {
+    if (!conversationId) return;
+    try {
+      await cancelProposals({ conversationId });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Al abrir: retomar la última conversación; si no hay ninguna, crear una.
   const initRef = useRef(false);
@@ -327,6 +357,66 @@ const AssistantView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal de confirmación de venta(s) */}
+      {pendingProposals && pendingProposals.length > 0 && (
+        <div className="fixed inset-0 z-[100] bg-black/40 flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-5 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-4">
+            <h3 className="text-xl font-black text-slate-800">
+              {pendingProposals.length === 1 ? 'Confirmá la venta' : `Confirmá ${pendingProposals.length} ventas`}
+            </h3>
+            <p className="text-sm font-bold text-slate-400 mb-4">Revisá los datos antes de guardar</p>
+
+            {pendingProposals.map((p) => (
+              <div key={p._id} className="border-2 border-slate-100 rounded-2xl p-4 mb-3">
+                {p.clientLabel && (
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-600 mb-2">
+                    {p.clientLabel}
+                  </p>
+                )}
+                {p.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-base font-bold text-slate-700 mb-1 gap-3">
+                    <span>{it.quantity > 1 ? `${it.quantity}x ` : ''}{it.product}</span>
+                    <span className="whitespace-nowrap">{money(it.price * it.quantity)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-slate-100 mt-2 pt-2 space-y-0.5">
+                  {p.payments.map((pay, idx) => (
+                    <div key={idx} className="flex justify-between text-sm font-bold text-slate-500 gap-3">
+                      <span>{pay.method}{pay.installments ? ` · ${pay.installments} cuotas` : ''}</span>
+                      <span className="whitespace-nowrap">{money(pay.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                {p.discountPercent ? (
+                  <p className="text-xs font-black text-amber-600 mt-1.5">{p.discountPercent}% de descuento aplicado</p>
+                ) : null}
+                <div className="flex justify-between items-center text-lg font-black text-slate-800 mt-2 pt-2 border-t-2 border-slate-100 gap-3">
+                  <span>Total</span>
+                  <span className="whitespace-nowrap">{money(p.total)}</span>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleCancelSale}
+                disabled={confirming}
+                className="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-600 font-black text-base active:scale-95 transition-all disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmSale}
+                disabled={confirming}
+                className="flex-1 py-4 rounded-2xl bg-emerald-500 text-white font-black text-base shadow-lg active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {confirming ? <><Loader2 className="w-5 h-5 animate-spin" /> Guardando…</> : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
