@@ -110,6 +110,21 @@ export const TOOL_DEFS = [
     },
   },
   {
+    name: "get_day_detail",
+    description:
+      "Devuelve el detalle de UN día puntual: total vendido, desglose por medio de pago y los productos vendidos ese día. Usalo cuando pregunten por un día específico (por ejemplo el mejor día, o 'qué vendí el tal día'). La fecha se obtiene de get_sales_by_day (campo fecha_iso).",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: {
+          type: "string",
+          description: "Fecha exacta en formato AAAA-MM-DD (ej: 2026-05-23).",
+        },
+      },
+      required: ["date"],
+    },
+  },
+  {
     name: "get_low_stock",
     description:
       "Devuelve los productos con stock por debajo del mínimo configurado. Usalo cuando pregunten qué falta reponer o qué se está por quedar sin stock.",
@@ -245,10 +260,35 @@ export async function executeTool(
         };
         return JSON.stringify({
           periodo: period,
-          mejor_dia: { fecha: toLabel(rows[0].date), monto: fmt(rows[0].total) },
-          dias: rows
-            .slice(0, 31)
-            .map((r) => ({ fecha: toLabel(r.date), monto: fmt(r.total) })),
+          mejor_dia: {
+            fecha: toLabel(rows[0].date),
+            fecha_iso: rows[0].date,
+            monto: fmt(rows[0].total),
+          },
+          dias: rows.slice(0, 31).map((r) => ({
+            fecha: toLabel(r.date),
+            fecha_iso: r.date,
+            monto: fmt(r.total),
+          })),
+        });
+      }
+      case "get_day_detail": {
+        const date = String(input.date ?? "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+          return "Necesito una fecha válida en formato AAAA-MM-DD.";
+        const d = await ctx.runQuery(internal.assistant.data.dayDetail, {
+          userId,
+          date,
+        });
+        return JSON.stringify({
+          fecha: date,
+          total: fmt(d.total),
+          por_medio: d.payments.map((p) => ({ medio: p.method, monto: fmt(p.amount) })),
+          productos: d.products.map((p) => ({
+            producto: p.name,
+            facturado: fmt(p.revenue),
+            unidades: p.units,
+          })),
         });
       }
       case "get_low_stock": {

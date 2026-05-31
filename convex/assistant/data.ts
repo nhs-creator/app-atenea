@@ -191,6 +191,65 @@ export const salesByDay = internalQuery({
   },
 });
 
+/** Detalle de un día puntual: total, medios de pago y productos vendidos. */
+export const dayDetail = internalQuery({
+  args: { userId: v.string(), date: v.string() },
+  handler: async (ctx, { userId, date }) => {
+    const sales = await ctx.db
+      .query("sales")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).eq("date", date)
+      )
+      .collect();
+
+    let total = 0;
+    const payments: Record<string, number> = {};
+    const products: Record<string, { revenue: number; units: number }> = {};
+    const processed = new Set<string>();
+
+    for (const s of sales) {
+      if (s.status === "cancelled" || s.status === "returned") continue;
+      const qty = s.quantity || 1;
+      const subtotal =
+        s.productName === "💰 AJUSTE POR REDONDEO"
+          ? Number(s.price) || 0
+          : (Number(s.price) || 0) * qty;
+      total += subtotal;
+
+      if (s.productName !== "💰 AJUSTE POR REDONDEO") {
+        const cur = products[s.productName] || { revenue: 0, units: 0 };
+        cur.revenue += subtotal;
+        cur.units += qty;
+        products[s.productName] = cur;
+      }
+
+      if (!processed.has(s.clientNumber)) {
+        processed.add(s.clientNumber);
+        const details = Array.isArray(s.paymentDetails) ? s.paymentDetails : [];
+        if (details.length > 0) {
+          for (const p of details)
+            payments[p.method] = (payments[p.method] || 0) + (Number(p.amount) || 0);
+        } else {
+          const method = s.paymentMethod || "Efectivo";
+          payments[method] = (payments[method] || 0) + subtotal;
+        }
+      }
+    }
+
+    return {
+      total,
+      payments: Object.entries(payments)
+        .filter(([, a]) => a > 0)
+        .map(([method, amount]) => ({ method, amount }))
+        .sort((a, b) => b.amount - a.amount),
+      products: Object.entries(products)
+        .map(([name, v]) => ({ name, revenue: v.revenue, units: v.units }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 8),
+    };
+  },
+});
+
 /** Productos con stock por debajo del mínimo. */
 export const lowStock = internalQuery({
   args: { userId: v.string() },
