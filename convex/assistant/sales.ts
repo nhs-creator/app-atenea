@@ -129,6 +129,25 @@ export const confirmProposals = mutation({
           notes: noteParts.join(" · "),
         });
       }
+
+      // Ajuste por redondeo / total cerrado distinto a la suma de productos.
+      const itemsSum = p.items.reduce((s, it) => s + it.price * it.quantity, 0);
+      const adjustment = Math.round(p.total - itemsSum);
+      if (adjustment !== 0) {
+        await ctx.db.insert("sales", {
+          userId,
+          date,
+          clientNumber,
+          productName: "💰 AJUSTE POR REDONDEO",
+          quantity: 1,
+          price: adjustment,
+          paymentMethod: p.payments[0]?.method || "Efectivo",
+          paymentDetails: p.payments,
+          status: "completed",
+          notes: noteParts.join(" · "),
+        });
+      }
+
       await ctx.db.patch(p._id, { status: "confirmed" });
       count += 1;
       grandTotal += p.total;

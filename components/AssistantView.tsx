@@ -391,6 +391,16 @@ const AssistantView: React.FC = () => {
                 {p.discountPercent ? (
                   <p className="text-xs font-black text-amber-600 mt-1.5">{p.discountPercent}% de descuento aplicado</p>
                 ) : null}
+                {(() => {
+                  const itemsSum = p.items.reduce((s, it) => s + it.price * it.quantity, 0);
+                  const adj = Math.round(p.total - itemsSum);
+                  if (adj === 0) return null;
+                  return (
+                    <p className="text-xs font-bold text-slate-500 mt-1">
+                      {adj > 0 ? 'Ajuste (redondeo hacia arriba)' : 'Redondeo/descuento'}: {adj > 0 ? '+' : ''}{money(adj)}
+                    </p>
+                  );
+                })()}
                 <div className="flex justify-between items-center text-lg font-black text-slate-800 mt-2 pt-2 border-t-2 border-slate-100 gap-3">
                   <span>Total</span>
                   <span className="whitespace-nowrap">{money(p.total)}</span>

@@ -18,7 +18,7 @@ export function todayAR(): string {
   return arDateStr(new Date());
 }
 
-/** Devuelve la fecha de corte (inclusive) para un período. */
+/** Fecha de corte (inclusive) para un período. */
 function periodFrom(period: string): string {
   const now = new Date();
   if (period === "today") return arDateStr(now);
@@ -32,7 +32,6 @@ function periodFrom(period: string): string {
     w.setDate(w.getDate() - 7);
     return arDateStr(w);
   }
-  // month (por defecto): desde el día 1 del mes actual
   return arDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
 }
 
@@ -51,23 +50,20 @@ function seasonForMonth(month: number): string {
   return "primavera";
 }
 
-/** Calcula los límites de mes actual / mes anterior y la temporada, en AR. */
+/** Límites de mes actual / anterior y temporada, en AR. */
 function monthContext() {
-  const today = todayAR(); // "YYYY-MM-DD"
+  const today = todayAR();
   const [yStr, mStr] = today.split("-");
   const y = parseInt(yStr, 10);
-  const m = parseInt(mStr, 10); // 1-12
+  const m = parseInt(mStr, 10);
   const pad = (n: number) => String(n).padStart(2, "0");
-  const thisStart = `${y}-${pad(m)}-01`;
   const prevY = m === 1 ? y - 1 : y;
   const prevM = m === 1 ? 12 : m - 1;
-  const prevStart = `${prevY}-${pad(prevM)}-01`;
   const nextM = m === 12 ? 1 : m + 1;
   return {
-    thisStart,
-    prevStart,
+    thisStart: `${y}-${pad(m)}-01`,
+    prevStart: `${prevY}-${pad(prevM)}-01`,
     monthLabel: `${MONTH_NAMES[m - 1]} ${y}`,
-    prevMonthLabel: `${MONTH_NAMES[prevM - 1]}`,
     seasonNow: seasonForMonth(m),
     seasonNext: seasonForMonth(nextM),
     nextMonthLabel: MONTH_NAMES[nextM - 1],
@@ -78,16 +74,15 @@ const PERIOD_PROP = {
   type: "string",
   enum: ["today", "yesterday", "week", "month"],
   description:
-    "Período a consultar: today (hoy), yesterday (ayer), week (últimos 7 días), month (mes actual desde el día 1).",
+    "Período: today (hoy), yesterday (ayer), week (últimos 7 días), month (mes actual desde el día 1).",
 };
 
 // ─────────────────────────── Definiciones de tools ───────────────────────
-// Esquema en el formato de la Messages API de Anthropic.
 export const TOOL_DEFS = [
   {
     name: "get_financial_summary",
     description:
-      "Devuelve el resumen financiero del período: ventas totales, gastos del negocio, retiros personales, ganancia del negocio y lo que quedó en caja. Usalo cuando pregunten cuánto se vendió, cuánto se gastó, cuánto quedó o cómo viene el negocio.",
+      "Resumen financiero del período: ventas totales, gastos del negocio, retiros personales, ganancia del negocio y lo que quedó en caja. Usalo cuando pregunten cuánto se vendió, cuánto se gastó, cuánto quedó o cómo viene el negocio.",
     input_schema: {
       type: "object",
       properties: { period: PERIOD_PROP },
@@ -97,7 +92,7 @@ export const TOOL_DEFS = [
   {
     name: "get_payment_breakdown",
     description:
-      "Devuelve cuánto se vendió por cada medio de pago (Efectivo, Transferencia, Débito, Crédito) en el período. Usalo cuando pregunten cuánto entró por efectivo, por transferencia, por tarjeta, o el desglose por medio de pago.",
+      "Cuánto se vendió por cada medio de pago (Efectivo, Transferencia, Débito, Crédito) en el período. Usalo cuando pregunten cuánto entró por efectivo, transferencia, tarjeta, o el desglose por medio de pago.",
     input_schema: {
       type: "object",
       properties: { period: PERIOD_PROP },
@@ -107,7 +102,7 @@ export const TOOL_DEFS = [
   {
     name: "get_expenses_breakdown",
     description:
-      "Devuelve los gastos agrupados por categoría en el período. Usalo cuando pregunten en qué se gastó la plata o cuánto se gastó en una categoría puntual.",
+      "Gastos agrupados por categoría en el período. Usalo cuando pregunten en qué se gastó o cuánto se gastó en una categoría.",
     input_schema: {
       type: "object",
       properties: {
@@ -115,8 +110,7 @@ export const TOOL_DEFS = [
         type: {
           type: "string",
           enum: ["business", "personal"],
-          description:
-            "Opcional. business = gastos del negocio, personal = gastos/retiros personales. Si se omite, incluye todos.",
+          description: "Opcional. business = gastos del negocio, personal = personales.",
         },
       },
       required: ["period"],
@@ -125,12 +119,12 @@ export const TOOL_DEFS = [
   {
     name: "get_top_products",
     description:
-      "Devuelve los productos más vendidos del período por facturación. Usalo cuando pregunten qué se vende más o cuáles son los productos top.",
+      "Productos más vendidos del período por facturación. Usalo cuando pregunten qué se vende más.",
     input_schema: {
       type: "object",
       properties: {
         period: PERIOD_PROP,
-        limit: { type: "integer", description: "Cuántos productos devolver (por defecto 5)." },
+        limit: { type: "integer", description: "Cuántos devolver (por defecto 5)." },
       },
       required: ["period"],
     },
@@ -138,7 +132,7 @@ export const TOOL_DEFS = [
   {
     name: "get_sales_by_day",
     description:
-      "Devuelve las ventas totales día por día en el período, ordenadas de mayor a menor. Usalo cuando pregunten cuál fue el mejor día, qué día se vendió más, o para comparar días.",
+      "Ventas totales día por día en el período, ordenadas de mayor a menor. Usalo para el mejor día, qué día se vendió más, o comparar días.",
     input_schema: {
       type: "object",
       properties: { period: PERIOD_PROP },
@@ -148,14 +142,11 @@ export const TOOL_DEFS = [
   {
     name: "get_day_detail",
     description:
-      "Devuelve el detalle de UN día puntual: total vendido, desglose por medio de pago y los productos vendidos ese día. Usalo cuando pregunten por un día específico (por ejemplo el mejor día, o 'qué vendí el tal día'). La fecha se obtiene de get_sales_by_day (campo fecha_iso).",
+      "Detalle de UN día puntual: total, desglose por medio de pago y productos vendidos. Usalo para un día específico (ej. el mejor día). La fecha sale de get_sales_by_day (campo fecha_iso).",
     input_schema: {
       type: "object",
       properties: {
-        date: {
-          type: "string",
-          description: "Fecha exacta en formato AAAA-MM-DD (ej: 2026-05-23).",
-        },
+        date: { type: "string", description: "Fecha exacta AAAA-MM-DD (ej: 2026-05-23)." },
       },
       required: ["date"],
     },
@@ -163,13 +154,13 @@ export const TOOL_DEFS = [
   {
     name: "get_inventory_analysis",
     description:
-      "Análisis de compras/reposición: por cada producto, cuánto se vendió este mes, cuánto el mes pasado (tendencia), lo facturado y el stock actual. Incluye el mes y la temporada actual y la próxima. Usalo cuando pregunten qué conviene comprar o reponer para el mes/temporada que viene, o pidan un consejo de compras de inventario.",
+      "Análisis de compras/reposición: por cada producto, cuánto se vendió este mes vs el mes pasado (tendencia) y lo facturado. Incluye el mes y la temporada actual y la próxima. Usalo cuando pregunten qué comprar o reponer para el mes/temporada que viene.",
     input_schema: { type: "object", properties: {} },
   },
   {
     name: "record_expense",
     description:
-      "Registra un gasto nuevo. Usalo SOLO cuando la usuaria pida explícitamente anotar/cargar un gasto. Antes de llamarlo confirmá el monto, la descripción y si es del negocio o personal.",
+      "Registra un gasto. Usalo SOLO cuando pida anotar un gasto. Confirmá monto, descripción y si es del negocio o personal antes de llamarlo.",
     input_schema: {
       type: "object",
       properties: {
@@ -192,14 +183,14 @@ export const TOOL_DEFS = [
   {
     name: "propose_sale",
     description:
-      "Prepara UNA venta (un ticket de una clienta) para confirmar. NO la guarda: le muestra a la usuaria un cartelito con los datos y la venta se guarda recién cuando ella toca Confirmar. Puede tener varios productos y varios medios de pago (pago combinado). Si en el mismo mensaje hay ventas de clientas DISTINTAS, llamá propose_sale UNA VEZ POR CADA clienta (un ticket por clienta).",
+      "Prepara UNA venta (un ticket de una clienta) para confirmar. NO la guarda: muestra un cartelito con los datos y se guarda recién cuando la usuaria toca Confirmar. Puede tener varios productos y varios medios de pago (pago combinado). Si en el mismo mensaje hay ventas de clientas DISTINTAS, llamá propose_sale UNA VEZ POR CADA clienta.",
     input_schema: {
       type: "object",
       properties: {
         clientLabel: {
           type: "string",
           description:
-            "Opcional. Nombre o referencia de la clienta, si lo menciona (ej: 'Marta'). Sirve para distinguir cuando son varias clientas.",
+            "Opcional. Nombre o referencia de la clienta si lo menciona (ej: 'Marta'). Sirve para distinguir cuando son varias clientas.",
         },
         items: {
           type: "array",
@@ -210,7 +201,8 @@ export const TOOL_DEFS = [
               product: { type: "string", description: "Nombre del producto." },
               price: {
                 type: "number",
-                description: "Precio unitario de lista en pesos (antes de descuento).",
+                description:
+                  "Precio que cobra por ESTE producto, tal como lo dicta la usuaria (puede haberlo subido para esa clienta — usalo tal cual, no lo corrijas). En pesos, antes del descuento si lo hubiera.",
               },
               quantity: { type: "integer", description: "Cantidad (por defecto 1)." },
             },
@@ -220,7 +212,7 @@ export const TOOL_DEFS = [
         payments: {
           type: "array",
           description:
-            "Cómo pagó. Puede ser UN medio o VARIOS (pago combinado). Cada entrada con su monto. La suma debería dar el total de la venta.",
+            "Cómo pagó. Uno o VARIOS medios (pago combinado). Cada entrada con su monto. La suma debería dar el total final de la venta.",
           items: {
             type: "object",
             properties: {
@@ -229,10 +221,7 @@ export const TOOL_DEFS = [
                 enum: ["Efectivo", "Transferencia", "Débito", "Crédito", "Vale"],
                 description: "Medio de pago.",
               },
-              amount: {
-                type: "number",
-                description: "Monto pagado con este medio, en pesos.",
-              },
+              amount: { type: "number", description: "Monto pagado con este medio, en pesos." },
               installments: {
                 type: "integer",
                 description: "Cuotas (solo si es Crédito en cuotas). Omitir si es un pago.",
@@ -244,7 +233,12 @@ export const TOOL_DEFS = [
         discountPercent: {
           type: "number",
           description:
-            "Opcional. % de descuento de toda la venta (típico en efectivo, ej: 10). Omitir si no hay descuento.",
+            "Opcional. % de descuento de toda la venta. SOLO si la usuaria lo menciona (a veces hace descuento en efectivo, a veces no). Si no lo dice, omitilo.",
+        },
+        finalTotal: {
+          type: "number",
+          description:
+            "Opcional. Total final cerrado cuando la usuaria redondea o da un número distinto a la suma de los productos (ej. 'redondealo a 60 mil', 'le dejo todo en 58'). Si lo pasás, ese es el total que se cobra; la diferencia se guarda como ajuste/redondeo.",
         },
       },
       required: ["items", "payments"],
@@ -280,12 +274,11 @@ export async function executeTool(
       }
       case "get_payment_breakdown": {
         const period = String(input.period ?? "month");
-        const rows = await ctx.runQuery(
-          internal.assistant.data.paymentBreakdown,
-          { userId, fromDate: periodFrom(period) }
-        );
-        if (rows.length === 0)
-          return JSON.stringify({ periodo: period, por_medio: [] });
+        const rows = await ctx.runQuery(internal.assistant.data.paymentBreakdown, {
+          userId,
+          fromDate: periodFrom(period),
+        });
+        if (rows.length === 0) return JSON.stringify({ periodo: period, por_medio: [] });
         const total = rows.reduce((sum, r) => sum + r.amount, 0);
         return JSON.stringify({
           periodo: period,
@@ -296,10 +289,11 @@ export async function executeTool(
       case "get_expenses_breakdown": {
         const period = String(input.period ?? "month");
         const type = input.type as "business" | "personal" | undefined;
-        const rows = await ctx.runQuery(
-          internal.assistant.data.expensesByCategory,
-          { userId, fromDate: periodFrom(period), type }
-        );
+        const rows = await ctx.runQuery(internal.assistant.data.expensesByCategory, {
+          userId,
+          fromDate: periodFrom(period),
+          type,
+        });
         if (rows.length === 0) return JSON.stringify({ periodo: period, gastos: [] });
         return JSON.stringify({
           periodo: period,
@@ -314,8 +308,7 @@ export async function executeTool(
           fromDate: periodFrom(period),
           limit,
         });
-        if (rows.length === 0)
-          return JSON.stringify({ periodo: period, productos: [] });
+        if (rows.length === 0) return JSON.stringify({ periodo: period, productos: [] });
         return JSON.stringify({
           periodo: period,
           productos: rows.map((r) => ({
@@ -331,8 +324,7 @@ export async function executeTool(
           userId,
           fromDate: periodFrom(period),
         });
-        if (rows.length === 0)
-          return JSON.stringify({ periodo: period, dias: [] });
+        if (rows.length === 0) return JSON.stringify({ periodo: period, dias: [] });
         const toLabel = (d: string) => {
           const [, m, day] = d.split("-");
           return `${parseInt(day, 10)}/${parseInt(m, 10)}`;
@@ -355,10 +347,7 @@ export async function executeTool(
         const date = String(input.date ?? "");
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
           return "Necesito una fecha válida en formato AAAA-MM-DD.";
-        const d = await ctx.runQuery(internal.assistant.data.dayDetail, {
-          userId,
-          date,
-        });
+        const d = await ctx.runQuery(internal.assistant.data.dayDetail, { userId, date });
         return JSON.stringify({
           fecha: date,
           total: fmt(d.total),
@@ -372,10 +361,11 @@ export async function executeTool(
       }
       case "get_inventory_analysis": {
         const mc = monthContext();
-        const rows = await ctx.runQuery(
-          internal.assistant.data.inventoryAnalysis,
-          { userId, thisStart: mc.thisStart, prevStart: mc.prevStart }
-        );
+        const rows = await ctx.runQuery(internal.assistant.data.inventoryAnalysis, {
+          userId,
+          thisStart: mc.thisStart,
+          prevStart: mc.prevStart,
+        });
         return JSON.stringify({
           mes_actual: mc.monthLabel,
           temporada_actual: mc.seasonNow,
@@ -411,12 +401,12 @@ export async function executeTool(
           typeof input.discountPercent === "number" && input.discountPercent > 0
             ? input.discountPercent
             : undefined;
-        let total = 0;
+        let itemsTotal = 0;
         const items = (rawItems as any[]).map((it) => {
           const qty = typeof it?.quantity === "number" && it.quantity > 0 ? it.quantity : 1;
           const list = Number(it?.price) || 0;
           const unit = disc ? Math.round(list * (1 - disc / 100)) : list;
-          total += unit * qty;
+          itemsTotal += unit * qty;
           return {
             product: String(it?.product ?? "Producto"),
             quantity: qty,
@@ -431,6 +421,11 @@ export async function executeTool(
             ? { installments: p.installments }
             : {}),
         }));
+        const finalTotal =
+          typeof input.finalTotal === "number" && input.finalTotal > 0
+            ? Math.round(input.finalTotal)
+            : undefined;
+        const total = finalTotal ?? itemsTotal;
         const clientLabel =
           typeof input.clientLabel === "string" && input.clientLabel.trim()
             ? input.clientLabel.trim()
