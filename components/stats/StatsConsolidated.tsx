@@ -21,13 +21,13 @@ const StatsConsolidated: React.FC<StatsConsolidatedProps> = ({
 
         {/* Entradas y salidas del negocio */}
         <div className="space-y-2">
-          <div className="flex justify-between items-center text-base font-bold">
-            <span className="text-slate-300">Ventas</span>
-            <span className="text-white">${format(totalSales)}</span>
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-base text-slate-300 font-bold">Ventas</span>
+            <span className="text-xl text-white font-black">${format(totalSales)}</span>
           </div>
-          <div className="flex justify-between items-center text-base font-bold">
-            <span className="text-slate-300">Gastos del negocio</span>
-            <span className="text-rose-300">-${format(businessExpenses)}</span>
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-base text-slate-300 font-bold">Gastos del negocio</span>
+            <span className="text-xl text-rose-300 font-black">-${format(businessExpenses)}</span>
           </div>
         </div>
 
@@ -42,9 +42,9 @@ const StatsConsolidated: React.FC<StatsConsolidatedProps> = ({
         </div>
 
         {/* Retiro personal */}
-        <div className="flex justify-between items-center text-base font-bold border-t border-white/10 pt-4">
-          <span className="text-slate-300">Lo que sacaste para vos</span>
-          <span className="text-rose-300">-${format(personalWithdrawals)}</span>
+        <div className="flex justify-between items-center gap-3 border-t border-white/10 pt-4">
+          <span className="text-base text-slate-300 font-bold">Lo que sacaste para vos</span>
+          <span className="text-xl text-rose-300 font-black">-${format(personalWithdrawals)}</span>
         </div>
 
         {/* Resultado 2: Te quedó en caja (el número más importante) */}
