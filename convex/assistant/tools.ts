@@ -204,6 +204,16 @@ export const TOOL_DEFS = [
           enum: ["Efectivo", "Transferencia", "Débito", "Crédito"],
           description: "Medio de pago.",
         },
+        discountPercent: {
+          type: "number",
+          description:
+            "Opcional. Porcentaje de descuento (ej: 10 para 10%). Típico en pagos en efectivo. Si no hay descuento, omitilo.",
+        },
+        installments: {
+          type: "integer",
+          description:
+            "Opcional. Cantidad de cuotas cuando paga en crédito (ej: 3). Si es un pago único, omitilo.",
+        },
       },
       required: ["productName", "price", "paymentMethod"],
     },
@@ -363,15 +373,29 @@ export async function executeTool(
         const price = Number(input.price);
         const quantity =
           typeof input.quantity === "number" ? input.quantity : 1;
-        await ctx.runMutation(internal.assistant.data.recordSale, {
+        const discountPercent =
+          typeof input.discountPercent === "number" && input.discountPercent > 0
+            ? input.discountPercent
+            : undefined;
+        const installments =
+          typeof input.installments === "number" && input.installments > 1
+            ? input.installments
+            : undefined;
+        const r = await ctx.runMutation(internal.assistant.data.recordSale, {
           userId,
           date: todayAR(),
           productName: String(input.productName ?? "Venta"),
           quantity,
           price,
           paymentMethod: String(input.paymentMethod ?? "Efectivo"),
+          discountPercent,
+          installments,
         });
-        return `Venta registrada: ${quantity}x ${input.productName} a ${fmt(price)} c/u (${input.paymentMethod}).`;
+        let msg = `Venta registrada: ${quantity}x ${input.productName} por ${fmt(r.finalAmount)} (${input.paymentMethod}`;
+        if (discountPercent) msg += `, ${discountPercent}% desc.`;
+        if (installments) msg += `, ${installments} cuotas`;
+        msg += ").";
+        return msg;
       }
       default:
         return `Tool desconocida: ${name}`;

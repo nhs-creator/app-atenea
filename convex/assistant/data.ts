@@ -343,22 +343,43 @@ export const recordSale = internalMutation({
     quantity: v.number(),
     price: v.number(),
     paymentMethod: v.string(),
+    discountPercent: v.optional(v.number()),
+    installments: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     if (args.price <= 0 || args.quantity <= 0)
       throw new Error("Precio o cantidad inválidos");
+    const disc =
+      args.discountPercent && args.discountPercent > 0 ? args.discountPercent : 0;
+    const unit = disc ? Math.round(args.price * (1 - disc / 100)) : args.price;
+    const amount = unit * args.quantity;
+
+    const payment: {
+      method: string;
+      amount: number;
+      installments?: number;
+    } = { method: args.paymentMethod, amount };
+    if (args.installments && args.installments > 1)
+      payment.installments = args.installments;
+
+    const noteParts = ["Cargada por el asistente"];
+    if (disc) noteParts.push(`${disc}% desc.`);
+    if (args.installments && args.installments > 1)
+      noteParts.push(`${args.installments} cuotas`);
+
     const id = await ctx.db.insert("sales", {
       userId: args.userId,
       date: args.date,
       clientNumber: `IA-${Date.now()}`,
       productName: args.productName,
       quantity: args.quantity,
-      price: args.price,
+      price: unit,
+      ...(disc ? { listPrice: args.price } : {}),
       paymentMethod: args.paymentMethod,
-      paymentDetails: [{ method: args.paymentMethod, amount: args.price * args.quantity }],
+      paymentDetails: [payment],
       status: "completed",
-      notes: "Cargada por el asistente",
+      notes: noteParts.join(" · "),
     });
-    return { id };
+    return { id, finalAmount: amount, unit, disc };
   },
 });
