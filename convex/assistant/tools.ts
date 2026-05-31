@@ -161,12 +161,6 @@ export const TOOL_DEFS = [
     },
   },
   {
-    name: "get_low_stock",
-    description:
-      "Devuelve los productos con stock por debajo del mínimo configurado. Usalo cuando pregunten qué falta reponer o qué se está por quedar sin stock.",
-    input_schema: { type: "object", properties: {} },
-  },
-  {
     name: "get_inventory_analysis",
     description:
       "Análisis de compras/reposición: por cada producto, cuánto se vendió este mes, cuánto el mes pasado (tendencia), lo facturado y el stock actual. Incluye el mes y la temporada actual y la próxima. Usalo cuando pregunten qué conviene comprar o reponer para el mes/temporada que viene, o pidan un consejo de compras de inventario.",
@@ -346,23 +340,9 @@ export async function executeTool(
           temporada_proxima: mc.seasonNext,
           productos: rows.map((r) => ({
             producto: r.name,
-            categoria: r.category || undefined,
             vendido_este_mes: r.unitsNow,
             vendido_mes_pasado: r.unitsPrev,
             facturado_este_mes: fmt(r.revenueNow),
-            stock_actual: r.stock === null ? "sin dato" : r.stock,
-          })),
-        });
-      }
-      case "get_low_stock": {
-        const rows = await ctx.runQuery(internal.assistant.data.lowStock, { userId });
-        if (rows.length === 0)
-          return "No hay productos por debajo del stock mínimo.";
-        return JSON.stringify({
-          faltantes: rows.map((r) => ({
-            producto: r.name,
-            stock: r.stockTotal,
-            minimo: r.minStock,
           })),
         });
       }

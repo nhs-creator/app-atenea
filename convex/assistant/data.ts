@@ -289,49 +289,16 @@ export const inventoryAnalysis = internalQuery({
       byProduct[s.productName] = row;
     }
 
-    // Stock actual + categoría por nombre de producto.
-    const inventory = await ctx.db
-      .query("inventory")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    const stockByName = new Map(
-      inventory.map((i) => [i.name, { stock: i.stockTotal, category: i.category }])
-    );
-
+    // El inventario real no está en uso: la recomendación sale solo de ventas.
     return Object.entries(byProduct)
-      .map(([name, r]) => {
-        const inv = stockByName.get(name);
-        return {
-          name,
-          category: inv?.category ?? "",
-          unitsNow: r.unitsNow,
-          unitsPrev: r.unitsPrev,
-          revenueNow: r.revenueNow,
-          stock: inv?.stock ?? null,
-        };
-      })
+      .map(([name, r]) => ({
+        name,
+        unitsNow: r.unitsNow,
+        unitsPrev: r.unitsPrev,
+        revenueNow: r.revenueNow,
+      }))
       .sort((a, b) => b.unitsNow - a.unitsNow)
       .slice(0, 50);
-  },
-});
-
-/** Productos con stock por debajo del mínimo. */
-export const lowStock = internalQuery({
-  args: { userId: v.string() },
-  handler: async (ctx, { userId }) => {
-    const items = await ctx.db
-      .query("inventory")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    return items
-      .filter((i) => i.minStock !== undefined && i.stockTotal <= i.minStock)
-      .map((i) => ({
-        name: i.name,
-        category: i.category,
-        stockTotal: i.stockTotal,
-        minStock: i.minStock ?? 0,
-      }))
-      .sort((a, b) => a.stockTotal - b.stockTotal);
   },
 });
 
