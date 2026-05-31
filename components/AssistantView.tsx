@@ -217,7 +217,7 @@ const AssistantView: React.FC = () => {
             </div>
           ) : (
             <div key={i} className="flex justify-start">
-              <div className="max-w-[90%] bg-white border border-slate-200 text-slate-800 rounded-3xl rounded-bl-lg px-4 py-3 text-base font-semibold shadow-sm">
+              <div className="max-w-[90%] bg-white border border-slate-200 text-slate-800 rounded-3xl rounded-bl-lg px-4 py-3 text-base font-semibold shadow-sm whitespace-pre-wrap break-words leading-relaxed">
                 {m.pending && !m.content ? (
                   <span className="flex items-center gap-2 text-slate-400">
                     <Loader2 className="w-4 h-4 animate-spin" /> Pensando…
