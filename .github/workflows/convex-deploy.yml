@@ -1,0 +1,27 @@
+name: Deploy Convex
+
+# Deploya el backend de Convex (schema, functions, vector index, crons) en cada
+# push a main. Corre en la infraestructura de GitHub (que sí tiene salida de red
+# a Convex) usando el secret CONVEX_DEPLOY_KEY. El frontend lo sigue publicando
+# Netlify por separado.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-convex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to Convex production
+        run: npx convex deploy
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
