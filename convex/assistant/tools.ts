@@ -38,6 +38,42 @@ function periodFrom(period: string): string {
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
+const MONTH_NAMES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+// Estaciones en Argentina (hemisferio sur), por número de mes (1-12).
+function seasonForMonth(month: number): string {
+  if (month === 12 || month <= 2) return "verano";
+  if (month <= 5) return "otoño";
+  if (month <= 8) return "invierno";
+  return "primavera";
+}
+
+/** Calcula los límites de mes actual / mes anterior y la temporada, en AR. */
+function monthContext() {
+  const today = todayAR(); // "YYYY-MM-DD"
+  const [yStr, mStr] = today.split("-");
+  const y = parseInt(yStr, 10);
+  const m = parseInt(mStr, 10); // 1-12
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const thisStart = `${y}-${pad(m)}-01`;
+  const prevY = m === 1 ? y - 1 : y;
+  const prevM = m === 1 ? 12 : m - 1;
+  const prevStart = `${prevY}-${pad(prevM)}-01`;
+  const nextM = m === 12 ? 1 : m + 1;
+  return {
+    thisStart,
+    prevStart,
+    monthLabel: `${MONTH_NAMES[m - 1]} ${y}`,
+    prevMonthLabel: `${MONTH_NAMES[prevM - 1]}`,
+    seasonNow: seasonForMonth(m),
+    seasonNext: seasonForMonth(nextM),
+    nextMonthLabel: MONTH_NAMES[nextM - 1],
+  };
+}
+
 const PERIOD_PROP = {
   type: "string",
   enum: ["today", "yesterday", "week", "month"],
@@ -128,6 +164,12 @@ export const TOOL_DEFS = [
     name: "get_low_stock",
     description:
       "Devuelve los productos con stock por debajo del mínimo configurado. Usalo cuando pregunten qué falta reponer o qué se está por quedar sin stock.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_inventory_analysis",
+    description:
+      "Análisis de compras/reposición: por cada producto, cuánto se vendió este mes, cuánto el mes pasado (tendencia), lo facturado y el stock actual. Incluye el mes y la temporada actual y la próxima. Usalo cuando pregunten qué conviene comprar o reponer para el mes/temporada que viene, o pidan un consejo de compras de inventario.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -288,6 +330,27 @@ export async function executeTool(
             producto: p.name,
             facturado: fmt(p.revenue),
             unidades: p.units,
+          })),
+        });
+      }
+      case "get_inventory_analysis": {
+        const mc = monthContext();
+        const rows = await ctx.runQuery(
+          internal.assistant.data.inventoryAnalysis,
+          { userId, thisStart: mc.thisStart, prevStart: mc.prevStart }
+        );
+        return JSON.stringify({
+          mes_actual: mc.monthLabel,
+          temporada_actual: mc.seasonNow,
+          proximo_mes: mc.nextMonthLabel,
+          temporada_proxima: mc.seasonNext,
+          productos: rows.map((r) => ({
+            producto: r.name,
+            categoria: r.category || undefined,
+            vendido_este_mes: r.unitsNow,
+            vendido_mes_pasado: r.unitsPrev,
+            facturado_este_mes: fmt(r.revenueNow),
+            stock_actual: r.stock === null ? "sin dato" : r.stock,
           })),
         });
       }

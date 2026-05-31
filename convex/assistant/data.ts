@@ -250,6 +250,71 @@ export const dayDetail = internalQuery({
   },
 });
 
+/**
+ * Análisis para decisiones de compra: por producto, unidades vendidas este
+ * período y el anterior (tendencia), facturación y stock actual.
+ */
+export const inventoryAnalysis = internalQuery({
+  args: {
+    userId: v.string(),
+    thisStart: v.string(),
+    prevStart: v.string(),
+  },
+  handler: async (ctx, { userId, thisStart, prevStart }) => {
+    const sales = await ctx.db
+      .query("sales")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).gte("date", prevStart)
+      )
+      .collect();
+
+    type Row = { unitsNow: number; unitsPrev: number; revenueNow: number };
+    const byProduct: Record<string, Row> = {};
+    for (const s of sales) {
+      if (s.status === "cancelled" || s.status === "returned") continue;
+      if (s.productName === "💰 AJUSTE POR REDONDEO") continue;
+      const qty = s.quantity || 1;
+      const revenue = (Number(s.price) || 0) * qty;
+      const row = byProduct[s.productName] || {
+        unitsNow: 0,
+        unitsPrev: 0,
+        revenueNow: 0,
+      };
+      if (s.date >= thisStart) {
+        row.unitsNow += qty;
+        row.revenueNow += revenue;
+      } else {
+        row.unitsPrev += qty;
+      }
+      byProduct[s.productName] = row;
+    }
+
+    // Stock actual + categoría por nombre de producto.
+    const inventory = await ctx.db
+      .query("inventory")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    const stockByName = new Map(
+      inventory.map((i) => [i.name, { stock: i.stockTotal, category: i.category }])
+    );
+
+    return Object.entries(byProduct)
+      .map(([name, r]) => {
+        const inv = stockByName.get(name);
+        return {
+          name,
+          category: inv?.category ?? "",
+          unitsNow: r.unitsNow,
+          unitsPrev: r.unitsPrev,
+          revenueNow: r.revenueNow,
+          stock: inv?.stock ?? null,
+        };
+      })
+      .sort((a, b) => b.unitsNow - a.unitsNow)
+      .slice(0, 50);
+  },
+});
+
 /** Productos con stock por debajo del mínimo. */
 export const lowStock = internalQuery({
   args: { userId: v.string() },
