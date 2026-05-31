@@ -100,6 +100,16 @@ export const TOOL_DEFS = [
     },
   },
   {
+    name: "get_sales_by_day",
+    description:
+      "Devuelve las ventas totales día por día en el período, ordenadas de mayor a menor. Usalo cuando pregunten cuál fue el mejor día, qué día se vendió más, o para comparar días.",
+    input_schema: {
+      type: "object",
+      properties: { period: PERIOD_PROP },
+      required: ["period"],
+    },
+  },
+  {
     name: "get_low_stock",
     description:
       "Devuelve los productos con stock por debajo del mínimo configurado. Usalo cuando pregunten qué falta reponer o qué se está por quedar sin stock.",
@@ -219,6 +229,26 @@ export async function executeTool(
             facturado: fmt(r.revenue),
             unidades: r.units,
           })),
+        });
+      }
+      case "get_sales_by_day": {
+        const period = String(input.period ?? "month");
+        const rows = await ctx.runQuery(internal.assistant.data.salesByDay, {
+          userId,
+          fromDate: periodFrom(period),
+        });
+        if (rows.length === 0)
+          return JSON.stringify({ periodo: period, dias: [] });
+        const toLabel = (d: string) => {
+          const [, m, day] = d.split("-");
+          return `${parseInt(day, 10)}/${parseInt(m, 10)}`;
+        };
+        return JSON.stringify({
+          periodo: period,
+          mejor_dia: { fecha: toLabel(rows[0].date), monto: fmt(rows[0].total) },
+          dias: rows
+            .slice(0, 31)
+            .map((r) => ({ fecha: toLabel(r.date), monto: fmt(r.total) })),
         });
       }
       case "get_low_stock": {

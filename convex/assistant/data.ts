@@ -164,6 +164,33 @@ export const topProducts = internalQuery({
   },
 });
 
+/** Ventas totales por día en el período (para mejor día, comparar días, etc.). */
+export const salesByDay = internalQuery({
+  args: { userId: v.string(), fromDate: v.string() },
+  handler: async (ctx, { userId, fromDate }) => {
+    const sales = await ctx.db
+      .query("sales")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).gte("date", fromDate)
+      )
+      .collect();
+
+    const byDay: Record<string, number> = {};
+    for (const s of sales) {
+      if (s.status === "cancelled" || s.status === "returned") continue;
+      const qty = s.quantity || 1;
+      const subtotal =
+        s.productName === "💰 AJUSTE POR REDONDEO"
+          ? Number(s.price) || 0
+          : (Number(s.price) || 0) * qty;
+      byDay[s.date] = (byDay[s.date] || 0) + subtotal;
+    }
+    return Object.entries(byDay)
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => b.total - a.total);
+  },
+});
+
 /** Productos con stock por debajo del mínimo. */
 export const lowStock = internalQuery({
   args: { userId: v.string() },

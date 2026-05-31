@@ -4,6 +4,16 @@ import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
 import { Sparkles, Send, Loader2 } from 'lucide-react';
 
+// Limpia markdown básico (negritas, viñetas, encabezados) para que nunca se vean
+// asteriscos crudos en el chat.
+const cleanText = (t: string): string =>
+  t
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '• ');
+
 const SUGGESTIONS = [
   '¿Cuánto vendí este mes?',
   '¿En qué gasté más?',
@@ -102,7 +112,7 @@ const AssistantView: React.FC = () => {
                     <Loader2 className="w-4 h-4 animate-spin" /> Pensando…
                   </span>
                 ) : (
-                  m.content
+                  cleanText(m.content)
                 )}
               </div>
             </div>
