@@ -7,13 +7,20 @@ import './index.css';
 
 const convex = new ConvexReactClient((import.meta as any).env.VITE_CONVEX_URL as string);
 
-// Register Service Worker for PWA / Offline support
+// Limpieza de Service Worker: el SW "network-first" anterior re-descargaba toda
+// la app desde Netlify en cada apertura y disparó el consumo de bandwidth.
+// Desregistramos cualquier SW que haya quedado y borramos sus cachés.
+// NO volvemos a registrar nada (si registráramos, el kill-switch entraría en
+// un loop de recargas).
 if ('serviceWorker' in navigator) {
-     window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('Service Worker registered successfully'))
-      .catch(err => console.log('Service Worker registration failed', err));
-  });
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => registrations.forEach((r) => r.unregister()))
+    .catch(() => {});
+  if ('caches' in window) {
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .catch(() => {});
+  }
 }
 
 const rootElement = document.getElementById('root');
