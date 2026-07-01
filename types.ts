@@ -136,6 +136,21 @@ export interface Sale {
   expires_at?: string;
 }
 
+export interface Invoice {
+  id: string;
+  client_number: string;
+  doc_tipo: number;
+  doc_nro: number;
+  condicion_iva_receptor: number;
+  importe_total: number;
+  afip_cae: string;
+  afip_cae_expiration: string;
+  afip_cbte_tipo: number;
+  afip_fiscal_number: string;
+  afip_qr_data: string;
+  credit_note_for?: string;
+}
+
 export interface Expense {
   id: string;
   user_id: string;

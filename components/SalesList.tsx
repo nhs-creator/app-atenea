@@ -1,11 +1,26 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Sale } from '../types';
-import { 
-  Calendar, Package, Trash2, Edit3, 
-  RefreshCcw, CheckCircle2, AlertCircle, Search, 
-  ChevronLeft, ChevronRight, X, Percent, Coins
+import { Sale, Invoice } from '../types';
+import {
+  Calendar, Package, Trash2, Edit3,
+  RefreshCcw, CheckCircle2, AlertCircle, Search,
+  ChevronLeft, ChevronRight, X, Percent, Coins, FileText, Ban
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import FacturarModal from './FacturarModal';
+
+interface EmitirFacturaResult {
+  success: boolean;
+  cae?: string;
+  caeExpiration?: string;
+  fiscalNumber?: string;
+  error?: string;
+}
+
+interface EmitirNotaCreditoResult {
+  success: boolean;
+  fiscalNumber?: string;
+  error?: string;
+}
 
 const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 const parseMonthKey = (key: string) => {
@@ -20,6 +35,9 @@ interface SalesListProps {
   onDelete: (clientNumber: string) => void;
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
+  invoices?: Invoice[];
+  onFacturar?: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
+  onAnular?: (args: { invoiceId: string; motivo: string }) => Promise<EmitirNotaCreditoResult>;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -38,11 +56,51 @@ const STATUS_CONFIG = {
   cambio: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', icon: RefreshCcw, label: 'Cambio' }
 };
 
-const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn }) => {
+const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, onFacturar, onAnular }) => {
   const [searchTerm, setSearchTerm] = useLocalStorage('atenea_sales_list_search', '');
   const [monthKey, setMonthKey] = useLocalStorage('atenea_sales_list_month', getMonthKey(new Date()));
   const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [facturarTarget, setFacturarTarget] = useState<{ clientNumber: string; total: number } | null>(null);
+  const [ncTarget, setNcTarget] = useState<Invoice | null>(null);
+  const [ncMotivo, setNcMotivo] = useState('');
+  const [ncLoading, setNcLoading] = useState(false);
+  const [ncError, setNcError] = useState('');
+
+  // --- Facturas: solo la Factura C (tipo 11) indexa por clientNumber; las NC comparten el mismo client_number ---
+  const facturaByClientNumber = useMemo(() => {
+    const map: Record<string, Invoice> = {};
+    (invoices ?? []).forEach(inv => {
+      if (inv.afip_cbte_tipo === 11) map[inv.client_number] = inv;
+    });
+    return map;
+  }, [invoices]);
+
+  const ncByInvoiceId = useMemo(() => {
+    const map: Record<string, Invoice> = {};
+    (invoices ?? []).forEach(inv => {
+      if (inv.credit_note_for) map[inv.credit_note_for] = inv;
+    });
+    return map;
+  }, [invoices]);
+
+  const handleAnular = async () => {
+    if (!ncTarget || !onAnular) return;
+    if (!ncMotivo.trim()) {
+      setNcError('Ingresá un motivo');
+      return;
+    }
+    setNcError('');
+    setNcLoading(true);
+    const res = await onAnular({ invoiceId: ncTarget.id, motivo: ncMotivo.trim() });
+    setNcLoading(false);
+    if (res.success) {
+      setNcTarget(null);
+      setNcMotivo('');
+    } else {
+      setNcError(res.error || 'Error al emitir la nota de crédito');
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -224,6 +282,50 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                   </div>
                 )}
 
+                {/* FACTURACIÓN AFIP */}
+                {(() => {
+                  const factura = facturaByClientNumber[clientNumber];
+                  const nc = factura ? ncByInvoiceId[factura.id] : undefined;
+
+                  if (factura) {
+                    return (
+                      <div className="px-4 py-2.5 flex items-center justify-between bg-indigo-50/60 border-t border-indigo-100">
+                        <div>
+                          <p className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">
+                            {nc ? 'Anulada por NC' : 'Factura emitida'}
+                          </p>
+                          <p className={`text-xs font-black tracking-tighter ${nc ? 'text-slate-400 line-through' : 'text-indigo-700'}`}>
+                            {factura.afip_fiscal_number}
+                          </p>
+                        </div>
+                        {!nc && onAnular && (
+                          <button
+                            onClick={() => { setNcTarget(factura); setNcMotivo(''); setNcError(''); }}
+                            className="h-9 px-3 bg-white text-rose-500 rounded-xl flex items-center gap-1.5 border-2 border-rose-100 active:scale-90 transition-all"
+                          >
+                            <Ban className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase">Anular (NC)</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  if (onFacturar && firstSale.status === 'completed' && !isReturnTransaction) {
+                    return (
+                      <div className="px-4 py-2.5 bg-white/40 border-t border-white/60">
+                        <button
+                          onClick={() => setFacturarTarget({ clientNumber, total: totalCobrado })}
+                          className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+                        >
+                          <FileText className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Facturar</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
+
                 {/* BOTONES DE ACCIÓN */}
                 <div className="p-2 grid grid-cols-3 gap-2 bg-white/60">
                   <button onClick={() => { if(window.confirm('¿BORRAR VENTA?')) onDelete(clientNumber); }} className="h-11 bg-white text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
@@ -244,6 +346,45 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {facturarTarget && onFacturar && (
+        <FacturarModal
+          clientNumber={facturarTarget.clientNumber}
+          total={facturarTarget.total}
+          onClose={() => setFacturarTarget(null)}
+          onEmitir={onFacturar}
+        />
+      )}
+
+      {ncTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm sm:m-4 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-800">Anular {ncTarget.afip_fiscal_number}</h3>
+              <button onClick={() => setNcTarget(null)} className="p-2 text-slate-400 hover:text-slate-600" aria-label="Cerrar"><X className="w-5 h-5" /></button>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Motivo</label>
+              <input
+                type="text"
+                value={ncMotivo}
+                onChange={(e) => setNcMotivo(e.target.value)}
+                placeholder="Ej: devolución de mercadería"
+                className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold"
+                autoFocus
+              />
+            </div>
+            {ncError && <p className="text-xs text-red-500 font-semibold">{ncError}</p>}
+            <button
+              onClick={handleAnular}
+              disabled={ncLoading}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+            >
+              {ncLoading ? 'Emitiendo...' : 'Emitir Nota de Crédito'}
+            </button>
+          </div>
         </div>
       )}
     </div>

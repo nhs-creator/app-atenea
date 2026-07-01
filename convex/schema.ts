@@ -195,6 +195,46 @@ export default defineSchema({
   })
     .index("by_inventoryId", ["inventoryId"]),
 
+  // --- AFIP: configuración fiscal (CUIT, punto de venta, credenciales de contexto) ---
+  afipConfig: defineTable({
+    userId: v.string(),
+    cuit: v.number(),
+    puntoVenta: v.number(),
+    razonSocial: v.string(),
+    domicilioComercial: v.string(),
+    condicionIva: v.number(),
+    inicioActividades: v.string(),
+    iibb: v.optional(v.string()),
+    isProduction: v.boolean(),
+    certExpiration: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"]),
+
+  // --- AFIP: comprobantes emitidos (Factura C / Nota de Crédito C) con CAE ---
+  invoices: defineTable({
+    userId: v.string(),
+    yearMonth: v.string(), // "2026-07" — bucketing explícito para reportes mensuales
+    clientNumber: v.string(),
+    clientId: v.optional(v.id("clients")),
+    docTipo: v.number(), // 80 CUIT / 86 CUIL / 96 DNI / 99 Consumidor Final
+    docNro: v.number(),
+    condicionIvaReceptor: v.number(), // códigos AFIP 1/4/5/6
+    importeTotal: v.number(),
+    afipCae: v.string(),
+    afipCaeExpiration: v.string(),
+    afipPuntoVenta: v.number(),
+    afipCbteNro: v.number(),
+    afipCbteTipo: v.number(), // 11 Factura C / 13 Nota de Crédito C
+    afipConcepto: v.number(), // 1 = Productos
+    afipQrData: v.string(),
+    afipFiscalNumber: v.string(), // "C 00002-00000147"
+    creditNoteFor: v.optional(v.id("invoices")),
+    motivo: v.optional(v.string()), // solo para notas de crédito
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_clientNumber", ["userId", "clientNumber"])
+    .index("by_userId_yearMonth", ["userId", "yearMonth"]),
+
   // --- User Config (optional: sync across devices) ---
   userConfig: defineTable({
     userId: v.string(),

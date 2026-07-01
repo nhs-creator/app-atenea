@@ -264,6 +264,20 @@ export const deleteTransaction = mutation({
 
     if (sales.length === 0) return;
 
+    // No borrar una venta que ya tiene un comprobante fiscal emitido — quedaría
+    // un CAE válido en ARCA sin respaldo en la app. Primero hay que anular con NC.
+    const invoiced = await ctx.db
+      .query("invoices")
+      .withIndex("by_userId_clientNumber", (q) =>
+        q.eq("userId", userId).eq("clientNumber", clientNumber)
+      )
+      .first();
+    if (invoiced) {
+      throw new Error(
+        "Esta venta ya tiene una Factura C emitida. Emití una Nota de Crédito antes de borrarla."
+      );
+    }
+
     // Restaurar stock de ventas completadas
     const clientId = sales[0].clientId;
     for (const sale of sales) {

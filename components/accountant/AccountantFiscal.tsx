@@ -37,7 +37,20 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
   const monthlyBilling = useQuery(api.queries.monotributo.listMonthlyBilling, {
     yearPrefix: String(year),
   }) ?? [];
+  // Facturado AFIP real (Facturas C netas de Notas de Crédito) — convive con el manual, no lo reemplaza.
+  const afipInvoicedMap = useQuery(api.queries.invoices.listMonthlyInvoiced, {
+    yearPrefix: String(year),
+  }) ?? {};
   const upsertBilling = useMutation(api.mutations.monotributo.upsertMonthlyBilling);
+  const setCurrentCategory = useMutation(api.mutations.monotributo.setCurrentCategory);
+
+  const handleSetCurrentCategory = async (letter: string) => {
+    try {
+      await setCurrentCategory({ letter });
+    } catch (e: any) {
+      alert(e.message || 'Error al cambiar la categoría');
+    }
+  };
 
   // Map yearMonth -> facturado for quick lookup
   const billingMap = useMemo(() => {
@@ -117,6 +130,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
     let totalSinEf = 0;
     let total = 0;
     let facturado = 0;
+    let afipFacturado = 0;
     for (const m of monthlyData) {
       efectivo += m.efectivo;
       transferencia += m.transferencia;
@@ -125,9 +139,10 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
       totalSinEf += m.totalSinEf;
       total += m.total;
       facturado += billingMap[m.yearMonth] || 0;
+      afipFacturado += afipInvoicedMap[m.yearMonth] || 0;
     }
-    return { efectivo, transferencia, debito, credito, totalSinEf, total, facturado };
-  }, [monthlyData, billingMap]);
+    return { efectivo, transferencia, debito, credito, totalSinEf, total, facturado, afipFacturado };
+  }, [monthlyData, billingMap, afipInvoicedMap]);
 
   // Visible categories: current + 3 next (or first 4 if no current set)
   const visibleCategories = useMemo(() => {
@@ -284,14 +299,30 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
           </button>
         </div>
 
-        {currentLetter && (
+        {categories.length > 0 && (
           <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-xl">
             <span className="text-[10px] font-black text-primary uppercase tracking-tighter">
               Categoría actual
             </span>
-            <span className="text-2xl font-black text-primary tracking-tighter leading-none">
-              {currentLetter}
-            </span>
+            <div className="flex flex-wrap gap-1">
+              {categories.map((c) => {
+                const isActive = c.letter === currentLetter;
+                return (
+                  <button
+                    key={c._id}
+                    type="button"
+                    onClick={() => handleSetCurrentCategory(c.letter)}
+                    className={`w-8 h-8 rounded-lg font-black text-xs border-2 transition-all active:scale-90 ${
+                      isActive
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-primary/40'
+                    }`}
+                  >
+                    {c.letter}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -308,9 +339,9 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
         </div>
 
         <div className="overflow-x-auto accountant-scroll">
-          <div className="min-w-[1000px]">
+          <div className="min-w-[1100px]">
             {/* Header row */}
-            <div className="grid grid-cols-[80px_repeat(8,minmax(0,1fr))] gap-2 px-6 py-3 bg-slate-50 border-b-2 border-slate-100">
+            <div className="grid grid-cols-[80px_repeat(9,minmax(0,1fr))] gap-2 px-6 py-3 bg-slate-50 border-b-2 border-slate-100">
               <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Período</div>
               <div className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter text-right">Efectivo</div>
               <div className="text-[9px] font-black text-blue-600 uppercase tracking-tighter text-right">Transferencia</div>
@@ -319,12 +350,14 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
               <div className="text-[9px] font-black text-slate-700 uppercase tracking-tighter text-right">Total sin ef</div>
               <div className="text-[9px] font-black text-slate-700 uppercase tracking-tighter text-right">Total</div>
               <div className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter text-right">Facturado</div>
+              <div className="text-[9px] font-black text-violet-600 uppercase tracking-tighter text-right">Facturado AFIP</div>
               <div className="text-[9px] font-black text-rose-500 uppercase tracking-tighter text-right">Dif sin facturar</div>
             </div>
 
             {/* Rows */}
             {monthlyData.map((row) => {
               const facturado = billingMap[row.yearMonth] || 0;
+              const afipFacturado = afipInvoicedMap[row.yearMonth] || 0;
               const dif = row.totalSinEf - facturado;
               const pctSinFacturar = row.totalSinEf > 0 ? (dif / row.totalSinEf) * 100 : 0;
               const isEditing = editingMonth === row.yearMonth;
@@ -332,7 +365,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
               return (
                 <div
                   key={row.yearMonth}
-                  className={`grid grid-cols-[80px_repeat(8,minmax(0,1fr))] gap-2 px-6 py-3 border-b border-slate-100 last:border-0 items-center transition-colors ${
+                  className={`grid grid-cols-[80px_repeat(9,minmax(0,1fr))] gap-2 px-6 py-3 border-b border-slate-100 last:border-0 items-center transition-colors ${
                     hasData ? 'hover:bg-slate-50' : 'opacity-60'
                   }`}
                 >
@@ -386,6 +419,10 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
                       </button>
                     )}
                   </div>
+                  {/* Facturado AFIP — real, calculado a partir de las Facturas C emitidas */}
+                  <div className="text-xs font-black text-violet-700 text-right tracking-tighter">
+                    {afipFacturado !== 0 ? `$${formatARS(afipFacturado)}` : '·'}
+                  </div>
                   {/* Dif sin facturar */}
                   <div className="text-right">
                     {row.totalSinEf > 0 ? (
@@ -406,7 +443,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
             })}
 
             {/* Footer: annual totals */}
-            <div className="grid grid-cols-[80px_repeat(8,minmax(0,1fr))] gap-2 px-6 py-4 bg-slate-900 text-white">
+            <div className="grid grid-cols-[80px_repeat(9,minmax(0,1fr))] gap-2 px-6 py-4 bg-slate-900 text-white">
               <div className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
                 Anual
               </div>
@@ -430,6 +467,9 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
               </div>
               <div className="text-sm font-black text-indigo-300 text-right tracking-tighter">
                 ${formatARS(annualTotals.facturado)}
+              </div>
+              <div className="text-sm font-black text-violet-300 text-right tracking-tighter">
+                ${formatARS(annualTotals.afipFacturado)}
               </div>
               <div className="text-sm font-black text-rose-300 text-right tracking-tighter">
                 ${formatARS(annualTotals.totalSinEf - annualTotals.facturado)}
@@ -473,7 +513,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
                 Sin categoría actual
               </p>
               <p className="text-xs font-bold text-amber-600 mt-1">
-                La dueña aún no eligió en qué categoría está. Mostrando las primeras 4 de la escala como referencia.
+                Todavía no se eligió la categoría actual. Elegila arriba, en "Categoría actual". Mostrando las primeras 4 de la escala como referencia.
               </p>
             </div>
           </div>

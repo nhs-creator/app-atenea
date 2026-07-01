@@ -8,9 +8,12 @@
  * @module
  */
 
+import type * as actions_afip from "../actions/afip.js";
 import type * as actions_createAccountant from "../actions/createAccountant.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
+import type * as lib_afipSdk from "../lib/afipSdk.js";
+import type * as lib_afipValidators from "../lib/afipValidators.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_semanticId from "../lib/semanticId.js";
 import type * as lib_stockHelpers from "../lib/stockHelpers.js";
@@ -18,19 +21,23 @@ import type * as migration_fixUserIds from "../migration/fixUserIds.js";
 import type * as migration_fixUserIdsMutation from "../migration/fixUserIdsMutation.js";
 import type * as migration_importData from "../migration/importData.js";
 import type * as migration_importMutations from "../migration/importMutations.js";
+import type * as mutations_afipConfig from "../mutations/afipConfig.js";
 import type * as mutations_clients from "../mutations/clients.js";
 import type * as mutations_expenses from "../mutations/expenses.js";
 import type * as mutations_internal_profiles from "../mutations/internal_profiles.js";
 import type * as mutations_inventory from "../mutations/inventory.js";
+import type * as mutations_invoices from "../mutations/invoices.js";
 import type * as mutations_monotributo from "../mutations/monotributo.js";
 import type * as mutations_profiles from "../mutations/profiles.js";
 import type * as mutations_sales from "../mutations/sales.js";
+import type * as queries_afipConfig from "../queries/afipConfig.js";
 import type * as queries_clients from "../queries/clients.js";
 import type * as queries_debug_stats from "../queries/debug_stats.js";
 import type * as queries_expenses from "../queries/expenses.js";
 import type * as queries_internal_profiles from "../queries/internal_profiles.js";
 import type * as queries_inventory from "../queries/inventory.js";
 import type * as queries_inventoryMovements from "../queries/inventoryMovements.js";
+import type * as queries_invoices from "../queries/invoices.js";
 import type * as queries_monotributo from "../queries/monotributo.js";
 import type * as queries_profiles from "../queries/profiles.js";
 import type * as queries_sales from "../queries/sales.js";
@@ -43,9 +50,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "actions/afip": typeof actions_afip;
   "actions/createAccountant": typeof actions_createAccountant;
   auth: typeof auth;
   http: typeof http;
+  "lib/afipSdk": typeof lib_afipSdk;
+  "lib/afipValidators": typeof lib_afipValidators;
   "lib/auth": typeof lib_auth;
   "lib/semanticId": typeof lib_semanticId;
   "lib/stockHelpers": typeof lib_stockHelpers;
@@ -53,19 +63,23 @@ declare const fullApi: ApiFromModules<{
   "migration/fixUserIdsMutation": typeof migration_fixUserIdsMutation;
   "migration/importData": typeof migration_importData;
   "migration/importMutations": typeof migration_importMutations;
+  "mutations/afipConfig": typeof mutations_afipConfig;
   "mutations/clients": typeof mutations_clients;
   "mutations/expenses": typeof mutations_expenses;
   "mutations/internal_profiles": typeof mutations_internal_profiles;
   "mutations/inventory": typeof mutations_inventory;
+  "mutations/invoices": typeof mutations_invoices;
   "mutations/monotributo": typeof mutations_monotributo;
   "mutations/profiles": typeof mutations_profiles;
   "mutations/sales": typeof mutations_sales;
+  "queries/afipConfig": typeof queries_afipConfig;
   "queries/clients": typeof queries_clients;
   "queries/debug_stats": typeof queries_debug_stats;
   "queries/expenses": typeof queries_expenses;
   "queries/internal_profiles": typeof queries_internal_profiles;
   "queries/inventory": typeof queries_inventory;
   "queries/inventoryMovements": typeof queries_inventoryMovements;
+  "queries/invoices": typeof queries_invoices;
   "queries/monotributo": typeof queries_monotributo;
   "queries/profiles": typeof queries_profiles;
   "queries/sales": typeof queries_sales;

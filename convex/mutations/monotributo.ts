@@ -96,20 +96,20 @@ export const updateCategory = mutation({
 });
 
 /**
- * Cambia la letra de la categoría actual del dueño.
+ * Cambia la letra de la categoría actual del owner asignado.
+ * Tanto el dueño como la contadora asignada pueden editarla (vía getEffectiveUserId).
  */
 export const setCurrentCategory = mutation({
   args: { letter: v.string() },
   handler: async (ctx, { letter }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const targetUserId = await getEffectiveUserId(ctx);
+    if (!targetUserId) throw new Error("Not authenticated");
 
     const profile = await ctx.db
       .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", targetUserId))
       .first();
     if (!profile) throw new Error("Profile not found");
-    if (profile.role !== "owner") throw new Error("Solo el dueño puede cambiar la categoría actual");
 
     await ctx.db.patch(profile._id, { monotributoCategory: letter });
   },

@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import {
-  Sale, Expense, InventoryItem, Voucher, Client,
+  Sale, Expense, InventoryItem, Voucher, Client, Invoice,
   MultiSaleData, ExpenseFormData, InventoryFormData
 } from '../types';
 
@@ -29,6 +29,7 @@ export function useAteneaConvex() {
   const rawInventory = useQuery(api.queries.inventory.listInventory);
   const rawVouchers = useQuery(api.queries.vouchers.listActiveVouchers);
   const rawClients = useQuery(api.queries.clients.listClients);
+  const rawInvoices = useQuery(api.queries.invoices.listInvoices);
 
   // Mapear documentos Convex a la interfaz frontend existente
   const sales: Sale[] = (rawSales ?? []).map((s) => ({
@@ -106,6 +107,21 @@ export function useAteneaConvex() {
     updated_at: new Date(c._creationTime).toISOString(),
   }));
 
+  const invoices: Invoice[] = (rawInvoices ?? []).map((inv) => ({
+    id: inv._id,
+    client_number: inv.clientNumber,
+    doc_tipo: inv.docTipo,
+    doc_nro: inv.docNro,
+    condicion_iva_receptor: inv.condicionIvaReceptor,
+    importe_total: inv.importeTotal,
+    afip_cae: inv.afipCae,
+    afip_cae_expiration: inv.afipCaeExpiration,
+    afip_cbte_tipo: inv.afipCbteTipo,
+    afip_fiscal_number: inv.afipFiscalNumber,
+    afip_qr_data: inv.afipQrData,
+    credit_note_for: inv.creditNoteFor,
+  }));
+
   // --- Mutations ---
   const saveMultiSaleMutation = useMutation(api.mutations.sales.saveMultiSale);
   const deleteTransactionMutation = useMutation(api.mutations.sales.deleteTransaction);
@@ -116,6 +132,8 @@ export function useAteneaConvex() {
   const deleteInventoryMutation = useMutation(api.mutations.inventory.deleteInventory);
   const saveClientMutation = useMutation(api.mutations.clients.saveClient);
   const deleteClientMutation = useMutation(api.mutations.clients.deleteClient);
+  const emitirFacturaAction = useAction(api.actions.afip.emitirFactura);
+  const emitirNotaCreditoAction = useAction(api.actions.afip.emitirNotaCredito);
 
   // --- Adaptadores que mantienen la interfaz existente ---
 
@@ -155,8 +173,8 @@ export function useAteneaConvex() {
   const deleteTransaction = async (clientNumber: string) => {
     try {
       await deleteTransactionMutation({ clientNumber });
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      alert(error.message || 'No se pudo borrar la venta');
     }
   };
 
@@ -275,6 +293,24 @@ export function useAteneaConvex() {
     }
   };
 
+  const emitirFactura = async (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => {
+    try {
+      const result = await emitirFacturaAction(args);
+      return { success: true as const, ...result };
+    } catch (error: any) {
+      return { success: false as const, error: error.message || 'Error al emitir la factura' };
+    }
+  };
+
+  const emitirNotaCredito = async (args: { invoiceId: string; motivo: string }) => {
+    try {
+      const result = await emitirNotaCreditoAction({ invoiceId: args.invoiceId as Id<"invoices">, motivo: args.motivo });
+      return { success: true as const, ...result };
+    } catch (error: any) {
+      return { success: false as const, error: error.message || 'Error al emitir la nota de crédito' };
+    }
+  };
+
   // fetchData es no-op — Convex es reactivo
   const fetchData = () => {};
 
@@ -286,6 +322,7 @@ export function useAteneaConvex() {
     inventory,
     vouchers,
     clients,
+    invoices,
     isSyncing,
     saveMultiSale,
     deleteTransaction,
@@ -297,5 +334,7 @@ export function useAteneaConvex() {
     deleteInventory,
     saveClient,
     deleteClient,
+    emitirFactura,
+    emitirNotaCredito,
   };
 }

@@ -12,6 +12,7 @@
     "test:run": "bun test --no-watch"
   },
   "dependencies": {
+    "@afipsdk/afip.js": "^1.2.3",
     "@auth/core": "^0.37.4",
     "@convex-dev/auth": "^0.0.91",
     "@supabase/supabase-js": "^2.89.0",
