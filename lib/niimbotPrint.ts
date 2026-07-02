@@ -108,7 +108,14 @@ export async function connectPrinterUSB(): Promise<void> {
 
 async function runPrintTask(c: NiimbotAbstractClient, canvas: HTMLCanvasElement, quantity: number): Promise<void> {
   const encoded = ImageEncoder.encodeCanvas(canvas, 'top');
-  const printTask = c.abstraction.newPrintTask('D110', { totalPages: quantity });
+  // Ojo: "D110" a secas y "D110M" (el modelo real acá — nombre de dispositivo
+  // "D110_M-...") hablan protocolos de imagen DISTINTOS. Con "D110" fijo la
+  // impresora aceptaba la conexión y alimentaba papel (luz verde) pero
+  // descartaba los datos de imagen por venir en el formato equivocado —
+  // por eso salía en blanco. getPrintTaskType() detecta el protocolo real
+  // a partir del modelo/versión que ya se leyó al conectar.
+  const taskType = c.getPrintTaskType() ?? 'D110';
+  const printTask = c.abstraction.newPrintTask(taskType, { totalPages: quantity });
   try {
     await printTask.printInit();
     await printTask.printPage(encoded, quantity);
