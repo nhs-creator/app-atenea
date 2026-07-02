@@ -100,21 +100,33 @@ export function inventoryLabelFilename(code: string): string {
   return `Etiqueta-${code}.png`;
 }
 
-// Etiquetas reales del rollo de la impresora NIIMBOT D110: 12mm x 40mm —
-// mucho más angosto que el cartón, no entra el layout horizontal de arriba.
-// 203dpi es la resolución del cabezal térmico (misma que confirmamos para
-// la B1), ~8px/mm. El tamaño se define en píxeles porque eso es lo que la
-// impresora recibe — no hay metadata de DPI de por medio como en un PDF.
+// Etiquetas reales del rollo de la impresora NIIMBOT D110: nominal "12x40mm",
+// pero 12mm es el ancho fijo del cabezal/rollo — leída de forma normal, la
+// etiqueta queda apaisada: 40mm de ancho x 12mm de alto (la primera versión
+// de este canvas la había armado al revés, angosta y alta — corregido al
+// comparar con una etiqueta armada a mano en la app oficial de Niimbot).
+// 203dpi es la resolución del cabezal térmico, ~8px/mm. El tamaño se define
+// en píxeles porque eso es lo que la impresora recibe — no hay metadata de
+// DPI de por medio como en un PDF.
 const PRINT_PX_PER_MM = 203 / 25.4;
-const PRINT_WIDTH = Math.round(12 * PRINT_PX_PER_MM);
-const PRINT_HEIGHT = Math.round(40 * PRINT_PX_PER_MM);
+const PRINT_WIDTH = Math.round(40 * PRINT_PX_PER_MM);
+const PRINT_HEIGHT = Math.round(12 * PRINT_PX_PER_MM);
 const PRINT_MARGIN = 4;
 
+function truncateToFit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let truncated = text;
+  while (truncated.length > 1 && ctx.measureText(`${truncated}…`).width > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  return `${truncated}…`;
+}
+
 /**
- * Arma el canvas para imprimir directo por Bluetooth (lib/niimbotPrint.ts).
- * Layout vertical: QR arriba (ocupa casi todo el ancho de 12mm) + código en
- * texto chico abajo. Nombre/precio no entran legibles en 12mm — quedan
- * afuera de esta etiqueta chica (la info completa vive en el QR/la app).
+ * Arma el canvas para imprimir directo por Bluetooth (lib/niimbotPrint.ts) o
+ * para compartir a la app de Niimbot en iPhone (donde Bluetooth no anda).
+ * Layout apaisado: QR a la izquierda (ocupa todo el alto) + precio y nombre
+ * a la derecha, achicados hasta entrar en el ancho disponible.
  */
 export async function printInventoryLabelCanvas(data: InventoryLabelData): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
@@ -126,23 +138,30 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, PRINT_WIDTH, PRINT_HEIGHT);
 
-  const qrSize = PRINT_WIDTH - PRINT_MARGIN * 2;
+  const qrSize = PRINT_HEIGHT - PRINT_MARGIN * 2;
   const qrDataUrl = await QRCode.toDataURL(data.code, { width: qrSize, margin: 0 });
   const qrImg = await loadImage(qrDataUrl);
   ctx.drawImage(qrImg, PRINT_MARGIN, PRINT_MARGIN, qrSize, qrSize);
 
   ctx.fillStyle = '#000000';
   ctx.textBaseline = 'top';
-  ctx.textAlign = 'center';
-  // El código completo (ej. "ATN-7F3A9C21", 12 caracteres) no entra a un
-  // tamaño fijo en 12mm de ancho — achicamos la fuente hasta que entre.
-  const textMaxWidth = PRINT_WIDTH - PRINT_MARGIN * 2;
-  let fontSize = Math.round(PRINT_WIDTH * 0.16);
+  ctx.textAlign = 'left';
+
+  const textX = PRINT_MARGIN + qrSize + 8;
+  const textMaxWidth = PRINT_WIDTH - textX - PRINT_MARGIN;
+  const blockY = PRINT_MARGIN + 8;
+
+  const priceText = `$${Math.round(data.price).toLocaleString('es-AR')}`;
+  let priceSize = 32;
   do {
-    ctx.font = `${fontSize}px monospace`;
-    fontSize -= 1;
-  } while (ctx.measureText(data.code).width > textMaxWidth && fontSize > 6);
-  ctx.fillText(data.code, PRINT_WIDTH / 2, PRINT_MARGIN * 2 + qrSize);
+    ctx.font = `bold ${priceSize}px sans-serif`;
+    priceSize -= 1;
+  } while (ctx.measureText(priceText).width > textMaxWidth && priceSize > 16);
+  ctx.fillText(priceText, textX, blockY);
+
+  ctx.font = '15px sans-serif';
+  const nameText = truncateToFit(ctx, data.productName.toUpperCase(), textMaxWidth);
+  ctx.fillText(nameText, textX, blockY + priceSize + 10);
 
   return canvas;
 }
