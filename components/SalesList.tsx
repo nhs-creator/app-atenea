@@ -198,6 +198,10 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
             const roundingAdjustment = items.find(i => i.product_name === '💰 AJUSTE POR REDONDEO');
             
             const totalCobrado = items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+            // El efectivo no se factura — el importe a facturar es solo transferencia+débito+crédito.
+            const totalFacturable = (firstSale.payment_details || [])
+              .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
+              .reduce((sum, p) => sum + p.amount, 0);
 
             let totalDescuento10 = 0;
             realProducts.forEach(p => {
@@ -310,14 +314,17 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                     );
                   }
 
-                  if (onFacturar && firstSale.status === 'completed' && !isReturnTransaction) {
+                  // Sin importe no-efectivo no hay nada para facturar (el efectivo no se factura).
+                  if (onFacturar && firstSale.status === 'completed' && !isReturnTransaction && totalFacturable > 0) {
                     return (
                       <div className="px-4 py-2.5 bg-white/40 border-t border-white/60">
                         <button
-                          onClick={() => setFacturarTarget({ clientNumber, total: totalCobrado })}
+                          onClick={() => setFacturarTarget({ clientNumber, total: totalFacturable })}
                           className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
                         >
-                          <FileText className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Facturar</span>
+                          <FileText className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">
+                            Facturar {totalFacturable < totalCobrado ? `($${totalFacturable.toLocaleString('es-AR')} sin ef.)` : ''}
+                          </span>
                         </button>
                       </div>
                     );

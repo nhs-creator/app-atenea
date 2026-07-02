@@ -20,8 +20,14 @@ export const listSales = query({
 
 /**
  * getTransactionInternal: usado por la action de AFIP para traer la venta
- * agrupada por clientNumber y calcular el importe total a facturar. Solo
- * considera ventas "completed" — no tiene sentido facturar una seña pendiente.
+ * agrupada por clientNumber y calcular el importe a facturar. Solo considera
+ * ventas "completed" — no tiene sentido facturar una seña pendiente.
+ *
+ * IMPORTANTE: el efectivo no se factura (regla del negocio). El importe a
+ * facturar es la suma de los medios de pago no-efectivo (Transferencia,
+ * Débito, Crédito) de paymentDetails — NO el total de la venta. "Vale" tampoco
+ * cuenta (no es un cobro real). Todas las líneas de una transacción comparten
+ * el mismo paymentDetails, así que alcanza con mirar el de la primera.
  */
 export const getTransactionInternal = internalQuery({
   args: { userId: v.string(), clientNumber: v.string() },
@@ -36,7 +42,10 @@ export const getTransactionInternal = internalQuery({
     if (items.length === 0) return null;
     if (items[0].status !== "completed") return null;
 
-    const importeTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const importeTotal = items[0].paymentDetails
+      .filter((p) => p.method === "Transferencia" || p.method === "Débito" || p.method === "Crédito")
+      .reduce((sum, p) => sum + p.amount, 0);
+
     return { items, importeTotal, clientId: items[0].clientId };
   },
 });

@@ -69,6 +69,9 @@ export const emitirFactura = action({
     if (!transaction) {
       throw new Error("Venta no encontrada o no está completada — solo se puede facturar una venta completada");
     }
+    if (transaction.importeTotal <= 0) {
+      throw new Error("Esta venta fue en efectivo — el efectivo no se factura, no hay importe para emitir");
+    }
 
     const afipConfig = await ctx.runQuery(internal.queries.afipConfig.getConfigInternal);
     if (!afipConfig) throw new Error("Configuración AFIP no encontrada");
