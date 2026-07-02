@@ -155,6 +155,38 @@ export const MATERIALS: IMaterial[] = [
 ];
 
 // =============================================================================
+// SIZE SYSTEMS (which talles are valid, per category)
+// =============================================================================
+
+/** Cada sistema de talles y sus valores válidos. */
+export const SIZE_SYSTEMS: Record<string, string[]> = {
+  LETRAS: ['S', 'M', 'L', 'XL', 'XXL', 'U'],
+  NUMEROS_ROPA: ['36', '38', '40', '42', '44', '46', '48', '50'],
+  NUMEROS_CALZADO: ['35', '36', '37', '38', '39', '40', '41'],
+  UNICO: ['U'],
+};
+
+/** Qué sistema de talles usa cada categoría (por id de CATEGORIES). */
+export const CATEGORY_SIZE_SYSTEM: Record<string, string> = {
+  tejidos_y_abrigos: 'LETRAS',
+  prendas_superiores: 'LETRAS',
+  prendas_inferiores: 'NUMEROS_ROPA',
+  piezas_enteras: 'LETRAS',
+  accesorios: 'UNICO',
+  marroquinería: 'UNICO',
+  bijouterie: 'UNICO',
+  hogar_home: 'UNICO',
+  otros: 'UNICO',
+};
+
+/** Talles válidos para una categoría (por id o label). Default LETRAS si no matchea nada. */
+export function getSizeOptionsForCategory(categoryIdOrLabel: string): string[] {
+  const cat = getCategoryById(categoryIdOrLabel) ?? getCategoryByLabel(categoryIdOrLabel);
+  const system = (cat && CATEGORY_SIZE_SYSTEM[cat.id]) || 'LETRAS';
+  return SIZE_SYSTEMS[system] ?? SIZE_SYSTEMS.LETRAS;
+}
+
+// =============================================================================
 // VARIANTS / FITS (for Prendas Inferiores - styles)
 // =============================================================================
 

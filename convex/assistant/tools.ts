@@ -1,7 +1,7 @@
 import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { CATEGORIES, SUBCATEGORIES, MATERIALS } from "../../inventoryConstants";
+import { CATEGORIES, SUBCATEGORIES, MATERIALS, getSizeOptionsForCategory } from "../../inventoryConstants";
 
 type ActionCtx = GenericActionCtx<DataModel>;
 
@@ -280,6 +280,18 @@ export const INVENTORY_TOOL_DEFS = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "list_size_options",
+    description:
+      "Devuelve los talles VÁLIDOS para una categoría (ej: Prendas Inferiores usa 36/38/40.../50 de a 2; Prendas Superiores usa S/M/L/XL/XXL; Accesorios/Bijouterie/Marroquinería usan talle único U). Llamala SIEMPRE antes de armar los talles de un alta, para saber exactamente qué valores existen en esa categoría — nunca asumas un rango a ojo.",
+    input_schema: {
+      type: "object",
+      properties: {
+        category: { type: "string", description: "La categoría elegida (de list_categories)." },
+      },
+      required: ["category"],
+    },
+  },
+  {
     name: "search_similar_inventory",
     description:
       "Busca productos ya cargados por nombre o detalle parecido. Usala ANTES de proponer un alta nueva (para avisar de posibles duplicados) y para encontrar un producto existente cuando piden ajustar stock.",
@@ -549,6 +561,11 @@ export async function executeTool(
       }
       case "list_materials": {
         return JSON.stringify({ materiales: MATERIALS.map((m) => m.label) });
+      }
+      case "list_size_options": {
+        const category = String(input.category ?? "").trim();
+        if (!category) return "Necesito la categoría para saber qué talles son válidos.";
+        return JSON.stringify({ categoria: category, talles_validos: getSizeOptionsForCategory(category) });
       }
       case "search_similar_inventory": {
         const term = String(input.term ?? "").trim();

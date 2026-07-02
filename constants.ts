@@ -235,30 +235,14 @@ export const EXPENSE_CATEGORIES = [
   ...PERSONAL_CATEGORIES.map(c => c.id)
 ];
 
-export const SIZE_SYSTEMS = {
-  LETRAS: ['S', 'M', 'L', 'XL', 'XXL', 'U'],
-  NUMEROS_ROPA: ['36', '38', '40', '42', '44', '46', '48', '50'],
-  NUMEROS_CALZADO: ['35', '36', '37', '38', '39', '40', '41'],
-  UNICO: ['U']
-};
-
-export const CATEGORY_SIZE_MAP: Record<string, keyof typeof SIZE_SYSTEMS> = {
-  'Tejidos y Abrigos': 'LETRAS',
-  'Prendas Superiores': 'LETRAS',
-  'Prendas Inferiores': 'NUMEROS_ROPA',
-  'Piezas Enteras': 'LETRAS',
-  'Accesorios': 'UNICO',
-  'Marroquinería': 'UNICO',
-  'Bijouterie': 'UNICO',
-  'Hogar/Home': 'UNICO',
-  'Otros': 'UNICO'
-};
-
 // Re-export from 3-level inventory categorization system
 import {
   getCategoriesForConfig,
   getSubcategoriesMapForConfig,
   getMaterialsForConfig,
+  CATEGORIES,
+  SIZE_SYSTEMS,
+  CATEGORY_SIZE_SYSTEM,
 } from './inventoryConstants';
 
 export const DEFAULT_PRODUCT_CATEGORIES: string[] = getCategoriesForConfig();
@@ -267,24 +251,18 @@ export const DEFAULT_CATEGORY_MAP: Record<string, string[]> = getSubcategoriesMa
 
 export const DEFAULT_MATERIALS: string[] = getMaterialsForConfig();
 
-export const DEFAULT_SIZE_SYSTEMS: Record<string, string[]> = {
-  LETRAS: ['S', 'M', 'L', 'XL', 'XXL', 'U'],
-  NUMEROS_ROPA: ['36', '38', '40', '42', '44', '46', '48', '50'],
-  NUMEROS_CALZADO: ['35', '36', '37', '38', '39', '40', '41'],
-  UNICO: ['U']
-};
+// Fuente única de verdad: inventoryConstants.ts (la usa también el tool
+// list_size_options del agente de voz, así categoría->talles nunca se
+// desincroniza entre el wizard táctil y la carga por voz).
+export const DEFAULT_SIZE_SYSTEMS: Record<string, string[]> = SIZE_SYSTEMS;
 
-export const DEFAULT_CATEGORY_SIZE_MAP: Record<string, string> = {
-  'TEJIDOS Y ABRIGOS': 'LETRAS',
-  'PRENDAS SUPERIORES': 'LETRAS',
-  'PRENDAS INFERIORES': 'NUMEROS_ROPA',
-  'PIEZAS ENTERAS': 'LETRAS',
-  'ACCESORIOS': 'UNICO',
-  'MARROQUINERÍA': 'UNICO',
-  'BIJOUTERIE': 'UNICO',
-  'HOGAR/HOME': 'UNICO',
-  'OTROS': 'UNICO'
-};
+export const DEFAULT_CATEGORY_SIZE_MAP: Record<string, string> = CATEGORIES.reduce(
+  (map, cat) => {
+    map[cat.label.toUpperCase()] = CATEGORY_SIZE_SYSTEM[cat.id] ?? 'LETRAS';
+    return map;
+  },
+  {} as Record<string, string>
+);
 
 /** Días que abre el local por defecto: Lunes a Sábado (1-6). 0=Domingo. */
 export const DEFAULT_OPEN_DAYS: number[] = [1, 2, 3, 4, 5, 6];
