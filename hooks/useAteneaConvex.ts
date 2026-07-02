@@ -9,7 +9,9 @@ import {
   generateInventoryLabel as buildInventoryLabelPng,
   inventoryLabelFilename,
   shareOrDownloadInventoryLabel,
+  printInventoryLabelCanvas,
 } from '../lib/generateInventoryLabel';
+import { printLabel } from '../lib/niimbotPrint';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -289,6 +291,18 @@ export function useAteneaConvex() {
     }
   };
 
+  const printInventoryLabel = async (item: InventoryItem) => {
+    try {
+      const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+      const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+      await printLabel(canvas);
+      return { success: true as const };
+    } catch (error: any) {
+      console.error('Error printing inventory label:', error);
+      return { success: false as const, error: error.message || 'Error al imprimir la etiqueta' };
+    }
+  };
+
   const saveClient = async (client: Partial<Client>) => {
     try {
       await saveClientMutation({
@@ -357,6 +371,7 @@ export function useAteneaConvex() {
     updateInventory,
     deleteInventory,
     generateInventoryLabel,
+    printInventoryLabel,
     saveClient,
     deleteClient,
     emitirFactura,

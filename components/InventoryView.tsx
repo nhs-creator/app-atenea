@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
-import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode, Mic } from 'lucide-react';
+import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode, Mic, Printer, Loader2 } from 'lucide-react';
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
 import InventoryReporte from './inventory/InventoryReporte';
@@ -15,6 +15,7 @@ interface InventoryViewProps {
   onUpdate: (item: InventoryItem) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
+  onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryCard = React.memo(({
@@ -25,6 +26,7 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId,
   onShowHistory,
   onGenerateLabel,
+  onPrintLabel,
   openMenuId,
   setOpenMenuId,
 }: {
@@ -35,10 +37,12 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId: (id: string | null) => void,
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
+  onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
   openMenuId: string | null,
   setOpenMenuId: (id: string | null) => void,
 }) => {
   const [generatingLabel, setGeneratingLabel] = useState(false);
+  const [printingLabel, setPrintingLabel] = useState(false);
   const menuOpen = openMenuId === item.id;
 
   const handleGenerateLabel = async () => {
@@ -47,6 +51,15 @@ const InventoryCard = React.memo(({
     const res = await onGenerateLabel(item);
     setGeneratingLabel(false);
     if (!res.success) alert(res.error || 'Error al generar la etiqueta');
+  };
+
+  const handlePrintLabel = async () => {
+    if (!onPrintLabel || printingLabel) return;
+    setPrintingLabel(true);
+    const res = await onPrintLabel(item);
+    setPrintingLabel(false);
+    setOpenMenuId(null);
+    if (!res.success) alert(res.error || 'Error al imprimir la etiqueta');
   };
 
 
@@ -150,6 +163,16 @@ const InventoryCard = React.memo(({
                 >
                   <History className="w-4 h-4" /> Historial
                 </button>
+                {onPrintLabel && (
+                  <button
+                    onClick={handlePrintLabel}
+                    disabled={printingLabel}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-violet-600 hover:bg-violet-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {printingLabel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                    {printingLabel ? 'Imprimiendo…' : 'Imprimir etiqueta'}
+                  </button>
+                )}
                 <button
                   onClick={() => { setOpenMenuId(null); setDeleteConfirmId(item.id); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-red-500 hover:bg-red-50 active:scale-[0.98] transition-all"
@@ -176,7 +199,7 @@ const InventoryCard = React.memo(({
   );
 });
 
-const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel }) => {
+const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPrintLabel }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
   
@@ -557,6 +580,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   setDeleteConfirmId={setDeleteConfirmId}
                   onShowHistory={(id, name) => setShowMovements({id, name})}
                   onGenerateLabel={onGenerateLabel}
+                  onPrintLabel={onPrintLabel}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
                 />

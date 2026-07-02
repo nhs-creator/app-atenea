@@ -92,6 +92,53 @@ export function inventoryLabelFilename(code: string): string {
   return `Etiqueta-${code}.png`;
 }
 
+// Etiquetas reales del rollo de la impresora NIIMBOT D110: 12mm x 40mm —
+// mucho más angosto que el cartón, no entra el layout horizontal de arriba.
+// 203dpi es la resolución del cabezal térmico (misma que confirmamos para
+// la B1), ~8px/mm. El tamaño se define en píxeles porque eso es lo que la
+// impresora recibe — no hay metadata de DPI de por medio como en un PDF.
+const PRINT_PX_PER_MM = 203 / 25.4;
+const PRINT_WIDTH = Math.round(12 * PRINT_PX_PER_MM);
+const PRINT_HEIGHT = Math.round(40 * PRINT_PX_PER_MM);
+const PRINT_MARGIN = 4;
+
+/**
+ * Arma el canvas para imprimir directo por Bluetooth (lib/niimbotPrint.ts).
+ * Layout vertical: QR arriba (ocupa casi todo el ancho de 12mm) + código en
+ * texto chico abajo. Nombre/precio no entran legibles en 12mm — quedan
+ * afuera de esta etiqueta chica (la info completa vive en el QR/la app).
+ */
+export async function printInventoryLabelCanvas(data: InventoryLabelData): Promise<HTMLCanvasElement> {
+  const canvas = document.createElement('canvas');
+  canvas.width = PRINT_WIDTH;
+  canvas.height = PRINT_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No se pudo crear el canvas de la etiqueta');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, PRINT_WIDTH, PRINT_HEIGHT);
+
+  const qrSize = PRINT_WIDTH - PRINT_MARGIN * 2;
+  const qrDataUrl = await QRCode.toDataURL(data.code, { width: qrSize, margin: 0 });
+  const qrImg = await loadImage(qrDataUrl);
+  ctx.drawImage(qrImg, PRINT_MARGIN, PRINT_MARGIN, qrSize, qrSize);
+
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+  // El código completo (ej. "ATN-7F3A9C21", 12 caracteres) no entra a un
+  // tamaño fijo en 12mm de ancho — achicamos la fuente hasta que entre.
+  const textMaxWidth = PRINT_WIDTH - PRINT_MARGIN * 2;
+  let fontSize = Math.round(PRINT_WIDTH * 0.16);
+  do {
+    ctx.font = `${fontSize}px monospace`;
+    fontSize -= 1;
+  } while (ctx.measureText(data.code).width > textMaxWidth && fontSize > 6);
+  ctx.fillText(data.code, PRINT_WIDTH / 2, PRINT_MARGIN * 2 + qrSize);
+
+  return canvas;
+}
+
 /**
  * Comparte la etiqueta con el share nativo del dispositivo (para mandarla a
  * la app de la impresora térmica); si no está disponible, la descarga.
