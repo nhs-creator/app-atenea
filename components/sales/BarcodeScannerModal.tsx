@@ -37,16 +37,16 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
     // El recuadro recorta la decodificación a esa zona — por eso lo habíamos sacado
     // (obligaba a centrar con precisión). Pero un código de barras 1D necesita ocupar
     // buena parte del cuadro para que cada raya tenga suficiente resolución en píxeles
-    // y se pueda leer, así que un recuadro GENEROSO (casi todo el ancho de la cámara)
-    // cumple las dos cosas a la vez: le da margen de sobra al código de barras sin
-    // tener que llenar la imagen completa, y de paso la librería dibuja un marco tenue
-    // alrededor que sirve de guía visual para centrar el QR.
+    // y se pueda leer, así que le damos forma de código de barras (ancho, bajo): el QR
+    // se lee igual sin importar la forma del recuadro, así que no hace falta que sea
+    // cuadrado. De paso la librería dibuja un marco tenue alrededor que sirve de guía
+    // visual para centrar el QR.
     const baseScanConfig = {
       fps: 10,
-      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => ({
-        width: viewfinderWidth * 0.92,
-        height: viewfinderHeight * 0.6,
-      }),
+      qrbox: (viewfinderWidth: number) => {
+        const width = viewfinderWidth * 0.7;
+        return { width, height: width * 0.4 };
+      },
     };
     const onDecoded = (decodedText: string) => {
       if (cancelled) return;
