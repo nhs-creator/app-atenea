@@ -401,8 +401,13 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32 font-sans text-slate-800">
-      <header className="bg-white sticky top-0 z-40 border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
+    // h-[100dvh] + flex-col en vez de min-h-screen + nav "fixed": en iOS, un nav con
+    // position:fixed se desincroniza del viewport cuando aparece/desaparece el teclado
+    // (ej. al tocar el buscador de clienta) y queda "flotando" a mitad de pantalla,
+    // sobre todo en la PWA instalada. Con flexbox el nav es un hijo normal, siempre
+    // al final del layout, sin depender de que el navegador recalcule un fixed.
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-slate-50 font-sans text-slate-800">
+      <header className="shrink-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20"><ShoppingBag className="w-4 h-4 text-white" /></div>
           <h1 className="font-bold text-lg italic">Atenea <span className="text-primary italic">Finanzas</span></h1>
@@ -423,7 +428,8 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4">
+      <main className="flex-1 overflow-y-auto">
+      <div className="max-w-md mx-auto p-4">
         {activeTab === 'form' && userRole === 'owner' && (
           <div className="animate-in fade-in duration-500">
             <SalesForm 
@@ -472,9 +478,10 @@ const App: React.FC = () => {
         {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} inventory={atenea.inventory} invoices={atenea.invoices} config={config} />}
         {activeTab === 'assistant' && userRole === 'owner' && <AssistantView />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
+      </div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-3 px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <nav className="shrink-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pt-3 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-md mx-auto flex justify-between items-center pb-3">
           {userRole === 'owner' ? (
             <>
