@@ -16,12 +16,30 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
 
   useEffect(() => {
     let cancelled = false;
-    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
+    // useBarCodeDetectorIfSupported: usa el detector nativo del navegador (hardware-acelerado
+    // en Chrome/Android) cuando está disponible — mucho más tolerante a ángulo/foco que el
+    // decoder JS puro que se usa como fallback.
+    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { useBarCodeDetectorIfSupported: true, verbose: false });
 
     scanner
       .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
+        {
+          facingMode: 'environment',
+          // Pedimos foco continuo (no todos los navegadores lo soportan, pero si lo
+          // soportan evita que la cámara se quede "buscando" foco a distancia cercana.
+          advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        {
+          fps: 10,
+          // Recuadro rectangular (no cuadrado): un código de barras es ancho y bajo,
+          // así que no hace falta centrarlo con precisión de QR.
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const width = Math.min(viewfinderWidth * 0.85, 320);
+            return { width, height: width * 0.5 };
+          },
+        },
         (decodedText) => {
           if (cancelled) return;
           cancelled = true;
@@ -63,7 +81,7 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
             <div id={SCANNER_ELEMENT_ID} className="rounded-2xl overflow-hidden bg-slate-900" />
           )}
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mt-3">
-            Apuntá al código QR de la etiqueta
+            Acercá el código, no hace falta centrarlo con precisión
           </p>
         </div>
       </div>
