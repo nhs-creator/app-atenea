@@ -2,6 +2,15 @@ import { v } from "convex/values";
 import Groq from "groq-sdk";
 import { action } from "../_generated/server";
 
+// Whisper acepta un "prompt" que sesga el vocabulario/ortografía hacia lo que
+// aparece ahí — sirve para palabras de jerga del rubro que confunde con otras
+// (ej. "jean" se transcribía como "shin"/"Shin", detectado en uso real).
+const TRANSCRIPTION_PROMPT =
+  "Local de ropa y accesorios de mujer en Buenos Aires. Vocabulario: jean, pantalón, remera, " +
+  "musculosa, campera, buzo, polerón, saco, cardigan, vestido, pollera, short, blusa, camisa, " +
+  "top, body, mono, bufanda, chalina, pashmina, gorro, gorra, cinto, bolso, mochila, cartera, " +
+  "billetera, aros, collares, pulseras, algodón, modal, lino, talle S, talle M, talle L, talle 40, talle 42.";
+
 /**
  * Transcribe audio (webm/mp4/wav) a español con Groq whisper-large-v3.
  * El audio llega como ArrayBuffer; mantener capturas cortas (<60s).
@@ -31,6 +40,7 @@ export const transcribeAudio = action({
         model: "whisper-large-v3",
         language: "es",
         response_format: "text",
+        prompt: TRANSCRIPTION_PROMPT,
       })) as unknown as string | { text?: string };
       if (typeof result === "string") return result.trim();
       return result?.text?.trim() ?? "";
