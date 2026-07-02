@@ -494,9 +494,9 @@ const App: React.FC = () => {
                 <BarChart2 className="w-6 h-6" />
                 <span className="text-[9px] font-black uppercase tracking-tighter">Reporte</span>
               </button>
-              <button onClick={() => setActiveTab('assistant')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'assistant' ? 'text-emerald-500 scale-110' : 'text-slate-400'}`}>
-                <Sparkles className="w-6 h-6" />
-                <span className="text-[9px] font-black uppercase tracking-tighter">Atenea</span>
+              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'inventory' ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
+                <Package className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Stock</span>
               </button>
             </>
           ) : (
