@@ -56,6 +56,21 @@ export const monthCrossCheck = internalQuery({
   },
 });
 
+/** Diagnóstico temporal: verificar si existe configuración AFIP guardada (sin exponer el contenido). */
+export const afipConfigExists = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const cfg = await ctx.db.query("afipConfig").first();
+    if (!cfg) return { exists: false };
+    return {
+      exists: true,
+      hasRazonSocial: !!cfg.razonSocial,
+      puntoVenta: cfg.puntoVenta,
+      isProduction: cfg.isProduction,
+    };
+  },
+});
+
 /** Diagnóstico temporal: contar ventas por mes y detectar duplicados. */
 export const marchDiagnostic = internalQuery({
   args: {},
