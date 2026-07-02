@@ -16,6 +16,12 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
 
   useEffect(() => {
     let cancelled = false;
+    // Html5Qrcode.stop() tira una excepción SÍNCRONA (no una promesa rechazada) si se
+    // llama mientras el escáner todavía no terminó de iniciar (ej. cerrás el modal
+    // mientras el navegador está esperando que aceptes el permiso de cámara). Por eso
+    // no alcanza con .catch() en la limpieza — hay que saber si realmente llegó a
+    // arrancar antes de intentar frenarlo.
+    let started = false;
     // useBarCodeDetectorIfSupported: usa el detector nativo del navegador (hardware-acelerado
     // en Chrome/Android) cuando está disponible — mucho más tolerante a ángulo/foco que el
     // decoder JS puro que se usa como fallback.
@@ -47,36 +53,50 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
       return 'No se pudo acceder a la cámara. Revisá los permisos del navegador.';
     };
 
-    // Constraints "ricos" (foco continuo + resolución alta) primero; si el navegador
-    // los rechaza (algunos WebView de Android tiran OverconstrainedError), reintentamos
-    // con constraints mínimos antes de darnos por vencidos.
-    scanner
-      .start(
-        {
-          facingMode: 'environment',
-          advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        scanConfig,
-        onDecoded,
-        onFrame
-      )
-      .catch((firstErr) => {
-        if (cancelled) return;
-        return scanner
-          .start({ facingMode: 'environment' }, scanConfig, onDecoded, onFrame)
-          .catch(() => {
-            if (!cancelled) setError(describeError(firstErr));
-          });
+    const attemptStart = async (constraints: MediaTrackConstraints): Promise<unknown> => {
+      try {
+        await scanner.start(constraints, scanConfig, onDecoded, onFrame);
+        return null;
+      } catch (err) {
+        return err;
+      }
+    };
+
+    (async () => {
+      // Constraints "ricos" (foco continuo + resolución alta) primero; si el navegador
+      // los rechaza (algunos WebView de Android tiran OverconstrainedError), reintentamos
+      // con constraints mínimos antes de darnos por vencidos.
+      const firstErr = await attemptStart({
+        facingMode: 'environment',
+        advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
       });
+      if (cancelled) return;
+      if (!firstErr) {
+        started = true;
+        return;
+      }
+      const secondErr = await attemptStart({ facingMode: 'environment' });
+      if (cancelled) return;
+      if (!secondErr) {
+        started = true;
+        return;
+      }
+      setError(describeError(firstErr));
+    })();
 
     return () => {
       cancelled = true;
-      scanner
-        .stop()
-        .then(() => scanner.clear())
-        .catch(() => { /* nunca llegó a iniciar — nada que limpiar */ });
+      if (!started) return;
+      try {
+        scanner
+          .stop()
+          .then(() => scanner.clear())
+          .catch(() => { /* ya se habrá liberado la cámara */ });
+      } catch {
+        /* stop() puede tirar sincrónicamente si el estado cambió justo antes */
+      }
     };
   }, []);
 
