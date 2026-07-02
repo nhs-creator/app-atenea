@@ -107,7 +107,17 @@ export async function connectPrinterUSB(): Promise<void> {
 }
 
 async function runPrintTask(c: NiimbotAbstractClient, canvas: HTMLCanvasElement, quantity: number): Promise<void> {
-  const encoded = ImageEncoder.encodeCanvas(canvas, 'top');
+  // El cabezal térmico es físicamente angosto y fijo (~12mm, el ancho del
+  // rollo) — esa es la dimensión de "columnas" real, y el papel se alimenta
+  // en la otra dirección (hasta 40mm, "filas"). Nuestro canvas está dibujado
+  // apaisado (320x96, así se ve normal en pantalla), así que hay que rotarlo
+  // 90° al codificarlo para que el ancho de pantalla (320) se mande como
+  // filas/avance de papel y el alto (96) como columnas/cabezal — 'left' hace
+  // exactamente eso (es el default de la librería, no 'top': con 'top' el
+  // cabezal solo alcanzaba a imprimir las primeras ~96 columnas —el QR— y
+  // cortaba el resto del ancho, además de alimentar de más solo 96 filas de
+  // papel en vez de 320 — por eso salía recortado y pegado a los bordes).
+  const encoded = ImageEncoder.encodeCanvas(canvas, 'left');
   // Ojo: "D110" a secas y "D110M" (el modelo real acá — nombre de dispositivo
   // "D110_M-...") hablan protocolos de imagen DISTINTOS. Con "D110" fijo la
   // impresora aceptaba la conexión y alimentaba papel (luz verde) pero
