@@ -12,7 +12,7 @@ import {
   printInventoryLabelCanvas,
   canvasToBlob,
 } from '../lib/generateInventoryLabel';
-import { printLabel, isWebBluetoothSupported } from '../lib/niimbotPrint';
+import { printLabel, printLabelUSB, isWebBluetoothSupported } from '../lib/niimbotPrint';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -316,6 +316,19 @@ export function useAteneaConvex() {
     }
   };
 
+  /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
+  const printInventoryLabelUSB = async (item: InventoryItem) => {
+    try {
+      const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+      const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+      await printLabelUSB(canvas);
+      return { success: true as const };
+    } catch (error: any) {
+      console.error('Error printing inventory label (USB):', error);
+      return { success: false as const, error: error.message || 'Error al imprimir la etiqueta' };
+    }
+  };
+
   const saveClient = async (client: Partial<Client>) => {
     try {
       await saveClientMutation({
@@ -385,6 +398,7 @@ export function useAteneaConvex() {
     deleteInventory,
     generateInventoryLabel,
     printInventoryLabel,
+    printInventoryLabelUSB,
     saveClient,
     deleteClient,
     emitirFactura,

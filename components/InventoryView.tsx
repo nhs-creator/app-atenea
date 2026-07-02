@@ -16,6 +16,8 @@ interface InventoryViewProps {
   onDelete: (id: string) => void | Promise<unknown>;
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
   onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
+  /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
+  onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryCard = React.memo(({
@@ -27,6 +29,7 @@ const InventoryCard = React.memo(({
   onShowHistory,
   onGenerateLabel,
   onPrintLabel,
+  onPrintLabelUSB,
   openMenuId,
   setOpenMenuId,
 }: {
@@ -38,11 +41,13 @@ const InventoryCard = React.memo(({
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
   onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
+  onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
   openMenuId: string | null,
   setOpenMenuId: (id: string | null) => void,
 }) => {
   const [generatingLabel, setGeneratingLabel] = useState(false);
   const [printingLabel, setPrintingLabel] = useState(false);
+  const [printingLabelUSB, setPrintingLabelUSB] = useState(false);
   const menuOpen = openMenuId === item.id;
 
   const handleGenerateLabel = async () => {
@@ -58,6 +63,15 @@ const InventoryCard = React.memo(({
     setPrintingLabel(true);
     const res = await onPrintLabel(item);
     setPrintingLabel(false);
+    setOpenMenuId(null);
+    if (!res.success) alert(res.error || 'Error al imprimir la etiqueta');
+  };
+
+  const handlePrintLabelUSB = async () => {
+    if (!onPrintLabelUSB || printingLabelUSB) return;
+    setPrintingLabelUSB(true);
+    const res = await onPrintLabelUSB(item);
+    setPrintingLabelUSB(false);
     setOpenMenuId(null);
     if (!res.success) alert(res.error || 'Error al imprimir la etiqueta');
   };
@@ -173,6 +187,17 @@ const InventoryCard = React.memo(({
                     {printingLabel ? 'Imprimiendo…' : 'Imprimir etiqueta'}
                   </button>
                 )}
+                {/* import.meta.env.DEV: solo en `npm run dev`, nunca en el build de producción — es únicamente para probar la impresión con la D110 enchufada por USB acá en la compu. */}
+                {import.meta.env.DEV && onPrintLabelUSB && (
+                  <button
+                    onClick={handlePrintLabelUSB}
+                    disabled={printingLabelUSB}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-400 hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {printingLabelUSB ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                    {printingLabelUSB ? 'Imprimiendo…' : 'Imprimir (USB, test)'}
+                  </button>
+                )}
                 <button
                   onClick={() => { setOpenMenuId(null); setDeleteConfirmId(item.id); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-red-500 hover:bg-red-50 active:scale-[0.98] transition-all"
@@ -199,7 +224,7 @@ const InventoryCard = React.memo(({
   );
 });
 
-const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPrintLabel }) => {
+const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPrintLabel, onPrintLabelUSB }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
   
@@ -581,6 +606,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   onShowHistory={(id, name) => setShowMovements({id, name})}
                   onGenerateLabel={onGenerateLabel}
                   onPrintLabel={onPrintLabel}
+                  onPrintLabelUSB={onPrintLabelUSB}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
                 />
