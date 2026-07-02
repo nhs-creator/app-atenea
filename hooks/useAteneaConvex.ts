@@ -122,6 +122,7 @@ export function useAteneaConvex() {
     afip_qr_data: inv.afipQrData,
     credit_note_for: inv.creditNoteFor,
     created_at: new Date(inv._creationTime).toISOString(),
+    year_month: inv.yearMonth,
   }));
 
   // --- Mutations ---

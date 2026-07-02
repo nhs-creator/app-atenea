@@ -150,6 +150,7 @@ export interface Invoice {
   afip_qr_data: string;
   credit_note_for?: string;
   created_at: string;
+  year_month: string;
 }
 
 export interface Expense {

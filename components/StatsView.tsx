@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sale, Expense, InventoryItem, AppConfig } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Sale, Expense, InventoryItem, AppConfig, Invoice } from '../types';
 import { useStatsMetrics, Period } from '../hooks/useStatsMetrics';
 
 import StatsHeader from './stats/StatsHeader';
@@ -8,15 +8,17 @@ import StatsBreakdown from './stats/StatsBreakdown';
 import StatsCharts from './stats/StatsCharts';
 import StatsDollarPurchases from './stats/StatsDollarPurchases';
 import StatsConsolidated from './stats/StatsConsolidated';
+import StatsAfipInvoiced from './stats/StatsAfipInvoiced';
 
 interface StatsViewProps {
   sales: Sale[];
   expenses: Expense[];
   inventory: InventoryItem[];
+  invoices?: Invoice[];
   config?: AppConfig;
 }
 
-const StatsView: React.FC<StatsViewProps> = ({ sales = [], expenses = [], inventory = [], config }) => {
+const StatsView: React.FC<StatsViewProps> = ({ sales = [], expenses = [], inventory = [], invoices = [], config }) => {
   const [period, setPeriod] = useState<Period>('today');
   const [viewMode, setViewMode] = useState<'business' | 'personal'>('business');
   const [selectedMonthDate, setSelectedMonthDate] = useState(new Date());
@@ -36,12 +38,23 @@ const StatsView: React.FC<StatsViewProps> = ({ sales = [], expenses = [], invent
 
   const openDays = config?.openDays ?? [1, 2, 3, 4, 5, 6]; // Lunes-Sábado por defecto
 
-  const { 
-    metrics, 
-    topBusinessExpenses, 
+  const {
+    metrics,
+    topBusinessExpenses,
     topPersonalExpenses,
-    dollarPurchases 
+    dollarPurchases
   } = useStatsMetrics(sales, expenses, period, selectedMonthDate, openDays);
+
+  const selectedYearMonth = `${selectedMonthDate.getFullYear()}-${String(selectedMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  const monthLabel = selectedMonthDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+  const { afipTotal, afipCount } = useMemo(() => {
+    const monthInvoices = invoices.filter(i => i.year_month === selectedYearMonth);
+    return {
+      afipTotal: monthInvoices.reduce((sum, i) => sum + i.importe_total, 0),
+      afipCount: monthInvoices.filter(i => i.afip_cbte_tipo === 11).length,
+    };
+  }, [invoices, selectedYearMonth]);
 
   return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-500">
@@ -68,6 +81,15 @@ const StatsView: React.FC<StatsViewProps> = ({ sales = [], expenses = [], invent
         <StatsSummary
           viewMode={viewMode}
           metrics={metrics}
+        />
+      )}
+
+      {viewMode === 'business' && (
+        <StatsAfipInvoiced
+          yearMonth={selectedYearMonth}
+          monthLabel={monthLabel}
+          total={afipTotal}
+          count={afipCount}
         />
       )}
 

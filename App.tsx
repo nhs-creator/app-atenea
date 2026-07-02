@@ -371,7 +371,7 @@ const App: React.FC = () => {
 
           {activeTab === 'stats' && (
             <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
-              <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} config={config} />
+              <StatsView sales={atenea.sales} expenses={atenea.expenses} inventory={atenea.inventory} invoices={atenea.invoices} config={config} />
             </div>
           )}
 
@@ -469,7 +469,7 @@ const App: React.FC = () => {
 
         {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />}
         {activeTab === 'customers' && userRole === 'owner' && <ClientsView clients={atenea.clients} onAdd={atenea.saveClient} onUpdate={atenea.saveClient} onDelete={atenea.deleteClient} />}
-        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} inventory={atenea.inventory} config={config} />}
+        {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} inventory={atenea.inventory} invoices={atenea.invoices} config={config} />}
         {activeTab === 'assistant' && userRole === 'owner' && <AssistantView />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
