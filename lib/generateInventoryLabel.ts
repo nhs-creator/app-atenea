@@ -123,6 +123,30 @@ function truncateToFit(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
 }
 
 /**
+ * Envuelve `text` en como mucho `maxLines` líneas que entren en `maxWidth`
+ * (con la fuente ya seteada en `ctx`). `fits: false` significa que sobraron
+ * palabras sin ubicar — el llamador decide si achica la fuente o trunca.
+ */
+function wrapToLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): { lines: string[]; fits: boolean } {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (!current || ctx.measureText(test).width <= maxWidth) {
+      current = test;
+      continue;
+    }
+    lines.push(current);
+    current = word;
+    if (lines.length >= maxLines) return { lines: lines.slice(0, maxLines), fits: false };
+  }
+  if (current) lines.push(current);
+  return lines.length <= maxLines ? { lines, fits: true } : { lines: lines.slice(0, maxLines), fits: false };
+}
+
+/**
  * Arma el canvas para imprimir directo por Bluetooth (lib/niimbotPrint.ts) o
  * para compartir a la app de Niimbot en iPhone (donde Bluetooth no anda).
  * Layout apaisado: QR a la izquierda (ocupa todo el alto) + precio y nombre
@@ -159,9 +183,30 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   } while (ctx.measureText(priceText).width > textMaxWidth && priceSize > 16);
   ctx.fillText(priceText, textX, blockY);
 
-  ctx.font = '15px sans-serif';
-  const nameText = truncateToFit(ctx, data.productName.toUpperCase(), textMaxWidth);
-  ctx.fillText(nameText, textX, blockY + priceSize + 10);
+  // Nombre: hasta 2 líneas, achicando la fuente si con el tamaño más grande
+  // no entra completo; si ni al tamaño mínimo entra, recién ahí se trunca
+  // con "…" en la última línea.
+  const nameY = blockY + priceSize + 10;
+  const upperName = data.productName.toUpperCase();
+  let nameSize = 15;
+  let wrapped = { lines: [upperName], fits: false };
+  do {
+    ctx.font = `${nameSize}px sans-serif`;
+    wrapped = wrapToLines(ctx, upperName, textMaxWidth, 2);
+    if (wrapped.fits) break;
+    nameSize -= 1;
+  } while (nameSize > 9);
+
+  if (!wrapped.fits) {
+    // wrapToLines corta por palabra entera — la última línea puede entrar
+    // justa en el ancho sin necesitar recorte de caracteres, pero igual
+    // quedaron palabras afuera. Forzamos el "…" para que se note.
+    const lastIdx = wrapped.lines.length - 1;
+    wrapped.lines[lastIdx] = truncateToFit(ctx, `${wrapped.lines[lastIdx]}…`, textMaxWidth);
+  }
+  wrapped.lines.forEach((line, i) => {
+    ctx.fillText(line, textX, nameY + i * (nameSize + 3));
+  });
 
   return canvas;
 }
