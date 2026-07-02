@@ -4,6 +4,34 @@ import { NiimbotBluetoothClient, ImageEncoder } from '@mmote/niimbluelib';
 // sin gesto del usuario entre recargas, así que no vale la pena persistirlo.
 let client: NiimbotBluetoothClient | null = null;
 
+// UUID del servicio GATT que usan las impresoras NIIMBOT (confirmado en el
+// código fuente de niimbluelib, client/bluetooth_impl.js — no está exportado
+// públicamente desde el paquete, así que lo hardcodeamos acá).
+const NIIMBOT_SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2';
+
+/**
+ * La librería arma su propio filtro de "requestDevice" (nombre que empieza
+ * con la letra de un modelo conocido, o el UUID de servicio esperado). Si la
+ * D110 real anuncia otro nombre, ni aparece en el selector — nos pasó en la
+ * práctica ("no aparece en la lista de dispositivos"). Mientras dura la
+ * conexión, forzamos "aceptar todos los dispositivos" para que se vea
+ * cualquier Bluetooth cercano y ella elija a mano cuál es la impresora,
+ * sin depender de adivinar el nombre exacto que usa el fabricante.
+ * (Sin tipos de Web Bluetooth en el proyecto — API experimental, no está en
+ * el lib.dom.d.ts estándar de TypeScript — de ahí los `any` puntuales.)
+ */
+async function connectWithPermissiveFilter(c: NiimbotBluetoothClient): Promise<void> {
+  const bt = (navigator as any).bluetooth;
+  const original = bt.requestDevice.bind(bt);
+  bt.requestDevice = () =>
+    original({ acceptAllDevices: true, optionalServices: [NIIMBOT_SERVICE_UUID] });
+  try {
+    await c.connect();
+  } finally {
+    bt.requestDevice = original;
+  }
+}
+
 function friendlyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (/user gesture|user activation/i.test(msg)) {
@@ -26,7 +54,7 @@ export function isPrinterConnected(): boolean {
 export async function connectPrinter(): Promise<void> {
   try {
     const c = new NiimbotBluetoothClient();
-    await c.connect();
+    await connectWithPermissiveFilter(c);
     client = c;
   } catch (err) {
     client = null;
