@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { X, FileText, AlertTriangle, CheckCircle2, Share2 } from 'lucide-react';
-import { generateFacturaPdf, facturaPdfFilename, FacturaPdfItem } from '../lib/generateFacturaPdf';
+import { generateFacturaPdf, facturaPdfFilename, shareOrDownloadFacturaPdf, FacturaPdfItem } from '../lib/generateFacturaPdf';
 
 const DOC_TIPO_OPTIONS = [
   { value: 80, label: 'CUIT' },
@@ -34,12 +32,12 @@ interface FacturarModalProps {
   total: number;
   items: FacturaPdfItem[];
   clientName?: string;
+  afipConfig?: { razonSocial: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onClose: () => void;
   onEmitir: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
 }
 
-const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, items, clientName, onClose, onEmitir }) => {
-  const afipConfig = useQuery(api.queries.afipConfig.getConfig);
+const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, items, clientName, afipConfig, onClose, onEmitir }) => {
   const [docTipo, setDocTipo] = useState(99);
   const [docNro, setDocNro] = useState('');
   const [condicionIva, setCondicionIva] = useState(5);
@@ -96,21 +94,9 @@ const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, item
         },
       });
 
-      const filename = facturaPdfFilename(result.fiscalNumber);
-      const blob = doc.output('blob');
-      const file = new File([blob], filename, { type: 'application/pdf' });
-
-      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: result.fiscalNumber });
-      } else {
-        doc.save(filename);
-      }
+      await shareOrDownloadFacturaPdf(doc, facturaPdfFilename(result.fiscalNumber));
     } catch (e) {
-      // El usuario canceló el share nativo, o el navegador no lo soporta — no es un error real.
-      if (!(e instanceof DOMException && e.name === 'AbortError')) {
-        console.error(e);
-      }
+      console.error(e);
     } finally {
       setSharing(false);
     }

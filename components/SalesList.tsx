@@ -3,10 +3,11 @@ import { Sale, Invoice } from '../types';
 import {
   Calendar, Package, Trash2, Edit3,
   RefreshCcw, CheckCircle2, AlertCircle, Search,
-  ChevronLeft, ChevronRight, X, Percent, Coins, FileText, Ban
+  ChevronLeft, ChevronRight, X, Percent, Coins, FileText, Ban, Share2
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import FacturarModal from './FacturarModal';
+import { generateFacturaPdf, facturaPdfFilename, shareOrDownloadFacturaPdf } from '../lib/generateFacturaPdf';
 
 interface EmitirFacturaResult {
   success: boolean;
@@ -39,6 +40,7 @@ interface SalesListProps {
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
   invoices?: Invoice[];
+  afipConfig?: { razonSocial: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onFacturar?: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
   onAnular?: (args: { invoiceId: string; motivo: string }) => Promise<EmitirNotaCreditoResult>;
 }
@@ -59,7 +61,7 @@ const STATUS_CONFIG = {
   cambio: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', icon: RefreshCcw, label: 'Cambio' }
 };
 
-const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, onFacturar, onAnular }) => {
+const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, afipConfig, onFacturar, onAnular }) => {
   const [searchTerm, setSearchTerm] = useLocalStorage('atenea_sales_list_search', '');
   const [monthKey, setMonthKey] = useLocalStorage('atenea_sales_list_month', getMonthKey(new Date()));
   const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
@@ -73,6 +75,46 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
   const [ncMotivo, setNcMotivo] = useState('');
   const [ncLoading, setNcLoading] = useState(false);
   const [ncError, setNcError] = useState('');
+  const [sharingInvoiceId, setSharingInvoiceId] = useState<string | null>(null);
+
+  const handleShareFacturaPdf = async (
+    factura: Invoice,
+    items: Sale[],
+    totalVenta: number,
+    clientName?: string,
+  ) => {
+    if (!afipConfig) return;
+    setSharingInvoiceId(factura.id);
+    try {
+      const doc = await generateFacturaPdf({
+        fiscalNumber: factura.afip_fiscal_number,
+        cae: factura.afip_cae,
+        caeExpiration: factura.afip_cae_expiration,
+        qrData: factura.afip_qr_data,
+        importeTotal: factura.importe_total,
+        fecha: factura.created_at.slice(0, 10),
+        totalVenta,
+        items: items
+          .filter(i => i.product_name !== '💰 AJUSTE POR REDONDEO')
+          .map(i => ({ product_name: i.product_name, quantity: i.quantity, price: Number(i.price), size: i.size })),
+        docTipo: factura.doc_tipo,
+        docNro: factura.doc_nro,
+        condicionIvaReceptor: factura.condicion_iva_receptor,
+        clientName,
+        afipConfig: {
+          razonSocial: afipConfig.razonSocial,
+          cuit: afipConfig.cuit,
+          domicilioComercial: afipConfig.domicilioComercial,
+          condicionIva: afipConfig.condicionIva,
+        },
+      });
+      await shareOrDownloadFacturaPdf(doc, facturaPdfFilename(factura.afip_fiscal_number));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSharingInvoiceId(null);
+    }
+  };
 
   // --- Facturas: solo la Factura C (tipo 11) indexa por clientNumber; las NC comparten el mismo client_number ---
   const facturaByClientNumber = useMemo(() => {
@@ -309,14 +351,24 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                             {factura.afip_fiscal_number}
                           </p>
                         </div>
-                        {!nc && onAnular && (
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
-                            onClick={() => { setNcTarget(factura); setNcMotivo(''); setNcError(''); }}
-                            className="h-9 px-3 bg-white text-rose-500 rounded-xl flex items-center gap-1.5 border-2 border-rose-100 active:scale-90 transition-all"
+                            onClick={() => handleShareFacturaPdf(factura, items, totalCobrado, firstSale.client_name)}
+                            disabled={!afipConfig || sharingInvoiceId === factura.id}
+                            aria-label="Compartir PDF"
+                            className="h-9 w-9 bg-white text-indigo-500 rounded-xl flex items-center justify-center border-2 border-indigo-100 active:scale-90 transition-all disabled:opacity-50"
                           >
-                            <Ban className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase">Anular (NC)</span>
+                            <Share2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                          {!nc && onAnular && (
+                            <button
+                              onClick={() => { setNcTarget(factura); setNcMotivo(''); setNcError(''); }}
+                              className="h-9 px-3 bg-white text-rose-500 rounded-xl flex items-center gap-1.5 border-2 border-rose-100 active:scale-90 transition-all"
+                            >
+                              <Ban className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase">Anular (NC)</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   }
@@ -379,6 +431,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
           total={facturarTarget.total}
           items={facturarTarget.items}
           clientName={facturarTarget.clientName}
+          afipConfig={afipConfig}
           onClose={() => setFacturarTarget(null)}
           onEmitir={onFacturar}
         />

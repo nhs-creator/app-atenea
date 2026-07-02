@@ -172,3 +172,25 @@ export async function generateFacturaPdf(data: FacturaPdfData): Promise<jsPDF> {
 export function facturaPdfFilename(fiscalNumber: string): string {
   return `Factura-${fiscalNumber.replace(/\s+/g, '_')}.pdf`;
 }
+
+/**
+ * Comparte el PDF con el share nativo del dispositivo si está disponible
+ * (para mandarlo directo por WhatsApp/etc en el celular); si no, lo descarga.
+ * Si el usuario cancela el share nativo, no propaga error (no es una falla real).
+ */
+export async function shareOrDownloadFacturaPdf(doc: jsPDF, filename: string): Promise<void> {
+  const blob = doc.output('blob');
+  const file = new File([blob], filename, { type: 'application/pdf' });
+
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+  try {
+    if (nav.canShare && nav.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    }
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') return;
+    console.error(e);
+  }
+  doc.save(filename);
+}

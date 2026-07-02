@@ -356,7 +356,7 @@ const App: React.FC = () => {
                 <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
               </div>
               {historyMode === 'sale' ? (
-                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} />
+                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} />
               ) : (
                 <ExpenseList expenses={atenea.expenses} onDelete={atenea.deleteExpense} onEdit={handleEditExpense} />
               )}
@@ -460,7 +460,7 @@ const App: React.FC = () => {
               <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
             </div>
             {historyMode === 'sale' ? (
-              <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} />
+              <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} />
             ) : (
               <ExpenseList expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
             )}

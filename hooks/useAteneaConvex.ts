@@ -30,6 +30,7 @@ export function useAteneaConvex() {
   const rawVouchers = useQuery(api.queries.vouchers.listActiveVouchers);
   const rawClients = useQuery(api.queries.clients.listClients);
   const rawInvoices = useQuery(api.queries.invoices.listInvoices);
+  const afipConfig = useQuery(api.queries.afipConfig.getConfig);
 
   // Mapear documentos Convex a la interfaz frontend existente
   const sales: Sale[] = (rawSales ?? []).map((s) => ({
@@ -120,6 +121,7 @@ export function useAteneaConvex() {
     afip_fiscal_number: inv.afipFiscalNumber,
     afip_qr_data: inv.afipQrData,
     credit_note_for: inv.creditNoteFor,
+    created_at: new Date(inv._creationTime).toISOString(),
   }));
 
   // --- Mutations ---
@@ -323,6 +325,7 @@ export function useAteneaConvex() {
     vouchers,
     clients,
     invoices,
+    afipConfig,
     isSyncing,
     saveMultiSale,
     deleteTransaction,

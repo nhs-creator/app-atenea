@@ -149,6 +149,7 @@ export interface Invoice {
   afip_fiscal_number: string;
   afip_qr_data: string;
   credit_note_for?: string;
+  created_at: string;
 }
 
 export interface Expense {
