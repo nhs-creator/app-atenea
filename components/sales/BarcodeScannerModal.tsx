@@ -21,34 +21,54 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
     // decoder JS puro que se usa como fallback.
     const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { useBarCodeDetectorIfSupported: true, verbose: false });
 
+    const scanConfig = {
+      fps: 10,
+      // Recuadro rectangular (no cuadrado): un código de barras es ancho y bajo,
+      // así que no hace falta centrarlo con precisión de QR.
+      qrbox: (viewfinderWidth: number) => {
+        const width = Math.min(viewfinderWidth * 0.85, 320);
+        return { width, height: width * 0.5 };
+      },
+    };
+    const onDecoded = (decodedText: string) => {
+      if (cancelled) return;
+      cancelled = true;
+      onScanRef.current(decodedText);
+    };
+    const onFrame = () => { /* frame sin código legible — esperable en la mayoría de los frames */ };
+
+    const describeError = (err: unknown): string => {
+      const name = (err as { name?: string } | undefined)?.name;
+      if (name === 'NotAllowedError') return 'Permiso de cámara denegado. Habilitalo en el ícono de candado / permisos del sitio.';
+      if (name === 'NotFoundError') return 'No se encontró ninguna cámara en el dispositivo.';
+      if (name === 'NotReadableError') return 'La cámara está siendo usada por otra app. Cerrala e intentá de nuevo.';
+      if (name === 'OverconstrainedError') return 'La cámara no soporta la configuración pedida.';
+      if (name === 'SecurityError') return 'El sitio necesita HTTPS para usar la cámara.';
+      return 'No se pudo acceder a la cámara. Revisá los permisos del navegador.';
+    };
+
+    // Constraints "ricos" (foco continuo + resolución alta) primero; si el navegador
+    // los rechaza (algunos WebView de Android tiran OverconstrainedError), reintentamos
+    // con constraints mínimos antes de darnos por vencidos.
     scanner
       .start(
         {
           facingMode: 'environment',
-          // Pedimos foco continuo (no todos los navegadores lo soportan, pero si lo
-          // soportan evita que la cámara se quede "buscando" foco a distancia cercana.
           advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-        {
-          fps: 10,
-          // Recuadro rectangular (no cuadrado): un código de barras es ancho y bajo,
-          // así que no hace falta centrarlo con precisión de QR.
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const width = Math.min(viewfinderWidth * 0.85, 320);
-            return { width, height: width * 0.5 };
-          },
-        },
-        (decodedText) => {
-          if (cancelled) return;
-          cancelled = true;
-          onScanRef.current(decodedText);
-        },
-        () => { /* frame sin código legible — esperable en la mayoría de los frames */ }
+        scanConfig,
+        onDecoded,
+        onFrame
       )
-      .catch(() => {
-        if (!cancelled) setError('No se pudo acceder a la cámara. Revisá los permisos del navegador.');
+      .catch((firstErr) => {
+        if (cancelled) return;
+        return scanner
+          .start({ facingMode: 'environment' }, scanConfig, onDecoded, onFrame)
+          .catch(() => {
+            if (!cancelled) setError(describeError(firstErr));
+          });
       });
 
     return () => {
