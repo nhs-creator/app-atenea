@@ -474,44 +474,40 @@ const App: React.FC = () => {
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="max-w-md mx-auto flex justify-between items-center mb-2">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-3 px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="max-w-md mx-auto flex justify-between items-center pb-3">
           {userRole === 'owner' ? (
             <>
-              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}>
-                <ArrowUpCircle className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Ingresos</span>
+              <button onClick={() => setActiveTab('form')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'form' ? 'text-primary scale-110' : 'text-slate-400'}`}>
+                <ArrowUpCircle className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Ingresos</span>
               </button>
-              <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'expenses' ? 'text-rose-500 scale-110' : 'text-slate-400'}`}>
-                <ArrowDownCircle className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Gastos</span>
+              <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'expenses' ? 'text-rose-500 scale-110' : 'text-slate-400'}`}>
+                <ArrowDownCircle className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Gastos</span>
               </button>
-              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
-                <Receipt className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Historial</span>
+              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+                <Receipt className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Historial</span>
               </button>
-              <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'inventory' ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
-                <Package className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Stock</span>
+              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
+                <BarChart2 className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Reporte</span>
               </button>
-              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
-                <BarChart2 className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Reporte</span>
-              </button>
-              <button onClick={() => setActiveTab('assistant')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'assistant' ? 'text-emerald-500 scale-110' : 'text-slate-400'}`}>
-                <Sparkles className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Atenea</span>
+              <button onClick={() => setActiveTab('assistant')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'assistant' ? 'text-emerald-500 scale-110' : 'text-slate-400'}`}>
+                <Sparkles className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Atenea</span>
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
-                <Receipt className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Movimientos</span>
+              <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'list' ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+                <Receipt className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Movimientos</span>
               </button>
-              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
-                <BarChart2 className="w-5 h-5" />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Reporte</span>
+              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
+                <BarChart2 className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Reporte</span>
               </button>
             </>
           )}
