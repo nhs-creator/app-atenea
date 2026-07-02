@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { X, FileText, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { X, FileText, AlertTriangle, CheckCircle2, Share2 } from 'lucide-react';
+import { generateFacturaPdf, facturaPdfFilename, FacturaPdfItem } from '../lib/generateFacturaPdf';
 
 const DOC_TIPO_OPTIONS = [
   { value: 80, label: 'CUIT' },
@@ -20,23 +23,33 @@ interface EmitirFacturaResult {
   cae?: string;
   caeExpiration?: string;
   fiscalNumber?: string;
+  qrData?: string;
+  importeTotal?: number;
+  fecha?: string;
   error?: string;
 }
 
 interface FacturarModalProps {
   clientNumber: string;
   total: number;
+  items: FacturaPdfItem[];
+  clientName?: string;
   onClose: () => void;
   onEmitir: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
 }
 
-const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, onClose, onEmitir }) => {
+const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, items, clientName, onClose, onEmitir }) => {
+  const afipConfig = useQuery(api.queries.afipConfig.getConfig);
   const [docTipo, setDocTipo] = useState(99);
   const [docNro, setDocNro] = useState('');
   const [condicionIva, setCondicionIva] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<{ fiscalNumber: string; cae: string; caeExpiration: string } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [result, setResult] = useState<{
+    fiscalNumber: string; cae: string; caeExpiration: string;
+    qrData: string; importeTotal: number; fecha: string;
+  } | null>(null);
 
   const handleEmitir = async () => {
     setError('');
@@ -48,10 +61,58 @@ const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, onCl
       condicionIvaReceptor: condicionIva,
     });
     setLoading(false);
-    if (res.success && res.fiscalNumber && res.cae && res.caeExpiration) {
-      setResult({ fiscalNumber: res.fiscalNumber, cae: res.cae, caeExpiration: res.caeExpiration });
+    if (res.success && res.fiscalNumber && res.cae && res.caeExpiration && res.qrData && res.importeTotal != null && res.fecha) {
+      setResult({
+        fiscalNumber: res.fiscalNumber, cae: res.cae, caeExpiration: res.caeExpiration,
+        qrData: res.qrData, importeTotal: res.importeTotal, fecha: res.fecha,
+      });
     } else {
       setError(res.error || 'Error al emitir la factura');
+    }
+  };
+
+  const handleCompartirPdf = async () => {
+    if (!result || !afipConfig) return;
+    setSharing(true);
+    try {
+      const doc = await generateFacturaPdf({
+        fiscalNumber: result.fiscalNumber,
+        cae: result.cae,
+        caeExpiration: result.caeExpiration,
+        qrData: result.qrData,
+        importeTotal: result.importeTotal,
+        fecha: result.fecha,
+        totalVenta: total,
+        items,
+        docTipo,
+        docNro: docTipo === 99 ? 0 : parseInt(docNro, 10) || 0,
+        condicionIvaReceptor: condicionIva,
+        clientName,
+        afipConfig: {
+          razonSocial: afipConfig.razonSocial,
+          cuit: afipConfig.cuit,
+          domicilioComercial: afipConfig.domicilioComercial,
+          condicionIva: afipConfig.condicionIva,
+        },
+      });
+
+      const filename = facturaPdfFilename(result.fiscalNumber);
+      const blob = doc.output('blob');
+      const file = new File([blob], filename, { type: 'application/pdf' });
+
+      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: result.fiscalNumber });
+      } else {
+        doc.save(filename);
+      }
+    } catch (e) {
+      // El usuario canceló el share nativo, o el navegador no lo soporta — no es un error real.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        console.error(e);
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -74,12 +135,21 @@ const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, onCl
               <p className="font-black text-emerald-700 text-lg">{result.fiscalNumber}</p>
               <p className="text-xs text-emerald-600">CAE: {result.cae}</p>
               <p className="text-xs text-emerald-600">Vence: {result.caeExpiration}</p>
-              <button
-                onClick={onClose}
-                className="mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs active:scale-95 transition-all"
-              >
-                Listo
-              </button>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleCompartirPdf}
+                  disabled={sharing || !afipConfig}
+                  className="flex-1 bg-white border-2 border-emerald-300 text-emerald-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <Share2 className="w-3.5 h-3.5" /> {sharing ? 'Generando...' : 'Compartir PDF'}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs active:scale-95 transition-all"
+                >
+                  Listo
+                </button>
+              </div>
             </div>
           ) : (
             <>

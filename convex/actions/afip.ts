@@ -36,7 +36,10 @@ export const emitirFactura = action({
     docNro: v.number(),
     condicionIvaReceptor: v.number(),
   },
-  handler: async (ctx, args): Promise<{ cae: string; caeExpiration: string; cbteNro: number; fiscalNumber: string }> => {
+  handler: async (ctx, args): Promise<{
+    cae: string; caeExpiration: string; cbteNro: number; fiscalNumber: string;
+    qrData: string; puntoVenta: number; importeTotal: number; fecha: string;
+  }> => {
     await requireAuthAction(ctx);
 
     if (!isAfipConfigured()) {
@@ -59,6 +62,10 @@ export const emitirFactura = action({
         caeExpiration: existing.afipCaeExpiration,
         cbteNro: existing.afipCbteNro,
         fiscalNumber: existing.afipFiscalNumber,
+        qrData: existing.afipQrData,
+        puntoVenta: existing.afipPuntoVenta,
+        importeTotal: existing.importeTotal,
+        fecha: existing._creationTime ? new Date(existing._creationTime).toISOString().slice(0, 10) : todayArgentina(),
       };
     }
 
@@ -155,7 +162,12 @@ export const emitirFactura = action({
       afipFiscalNumber: fiscalNumber,
     });
 
-    return { cae, caeExpiration, cbteNro, fiscalNumber };
+    return {
+      cae, caeExpiration, cbteNro, fiscalNumber, qrData,
+      puntoVenta: afipConfig.puntoVenta,
+      importeTotal: transaction.importeTotal,
+      fecha: fechaHoy,
+    };
   },
 });
 

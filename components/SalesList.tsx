@@ -13,6 +13,9 @@ interface EmitirFacturaResult {
   cae?: string;
   caeExpiration?: string;
   fiscalNumber?: string;
+  qrData?: string;
+  importeTotal?: number;
+  fecha?: string;
   error?: string;
 }
 
@@ -61,7 +64,11 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
   const [monthKey, setMonthKey] = useLocalStorage('atenea_sales_list_month', getMonthKey(new Date()));
   const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [facturarTarget, setFacturarTarget] = useState<{ clientNumber: string; total: number } | null>(null);
+  const [facturarTarget, setFacturarTarget] = useState<{
+    clientNumber: string; total: number;
+    items: { product_name: string; quantity: number; price: number; size?: string }[];
+    clientName?: string;
+  } | null>(null);
   const [ncTarget, setNcTarget] = useState<Invoice | null>(null);
   const [ncMotivo, setNcMotivo] = useState('');
   const [ncLoading, setNcLoading] = useState(false);
@@ -329,7 +336,17 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                       <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
                       {showFacturar && (
                         <button
-                          onClick={() => setFacturarTarget({ clientNumber, total: totalFacturable })}
+                          onClick={() => setFacturarTarget({
+                            clientNumber,
+                            total: totalFacturable,
+                            items: realProducts.map(i => ({
+                              product_name: i.product_name,
+                              quantity: i.quantity,
+                              price: Number(i.price),
+                              size: i.size,
+                            })),
+                            clientName: firstSale.client_name,
+                          })}
                           title={totalFacturable < totalCobrado ? `Factura $${totalFacturable.toLocaleString('es-AR')} sin efectivo` : undefined}
                           className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"
                         >
@@ -360,6 +377,8 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
         <FacturarModal
           clientNumber={facturarTarget.clientNumber}
           total={facturarTarget.total}
+          items={facturarTarget.items}
+          clientName={facturarTarget.clientName}
           onClose={() => setFacturarTarget(null)}
           onEmitir={onFacturar}
         />
