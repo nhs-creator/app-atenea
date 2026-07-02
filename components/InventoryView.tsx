@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
-import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
+import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode, Mic } from 'lucide-react';
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
 import InventoryReporte from './inventory/InventoryReporte';
 import ProductWizard from './inventory/ProductWizard';
+import InventoryVoiceAgent from './inventory/InventoryVoiceAgent';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
@@ -199,6 +200,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showMovements, setShowMovements] = useState<{id: string, name: string} | null>(null);
+  const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -603,7 +605,17 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         />
       )}
 
-      {/* Floating Add Button */}
+      {/* Agente de voz para carga de inventario */}
+      {showVoiceAgent && <InventoryVoiceAgent onClose={() => setShowVoiceAgent(false)} />}
+
+      {/* Floating Buttons: mic (carga por voz) + agregar (wizard táctil) */}
+      <button
+        onClick={() => setShowVoiceAgent(true)}
+        className="fixed bottom-44 right-6 w-14 h-14 bg-violet-500 text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"
+        aria-label="Cargar por voz"
+      >
+        <Mic className="w-6 h-6" />
+      </button>
       <button
         onClick={() => setShowForm(true)}
         className="fixed bottom-24 right-6 w-16 h-16 bg-primary text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"

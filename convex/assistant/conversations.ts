@@ -5,16 +5,23 @@ import { getEffectiveUserId } from "../lib/auth";
 // ─────────────────────────── Público (UI) ───────────────────────────────
 
 export const listConversations = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    // Sin especificar: solo conversaciones de ventas (mode ausente o "sales") — evita
+    // que el chat general retome por error una conversación del agente de inventario.
+    mode: v.optional(v.union(v.literal("sales"), v.literal("inventory"))),
+  },
+  handler: async (ctx, { mode }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     const convs = await ctx.db
       .query("assistantConversations")
       .withIndex("by_userId_activity", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(30);
-    return convs.map((c) => ({
+      .take(60);
+    const filtered = convs
+      .filter((c) => (mode === "inventory" ? c.mode === "inventory" : (c.mode ?? "sales") === "sales"))
+      .slice(0, 30);
+    return filtered.map((c) => ({
       _id: c._id,
       title: c.title ?? "Conversación",
       lastActivityAt: c.lastActivityAt,
@@ -35,13 +42,16 @@ export const getConversation = query({
 });
 
 export const createConversation = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    mode: v.optional(v.union(v.literal("sales"), v.literal("inventory"))),
+  },
+  handler: async (ctx, { mode }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("No autenticado");
     const now = Date.now();
     return await ctx.db.insert("assistantConversations", {
       userId,
+      mode,
       messages: [],
       processed: false,
       lastActivityAt: now,

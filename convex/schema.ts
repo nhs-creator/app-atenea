@@ -258,6 +258,9 @@ export default defineSchema({
   assistantConversations: defineTable({
     userId: v.string(),
     title: v.optional(v.string()),
+    // Sin valor = "sales" (conversaciones viejas, chat general). "inventory" = agente
+    // de carga de inventario por voz, con su propio prompt y tools.
+    mode: v.optional(v.union(v.literal("sales"), v.literal("inventory"))),
     messages: v.array(
       v.object({
         role: v.union(v.literal("user"), v.literal("assistant")),
@@ -299,6 +302,30 @@ export default defineSchema({
     ),
     discountPercent: v.optional(v.number()),
     total: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+  }).index("by_conversation_status", ["conversationId", "status"]),
+
+  // Altas/ajustes de inventario propuestos por el agente de voz, pendientes
+  // de confirmación en el modal. "sizes" es cantidad absoluta por talle en
+  // kind="create", y delta (+/-) por talle en kind="update".
+  assistantInventoryProposals: defineTable({
+    userId: v.string(),
+    conversationId: v.id("assistantConversations"),
+    kind: v.union(v.literal("create"), v.literal("update")),
+    inventoryId: v.optional(v.id("inventory")), // solo kind="update"
+    name: v.string(),
+    category: v.optional(v.string()),
+    subcategory: v.optional(v.string()),
+    material: v.optional(v.string()),
+    detalle: v.optional(v.string()),
+    sizes: v.record(v.string(), v.number()),
+    costPrice: v.optional(v.number()),
+    sellingPrice: v.optional(v.number()),
     status: v.union(
       v.literal("pending"),
       v.literal("confirmed"),

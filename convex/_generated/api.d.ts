@@ -13,6 +13,8 @@ import type * as actions_createAccountant from "../actions/createAccountant.js";
 import type * as assistant_chat from "../assistant/chat.js";
 import type * as assistant_conversations from "../assistant/conversations.js";
 import type * as assistant_data from "../assistant/data.js";
+import type * as assistant_inventoryData from "../assistant/inventoryData.js";
+import type * as assistant_inventoryProposals from "../assistant/inventoryProposals.js";
 import type * as assistant_memory from "../assistant/memory.js";
 import type * as assistant_memoryData from "../assistant/memoryData.js";
 import type * as assistant_sales from "../assistant/sales.js";
@@ -66,6 +68,8 @@ declare const fullApi: ApiFromModules<{
   "assistant/chat": typeof assistant_chat;
   "assistant/conversations": typeof assistant_conversations;
   "assistant/data": typeof assistant_data;
+  "assistant/inventoryData": typeof assistant_inventoryData;
+  "assistant/inventoryProposals": typeof assistant_inventoryProposals;
   "assistant/memory": typeof assistant_memory;
   "assistant/memoryData": typeof assistant_memoryData;
   "assistant/sales": typeof assistant_sales;

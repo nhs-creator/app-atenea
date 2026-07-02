@@ -1,6 +1,7 @@
 import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import { CATEGORIES, SUBCATEGORIES, MATERIALS } from "../../inventoryConstants";
 
 type ActionCtx = GenericActionCtx<DataModel>;
 
@@ -259,6 +260,79 @@ export const TOOL_DEFS = [
   },
 ];
 
+// ─────────────────── Tools del agente de carga de inventario ─────────────
+const SIZE_MAP_SCHEMA = {
+  type: "object",
+  description: "Talle -> cantidad (ej: {\"S\": 2, \"M\": 3}). Solo talles con stock, no hace falta poner los que quedan en 0.",
+  additionalProperties: { type: "integer" },
+};
+
+export const INVENTORY_TOOL_DEFS = [
+  {
+    name: "list_categories",
+    description:
+      "Devuelve las categorías y subcategorías REALES que ya existen en el sistema. Llamala antes de proponer un alta si todavía no la pediste en esta charla — nunca inventes una categoría que no esté en esta lista.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_materials",
+    description: "Devuelve los materiales REALES que ya existen en el sistema. Llamala antes de proponer si no la pediste ya en esta charla.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "search_similar_inventory",
+    description:
+      "Busca productos ya cargados por nombre o detalle parecido. Usala ANTES de proponer un alta nueva (para avisar de posibles duplicados) y para encontrar un producto existente cuando piden ajustar stock.",
+    input_schema: {
+      type: "object",
+      properties: {
+        term: { type: "string", description: "Palabra o frase para buscar (ej: 'campera negra')." },
+      },
+      required: ["term"],
+    },
+  },
+  {
+    name: "propose_inventory_item",
+    description:
+      "Prepara el ALTA de un producto nuevo para confirmar. NO lo guarda: muestra un cartelito y se guarda recién cuando la usuaria toca Confirmar. Usá categoría/subcategoría/material de list_categories y list_materials — nunca inventes uno nuevo.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nombre corto del producto (ej: 'REMERA FLORAL')." },
+        category: { type: "string", description: "Una de las categorías reales (de list_categories)." },
+        subcategory: { type: "string", description: "Una de las subcategorías reales de esa categoría (de list_categories)." },
+        material: { type: "string", description: "Opcional. Uno de los materiales reales (de list_materials)." },
+        detalle: {
+          type: "string",
+          description: "Lo que no entra en los campos fijos: tela puntual, estampado, color, con qué combina — en las palabras de ella.",
+        },
+        sizes: SIZE_MAP_SCHEMA,
+        costPrice: { type: "number", description: "Opcional. Precio de costo." },
+        sellingPrice: { type: "number", description: "Precio de venta." },
+      },
+      required: ["name", "category", "sizes", "sellingPrice"],
+    },
+  },
+  {
+    name: "propose_inventory_update",
+    description:
+      "Prepara un AJUSTE de stock de un producto YA cargado (sumar o restar talles). Buscá primero el producto con search_similar_inventory para tener su id. NO lo guarda: muestra un cartelito para confirmar.",
+    input_schema: {
+      type: "object",
+      properties: {
+        inventoryId: { type: "string", description: "Id del producto existente (de search_similar_inventory)." },
+        name: { type: "string", description: "Nombre del producto, para mostrar en el cartelito." },
+        sizeChanges: {
+          type: "object",
+          description: "Talle -> cambio (positivo para sumar, negativo para restar). Ej: {\"M\": 2, \"L\": -1}.",
+          additionalProperties: { type: "integer" },
+        },
+      },
+      required: ["inventoryId", "name", "sizeChanges"],
+    },
+  },
+];
+
 // ─────────────────────────── Ejecutor de tools ───────────────────────────
 export async function executeTool(
   ctx: ActionCtx,
@@ -464,6 +538,88 @@ export async function executeTool(
           total,
         });
         return "Propuesta de venta lista. Decile a la usuaria que revise el cartelito en pantalla y toque Confirmar. NO digas que ya quedó guardada — todavía NO se guardó, se guarda cuando ella confirma.";
+      }
+      case "list_categories": {
+        return JSON.stringify({
+          categorias: CATEGORIES.map((c) => ({
+            categoria: c.label,
+            subcategorias: SUBCATEGORIES.filter((s) => s.categoryId === c.id).map((s) => s.label),
+          })),
+        });
+      }
+      case "list_materials": {
+        return JSON.stringify({ materiales: MATERIALS.map((m) => m.label) });
+      }
+      case "search_similar_inventory": {
+        const term = String(input.term ?? "").trim();
+        if (!term) return "Necesito un término para buscar.";
+        const rows = await ctx.runQuery(internal.assistant.inventoryData.searchSimilarInventory, {
+          userId,
+          term,
+        });
+        if (rows.length === 0) return JSON.stringify({ encontrados: [] });
+        return JSON.stringify({
+          encontrados: rows.map((r) => ({
+            id: r.id,
+            nombre: r.name,
+            categoria: r.category,
+            subcategoria: r.subcategory,
+            material: r.material,
+            detalle: r.detalle,
+            talles: r.sizes,
+            precio_venta: fmt(r.sellingPrice),
+          })),
+        });
+      }
+      case "propose_inventory_item": {
+        const name = String(input.name ?? "").trim();
+        const category = String(input.category ?? "").trim();
+        const sizes = (input.sizes && typeof input.sizes === "object" ? input.sizes : {}) as Record<string, unknown>;
+        const sellingPrice = Number(input.sellingPrice) || 0;
+        if (!name || !category || sellingPrice <= 0 || Object.keys(sizes).length === 0) {
+          return "Me falta nombre, categoría, al menos un talle con cantidad, y precio de venta para preparar el alta.";
+        }
+        const sizesNum: Record<string, number> = {};
+        for (const [size, qty] of Object.entries(sizes)) {
+          const n = Number(qty);
+          if (n > 0) sizesNum[size] = Math.round(n);
+        }
+        await ctx.runMutation(internal.assistant.inventoryProposals.createProposalInternal, {
+          userId,
+          conversationId,
+          kind: "create",
+          name,
+          category,
+          subcategory: typeof input.subcategory === "string" ? input.subcategory : undefined,
+          material: typeof input.material === "string" ? input.material : undefined,
+          detalle: typeof input.detalle === "string" ? input.detalle : undefined,
+          sizes: sizesNum,
+          costPrice: typeof input.costPrice === "number" ? input.costPrice : undefined,
+          sellingPrice,
+        });
+        return "Propuesta de alta lista. Decile a la usuaria que revise el cartelito y toque Confirmar. NO digas que ya quedó cargado — todavía NO se guardó.";
+      }
+      case "propose_inventory_update": {
+        const inventoryId = String(input.inventoryId ?? "").trim();
+        const name = String(input.name ?? "").trim();
+        const changes = (input.sizeChanges && typeof input.sizeChanges === "object" ? input.sizeChanges : {}) as Record<string, unknown>;
+        if (!inventoryId || !name || Object.keys(changes).length === 0) {
+          return "Me falta el producto y qué talles ajustar para preparar el cambio.";
+        }
+        const sizesNum: Record<string, number> = {};
+        for (const [size, delta] of Object.entries(changes)) {
+          const n = Number(delta);
+          if (n !== 0) sizesNum[size] = Math.round(n);
+        }
+        await ctx.runMutation(internal.assistant.inventoryProposals.createProposalInternal, {
+          userId,
+          conversationId,
+          kind: "update",
+          inventoryId: inventoryId as Id<"inventory">,
+          name,
+          sizes: sizesNum,
+        });
+        return "Propuesta de ajuste lista. Decile a la usuaria que revise el cartelito y toque Confirmar.";
       }
       default:
         return `Tool desconocida: ${name}`;

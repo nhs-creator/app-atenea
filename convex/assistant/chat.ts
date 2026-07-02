@@ -7,7 +7,7 @@ import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import Anthropic from "@anthropic-ai/sdk";
 import { embedText } from "./memory";
-import { TOOL_DEFS, executeTool } from "./tools";
+import { TOOL_DEFS, INVENTORY_TOOL_DEFS, executeTool } from "./tools";
 
 type ActionCtx = GenericActionCtx<DataModel>;
 
@@ -51,7 +51,26 @@ Cuando te pregunten qué comprar o reponer para el mes o la temporada que viene,
 - Tené en cuenta la temporada (la tool te dice la actual y la próxima). En un local de ropa, al entrar a una temporada conviene reforzar la ropa de esa estación y aflojar la de la anterior (ej: entrando el invierno, priorizar abrigo y bajar lo de verano).
 - Cerrá con una recomendación CONCRETA y corta: qué reforzar, qué frenar y por qué, en lenguaje simple. Sin tecnicismos, sin tablas largas.`;
 
-const modeNote = (s: string) => s; // placeholder por si se agregan modos
+const INVENTORY_SYSTEM_PROMPT = `Sos "Atenea", ayudando a la dueña del local de ropa a CARGAR PRODUCTOS AL INVENTARIO por voz. Es una señora de unos 56 años, no técnica, ve poco. Tu único trabajo acá es entender cómo describe una prenda (como se la describiría a una clienta) y armar el alta — nada de ventas, gastos ni reportes en este modo.
+
+CÓMO HABLAR:
+- Español rioplatense, cálido y simple. Respuestas CORTAS, una o dos frases.
+- TEXTO PLANO: sin asteriscos ni markdown.
+- Los montos con $ y punto de miles (ej: "$15.400").
+
+CÓMO ARMAR EL ALTA:
+- Ella va a describir la prenda con SUS palabras: tela, estampado, color, detalle — no con la categoría exacta del sistema. Tu trabajo es traducir eso a la categoría/subcategoría/material que YA EXISTEN, nunca inventar una nueva.
+- ANTES de proponer, llamá list_categories y list_materials si todavía no los pediste en esta charla, para elegir de lo que ya existe. Si no está claro en qué categoría entra, PREGUNTÁ en vez de adivinar.
+- Guardá en "detalle" lo que no entra en los campos fijos: tela puntual, estampado, color, con qué combina — tal como ella lo dijo, en sus palabras.
+- Llamá search_similar_inventory con el nombre antes de proponer. Si aparece algo muy parecido, avisale y preguntá si es la misma prenda (para sumar stock) o es otra distinta.
+- Necesitás talle(s) y cantidad por talle, y precio de venta, antes de proponer. Si no los dio, preguntá. El precio de costo es opcional.
+- Usá propose_inventory_item para un producto NUEVO. NO se guarda directo: aparece un cartelito para que ella confirme. Nunca digas que "ya quedó cargado" — decí algo como "Fijate el cartelito y confirmá 👇".
+- Para sumar/restar stock de algo YA cargado (ej. "sumale 2 a la campera negra en talle M"), usá search_similar_inventory para encontrarlo y después propose_inventory_update. Si hay más de un resultado posible, preguntá cuál es.
+
+APRENDER SUS PALABRAS:
+Igual que en ventas: si usa un término propio para una tela o estampado que no entendés, preguntá qué significa y guardalo con learn_term. Si ya está en tu diccionario, usalo sin volver a preguntar.
+
+Si te saluda o charla, respondé corto y amable sin llamar tools.`;
 
 /**
  * Action principal del chat: tool use + prompt caching + compactación + RAG.
@@ -93,6 +112,17 @@ export const sendMessage = action({
     );
 
     try {
+      // 3b. Conversación: se necesita ya para saber el modo (sales/inventory) y
+      //     más abajo para el historial — una sola query, se reusa.
+      const conv = await ctx.runQuery(
+        internal.assistant.conversations.getInternal,
+        { conversationId: args.conversationId }
+      );
+      if (!conv) throw new Error("Conversación no encontrada");
+      const mode = conv.mode ?? "sales";
+      const activePrompt = mode === "inventory" ? INVENTORY_SYSTEM_PROMPT : SYSTEM_PROMPT;
+      const activeTools = mode === "inventory" ? INVENTORY_TOOL_DEFS : TOOL_DEFS;
+
       // 4. RAG: memorias relevantes + diccionario personal de la dueña.
       const [memories, vocabulary] = await Promise.all([
         retrieveMemories(ctx, userId, args.content),
@@ -107,7 +137,7 @@ export const sendMessage = action({
       const systemBlocks: Anthropic.TextBlockParam[] = [
         {
           type: "text",
-          text: modeNote(SYSTEM_PROMPT),
+          text: activePrompt,
           cache_control: { type: "ephemeral" },
         },
       ];
@@ -135,12 +165,7 @@ export const sendMessage = action({
         });
       }
 
-      // 6. Historial (últimos N, sin el placeholder pending).
-      const conv = await ctx.runQuery(
-        internal.assistant.conversations.getInternal,
-        { conversationId: args.conversationId }
-      );
-      if (!conv) throw new Error("Conversación no encontrada");
+      // 6. Historial (últimos N, sin el placeholder pending). Reusa `conv` del paso 3b.
       const history = conv.messages
         .filter((m, i) => i !== assistantIndex && !m.pending && m.content.trim())
         .slice(-MAX_HISTORY_MESSAGES);
@@ -160,7 +185,7 @@ export const sendMessage = action({
           model: HAIKU_MODEL,
           max_tokens: 1500,
           system: systemBlocks,
-          tools: TOOL_DEFS as unknown as Anthropic.Tool[],
+          tools: activeTools as unknown as Anthropic.Tool[],
           messages,
         });
 
