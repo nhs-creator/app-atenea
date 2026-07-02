@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 
 interface InventoryFiltersProps {
@@ -34,29 +34,41 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
   materials,
   totalResults
 }) => {
+  const [showFilters, setShowFilters] = useState(false);
+  const hasActiveFilters = Boolean(selectedCategory || selectedSubcategory || selectedMaterial || stockLevel !== 'all');
+
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-        <input 
-          type="text" 
-          value={searchTerm} 
-          onChange={(e) => onSearchChange(e.target.value)} 
-          placeholder="Buscar por nombre o subcategoría..." 
-          className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-primary outline-none font-bold text-slate-700" 
-        />
+      {/* Search Bar + botón de filtro, una sola línea */}
+      <div className="flex gap-2">
+        <div className="relative group flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Buscar por nombre o subcategoría..."
+            className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-primary outline-none font-bold text-slate-700"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className={`relative w-14 h-14 shrink-0 flex items-center justify-center rounded-2xl border shadow-sm transition-all active:scale-95 ${
+            showFilters ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-500'
+          }`}
+          aria-label="Filtros avanzados"
+        >
+          <Filter className="w-5 h-5" />
+          {hasActiveFilters && !showFilters && (
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" />
+          )}
+        </button>
       </div>
 
       {/* Filter Dropdowns */}
-      <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Filtros Avanzados
-          </h3>
-        </div>
-
+      {showFilters && (
+      <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Category Filter */}
           <div>
@@ -170,6 +182,7 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Results Count */}
       <div className="text-center">
