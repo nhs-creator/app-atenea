@@ -34,11 +34,20 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
     // nunca aparecía el popup de permiso. Los constraints extra van aparte, en
     // `videoConstraints` dentro de la configuración de escaneo.
     const cameraConfig = { facingMode: 'environment' };
-    // Sin `qrbox`: la librería recorta la decodificación al área del recuadro, así
-    // que tenerlo obligaba a centrar el código con precisión. Sin recuadro, escanea
-    // el cuadro completo de la cámara — el código puede estar en cualquier parte
-    // de la imagen, no hace falta apuntar a una zona específica.
-    const baseScanConfig = { fps: 10 };
+    // El recuadro recorta la decodificación a esa zona — por eso lo habíamos sacado
+    // (obligaba a centrar con precisión). Pero un código de barras 1D necesita ocupar
+    // buena parte del cuadro para que cada raya tenga suficiente resolución en píxeles
+    // y se pueda leer, así que un recuadro GENEROSO (casi todo el ancho de la cámara)
+    // cumple las dos cosas a la vez: le da margen de sobra al código de barras sin
+    // tener que llenar la imagen completa, y de paso la librería dibuja un marco tenue
+    // alrededor que sirve de guía visual para centrar el QR.
+    const baseScanConfig = {
+      fps: 10,
+      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => ({
+        width: viewfinderWidth * 0.92,
+        height: viewfinderHeight * 0.6,
+      }),
+    };
     const onDecoded = (decodedText: string) => {
       if (cancelled) return;
       cancelled = true;
@@ -127,7 +136,7 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
             <div id={SCANNER_ELEMENT_ID} className="rounded-2xl overflow-hidden bg-slate-900" />
           )}
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mt-3">
-            Apuntá al código, puede estar en cualquier parte de la imagen
+            Ubicá el código dentro del recuadro
           </p>
         </div>
       </div>
