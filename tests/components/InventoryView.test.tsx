@@ -124,7 +124,7 @@ describe("InventoryView - flujo de inventario", () => {
         />
       );
 
-      const searchInput = screen.getByPlaceholderText(/Buscar por nombre o subcategoría/i);
+      const searchInput = screen.getByPlaceholderText(/Buscar por nombre/i);
       await userEvent.type(searchInput, "azul");
 
       await waitFor(

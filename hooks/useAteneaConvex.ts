@@ -236,6 +236,7 @@ export function useAteneaConvex() {
         sizes: sizesNum,
         sku: data.sku || undefined,
         barcode: data.barcode || undefined,
+        detalle: data.detalle || undefined,
       });
       return { success: true, id: newId as string };
     } catch (error) {
@@ -257,6 +258,7 @@ export function useAteneaConvex() {
         sizes: item.sizes,
         sku: item.sku || undefined,
         barcode: item.barcode || undefined,
+        detalle: item.detalle !== undefined ? item.detalle || '' : undefined,
       });
       return { success: true };
     } catch (error) {

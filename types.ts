@@ -194,6 +194,7 @@ export interface InventoryItem {
   image_url?: string;
   sku?: string;
   barcode?: string;
+  detalle?: string;
   created_at: string;
   updated_at: string;
 }
@@ -235,4 +236,5 @@ export interface InventoryFormData {
   minStock?: string;
   sku?: string;
   barcode?: string;
+  detalle?: string;
 }

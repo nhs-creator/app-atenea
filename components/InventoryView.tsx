@@ -265,7 +265,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
       sellingPrice: String(item.selling_price || ''),
       minStock: String(item.min_stock || 0),
       sku: item.sku || '',
-      barcode: item.barcode || ''
+      barcode: item.barcode || '',
+      detalle: item.detalle || ''
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -289,6 +290,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         cost_price: parseFloat(formData.costPrice) || 0,
         selling_price: parseFloat(formData.sellingPrice) || 0,
         min_stock: parseInt(formData.minStock, 10) || 0,
+        detalle: formData.detalle,
         // updated_at se actualiza automáticamente via trigger
       } as any);
     } else {
@@ -314,9 +316,10 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
     const lowSearch = debouncedSearch.toLowerCase();
     return inventory.filter(item => {
       // Text search
-      const matchesSearch = !debouncedSearch || 
+      const matchesSearch = !debouncedSearch ||
         item.name.toLowerCase().includes(lowSearch) ||
-        (item.subcategory && item.subcategory.toLowerCase().includes(lowSearch));
+        (item.subcategory && item.subcategory.toLowerCase().includes(lowSearch)) ||
+        (item.detalle && item.detalle.toLowerCase().includes(lowSearch));
       
       // Category filter
       const matchesCategory = !selectedCategory || item.category === selectedCategory;
@@ -436,6 +439,17 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                 <span className="text-sm font-mono font-black text-violet-700">{formData.barcode}</span>
               </div>
             )}
+
+            <div>
+              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Detalle (opcional)</label>
+              <textarea
+                value={formData.detalle || ''}
+                onChange={(e) => setFormData({ ...formData, detalle: e.target.value })}
+                placeholder="Ej: algodón peinado, estampado floral chico, combina con jean oxford"
+                rows={2}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:border-primary outline-none transition-all resize-none"
+              />
+            </div>
 
             <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
               <label className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-2">

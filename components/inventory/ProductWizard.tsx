@@ -245,6 +245,16 @@ const ProductWizard: React.FC<ProductWizardProps> = ({ config, onAdd, onGenerate
             {priceInput('Precio Costo', 'costPrice', 'text-slate-400')}
             {priceInput('Precio Venta', 'sellingPrice', 'text-primary', true)}
           </div>
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Detalle (opcional)</label>
+            <textarea
+              value={formData.detalle || ''}
+              onChange={(e) => setFormData({ ...formData, detalle: e.target.value })}
+              placeholder="Ej: algodón peinado, estampado floral chico, combina con jean oxford"
+              rows={2}
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:border-primary outline-none transition-all resize-none"
+            />
+          </div>
           <button
             type="button"
             disabled={!formData.sellingPrice || submitting}

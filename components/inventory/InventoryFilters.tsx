@@ -48,7 +48,7 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar por nombre o subcategoría..."
+            placeholder="Buscar por nombre, subcategoría o detalle..."
             className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-primary outline-none font-bold text-slate-700"
           />
         </div>

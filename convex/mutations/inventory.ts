@@ -15,6 +15,7 @@ export const addInventory = mutation({
     sizes: v.record(v.string(), v.number()),
     sku: v.optional(v.string()),
     barcode: v.optional(v.string()),
+    detalle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -34,6 +35,7 @@ export const addInventory = mutation({
       stockTotal,
       sku: args.sku,
       barcode: args.barcode,
+      detalle: args.detalle?.trim() || undefined,
     });
 
     // Código interno (QR/etiqueta) — se autogenera si no lo pasaron a mano.
@@ -73,6 +75,7 @@ export const updateInventory = mutation({
     sizes: v.optional(v.record(v.string(), v.number())),
     sku: v.optional(v.string()),
     barcode: v.optional(v.string()),
+    detalle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -133,6 +136,7 @@ export const updateInventory = mutation({
     if (args.sellingPrice !== undefined) patch.sellingPrice = args.sellingPrice;
     if (args.sku !== undefined) patch.sku = args.sku;
     if (args.barcode !== undefined) patch.barcode = args.barcode;
+    if (args.detalle !== undefined) patch.detalle = args.detalle.trim() || undefined;
     if (args.sizes !== undefined) {
       patch.sizes = args.sizes;
       patch.stockTotal = computeStockTotal(args.sizes);

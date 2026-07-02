@@ -94,6 +94,9 @@ export default defineSchema({
     sku: v.optional(v.string()),
     barcode: v.optional(v.string()),
     supabaseId: v.optional(v.string()),
+    // Nota libre (tela, estampado, detalle) para cuando la categoría rígida no alcanza
+    // a describir la prenda como la piensa la dueña. También la matchea la búsqueda.
+    detalle: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_name", ["userId", "name"])
