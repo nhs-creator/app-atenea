@@ -34,15 +34,11 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
     // nunca aparecía el popup de permiso. Los constraints extra van aparte, en
     // `videoConstraints` dentro de la configuración de escaneo.
     const cameraConfig = { facingMode: 'environment' };
-    const baseScanConfig = {
-      fps: 10,
-      // Recuadro rectangular (no cuadrado): un código de barras es ancho y bajo,
-      // así que no hace falta centrarlo con precisión de QR.
-      qrbox: (viewfinderWidth: number) => {
-        const width = Math.min(viewfinderWidth * 0.85, 320);
-        return { width, height: width * 0.5 };
-      },
-    };
+    // Sin `qrbox`: la librería recorta la decodificación al área del recuadro, así
+    // que tenerlo obligaba a centrar el código con precisión. Sin recuadro, escanea
+    // el cuadro completo de la cámara — el código puede estar en cualquier parte
+    // de la imagen, no hace falta apuntar a una zona específica.
+    const baseScanConfig = { fps: 10 };
     const onDecoded = (decodedText: string) => {
       if (cancelled) return;
       cancelled = true;
@@ -131,7 +127,7 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
             <div id={SCANNER_ELEMENT_ID} className="rounded-2xl overflow-hidden bg-slate-900" />
           )}
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mt-3">
-            Acercá el código, no hace falta centrarlo con precisión
+            Apuntá al código, puede estar en cualquier parte de la imagen
           </p>
         </div>
       </div>
