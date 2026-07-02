@@ -5,6 +5,7 @@ import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, Chevr
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
 import InventoryReporte from './inventory/InventoryReporte';
+import ProductWizard from './inventory/ProductWizard';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
@@ -359,11 +360,21 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         </div>
       </div>
 
-      {/* Form Modal (overlay, shown regardless of tab) */}
-      {showForm && (
+      {/* Alta nueva: wizard paso a paso (más rápido de tocar, menos fricción) */}
+      {showForm && !editingId && (
+        <ProductWizard
+          config={config}
+          onAdd={onAdd}
+          onGenerateLabel={onGenerateLabel}
+          onClose={resetForm}
+        />
+      )}
+
+      {/* Edición: formulario clásico de una sola pantalla (corregir un campo puntual) */}
+      {showForm && editingId && (
         <div className="bg-white rounded-3xl shadow-xl border border-teal-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <h3 className="font-bold text-teal-900 mb-5 flex items-center gap-2 text-lg">
-            <Package className="w-5 h-5" /> {editingId ? 'Editar Producto' : 'Nuevo Producto'}
+            <Package className="w-5 h-5" /> Editar Producto
           </h3>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

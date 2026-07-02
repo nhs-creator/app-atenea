@@ -226,7 +226,7 @@ export function useAteneaConvex() {
       Object.entries(data.sizes || {}).forEach(([s, q]) => {
         sizesNum[s] = typeof q === 'string' ? parseInt(q, 10) || 0 : (q || 0);
       });
-      await addInventoryMutation({
+      const newId = await addInventoryMutation({
         name: data.name.trim().toUpperCase(),
         category: (data.category || '').toUpperCase(),
         subcategory: data.subcategory ? data.subcategory.toUpperCase() : undefined,
@@ -237,7 +237,7 @@ export function useAteneaConvex() {
         sku: data.sku || undefined,
         barcode: data.barcode || undefined,
       });
-      return { success: true };
+      return { success: true, id: newId as string };
     } catch (error) {
       console.error('Error adding inventory:', error);
       return { success: false, error };
