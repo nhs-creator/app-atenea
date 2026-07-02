@@ -27,7 +27,14 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
     // decoder JS puro que se usa como fallback.
     const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { useBarCodeDetectorIfSupported: true, verbose: false });
 
-    const scanConfig = {
+    // Html5Qrcode.createVideoConstraints exige que el primer argumento de start()
+    // tenga EXACTAMENTE 1 clave (facingMode o deviceId, nunca ambos ni nada más).
+    // Pasarle más claves (como habíamos hecho con advanced/width/height mezclados
+    // acá) tira una excepción síncrona ANTES de llamar a getUserMedia — por eso
+    // nunca aparecía el popup de permiso. Los constraints extra van aparte, en
+    // `videoConstraints` dentro de la configuración de escaneo.
+    const cameraConfig = { facingMode: 'environment' };
+    const baseScanConfig = {
       fps: 10,
       // Recuadro rectangular (no cuadrado): un código de barras es ancho y bajo,
       // así que no hace falta centrarlo con precisión de QR.
@@ -53,9 +60,9 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
       return 'No se pudo acceder a la cámara. Revisá los permisos del navegador.';
     };
 
-    const attemptStart = async (constraints: MediaTrackConstraints): Promise<unknown> => {
+    const attemptStart = async (config: typeof baseScanConfig & { videoConstraints?: MediaTrackConstraints }): Promise<unknown> => {
       try {
-        await scanner.start(constraints, scanConfig, onDecoded, onFrame);
+        await scanner.start(cameraConfig, config, onDecoded, onFrame);
         return null;
       } catch (err) {
         return err;
@@ -64,20 +71,23 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan, onClo
 
     (async () => {
       // Constraints "ricos" (foco continuo + resolución alta) primero; si el navegador
-      // los rechaza (algunos WebView de Android tiran OverconstrainedError), reintentamos
-      // con constraints mínimos antes de darnos por vencidos.
+      // los rechaza (algunos dispositivos tiran OverconstrainedError), reintentamos
+      // con la config mínima (la que ya andaba antes) antes de darnos por vencidos.
       const firstErr = await attemptStart({
-        facingMode: 'environment',
-        advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        ...baseScanConfig,
+        videoConstraints: {
+          facingMode: 'environment',
+          advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       });
       if (cancelled) return;
       if (!firstErr) {
         started = true;
         return;
       }
-      const secondErr = await attemptStart({ facingMode: 'environment' });
+      const secondErr = await attemptStart(baseScanConfig);
       if (cancelled) return;
       if (!secondErr) {
         started = true;
