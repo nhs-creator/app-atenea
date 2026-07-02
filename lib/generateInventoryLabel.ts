@@ -6,10 +6,13 @@ export interface InventoryLabelData {
   price: number;
 }
 
-const LABEL_WIDTH = 400;
-const LABEL_HEIGHT = 240;
-const QR_SIZE = 190;
-const MARGIN = 16;
+// Etiqueta de cartón real: 9cm x 2.5cm. 10px/mm da buena resolución para el QR
+// (nítido incluso impreso chico) sin generar una imagen enorme.
+const MM_TO_PX = 10;
+const LABEL_WIDTH = 90 * MM_TO_PX;
+const LABEL_HEIGHT = 25 * MM_TO_PX;
+const MARGIN = 15;
+const QR_SIZE = LABEL_HEIGHT - MARGIN * 2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -55,27 +58,27 @@ export async function generateInventoryLabel(data: InventoryLabelData): Promise<
   const qrY = (LABEL_HEIGHT - QR_SIZE) / 2;
   ctx.drawImage(qrImg, MARGIN, qrY, QR_SIZE, QR_SIZE);
 
-  const textX = MARGIN + QR_SIZE + 18;
+  const textX = MARGIN + QR_SIZE + 22;
   const textMaxWidth = LABEL_WIDTH - textX - MARGIN;
   ctx.fillStyle = '#0f172a';
   ctx.textBaseline = 'top';
 
-  ctx.font = 'bold 26px sans-serif';
-  const nameLines = wrapText(ctx, data.productName.toUpperCase(), textMaxWidth, 3);
-  let y = 28;
+  ctx.font = 'bold 32px sans-serif';
+  const nameLines = wrapText(ctx, data.productName.toUpperCase(), textMaxWidth, 2);
+  let y = MARGIN + 6;
   for (const line of nameLines) {
     ctx.fillText(line, textX, y);
-    y += 30;
+    y += 36;
   }
 
-  y += 8;
-  ctx.font = 'bold 30px sans-serif';
+  y += 10;
+  ctx.font = 'bold 38px sans-serif';
   ctx.fillStyle = '#4f46e5';
   ctx.fillText(`$${Math.round(data.price).toLocaleString('es-AR')}`, textX, y);
 
-  ctx.font = '18px monospace';
+  ctx.font = '22px monospace';
   ctx.fillStyle = '#64748b';
-  ctx.fillText(data.code, textX, LABEL_HEIGHT - MARGIN - 22);
+  ctx.fillText(data.code, textX, LABEL_HEIGHT - MARGIN - 26);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
