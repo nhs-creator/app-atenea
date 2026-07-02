@@ -20,6 +20,7 @@ import InventoryView from './components/InventoryView';
 import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
 import ClientsView from './components/ClientsView';
+import AssistantView from './components/AssistantView';
 import LoginView from './components/LoginView';
 import AccountantDesktopView from './components/accountant/AccountantDesktopView';
 import OwnerDesktopView from './components/owner/OwnerDesktopView';
@@ -27,7 +28,7 @@ import OwnerDesktopView from './components/owner/OwnerDesktopView';
 // Iconos
 import { 
   PlusCircle, List, BarChart2, ShoppingBag, LogOut, 
-  ArrowUpCircle, ArrowDownCircle, Package, Receipt, Settings, Users
+  ArrowUpCircle, ArrowDownCircle, Package, Receipt, Settings, Users, Sparkles
 } from 'lucide-react';
 import { 
   DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS,
@@ -469,6 +470,7 @@ const App: React.FC = () => {
         {activeTab === 'inventory' && userRole === 'owner' && <InventoryView inventory={atenea.inventory} config={config} onAdd={atenea.addInventory} onUpdate={atenea.updateInventory} onDelete={atenea.deleteInventory} />}
         {activeTab === 'customers' && userRole === 'owner' && <ClientsView clients={atenea.clients} onAdd={atenea.saveClient} onUpdate={atenea.saveClient} onDelete={atenea.deleteClient} />}
         {activeTab === 'stats' && <StatsView sales={atenea.sales} expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} inventory={atenea.inventory} config={config} />}
+        {activeTab === 'assistant' && userRole === 'owner' && <AssistantView />}
         {activeTab === 'settings' && userRole === 'owner' && <SettingsView config={config} onSaveConfig={setConfig} />}
       </main>
 
@@ -495,6 +497,10 @@ const App: React.FC = () => {
               <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
                 <BarChart2 className="w-5 h-5" />
                 <span className="text-[8px] font-black uppercase tracking-tighter">Reporte</span>
+              </button>
+              <button onClick={() => setActiveTab('assistant')} className={`flex flex-col items-center gap-1 w-16 transition-all ${activeTab === 'assistant' ? 'text-emerald-500 scale-110' : 'text-slate-400'}`}>
+                <Sparkles className="w-5 h-5" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Atenea</span>
               </button>
             </>
           ) : (

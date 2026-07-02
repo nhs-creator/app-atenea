@@ -1,4 +1,4 @@
-export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses' | 'customers';
+export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses' | 'customers' | 'assistant';
 export type EntryMode = 'sale' | 'expense';
 export type ExpenseType = 'business' | 'personal';
 

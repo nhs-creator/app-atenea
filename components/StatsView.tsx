@@ -7,6 +7,7 @@ import StatsSummary from './stats/StatsSummary';
 import StatsBreakdown from './stats/StatsBreakdown';
 import StatsCharts from './stats/StatsCharts';
 import StatsDollarPurchases from './stats/StatsDollarPurchases';
+import StatsConsolidated from './stats/StatsConsolidated';
 
 interface StatsViewProps {
   sales: Sale[];
@@ -55,10 +56,20 @@ const StatsView: React.FC<StatsViewProps> = ({ sales = [], expenses = [], invent
         onNextMonth={handleNextMonth}
       />
 
-      <StatsSummary 
-        viewMode={viewMode}
-        metrics={metrics}
-      />
+      {viewMode === 'business' ? (
+        <StatsConsolidated
+          totalSales={metrics.totalSales}
+          businessExpenses={metrics.businessExpenses}
+          netProfit={metrics.netProfit}
+          personalWithdrawals={metrics.personalWithdrawals}
+          finalBalance={metrics.finalBalance}
+        />
+      ) : (
+        <StatsSummary
+          viewMode={viewMode}
+          metrics={metrics}
+        />
+      )}
 
       {viewMode === 'business' && (
         <StatsCharts 

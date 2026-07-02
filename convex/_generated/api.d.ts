@@ -10,7 +10,17 @@
 
 import type * as actions_afip from "../actions/afip.js";
 import type * as actions_createAccountant from "../actions/createAccountant.js";
+import type * as assistant_chat from "../assistant/chat.js";
+import type * as assistant_conversations from "../assistant/conversations.js";
+import type * as assistant_data from "../assistant/data.js";
+import type * as assistant_memory from "../assistant/memory.js";
+import type * as assistant_memoryData from "../assistant/memoryData.js";
+import type * as assistant_sales from "../assistant/sales.js";
+import type * as assistant_tools from "../assistant/tools.js";
+import type * as assistant_transcribe from "../assistant/transcribe.js";
+import type * as assistant_vocabulary from "../assistant/vocabulary.js";
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_afipSdk from "../lib/afipSdk.js";
 import type * as lib_afipValidators from "../lib/afipValidators.js";
@@ -52,7 +62,17 @@ import type {
 declare const fullApi: ApiFromModules<{
   "actions/afip": typeof actions_afip;
   "actions/createAccountant": typeof actions_createAccountant;
+  "assistant/chat": typeof assistant_chat;
+  "assistant/conversations": typeof assistant_conversations;
+  "assistant/data": typeof assistant_data;
+  "assistant/memory": typeof assistant_memory;
+  "assistant/memoryData": typeof assistant_memoryData;
+  "assistant/sales": typeof assistant_sales;
+  "assistant/tools": typeof assistant_tools;
+  "assistant/transcribe": typeof assistant_transcribe;
+  "assistant/vocabulary": typeof assistant_vocabulary;
   auth: typeof auth;
+  crons: typeof crons;
   http: typeof http;
   "lib/afipSdk": typeof lib_afipSdk;
   "lib/afipValidators": typeof lib_afipValidators;

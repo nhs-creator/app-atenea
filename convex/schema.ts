@@ -246,4 +246,87 @@ export default defineSchema({
     openDays: v.array(v.number()),
   })
     .index("by_userId", ["userId"]),
+
+  // --- Asistente conversacional (Atenea IA) ---
+  // Conversaciones del chat. `summary` + `summarizedUpTo` implementan la
+  // compactación: los mensajes anteriores a `summarizedUpTo` quedan resumidos
+  // y se descartan del contexto que se manda al modelo.
+  assistantConversations: defineTable({
+    userId: v.string(),
+    title: v.optional(v.string()),
+    messages: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+        tools: v.optional(v.array(v.string())),
+        pending: v.optional(v.boolean()),
+        createdAt: v.number(),
+      })
+    ),
+    summary: v.optional(v.string()),
+    summarizedUpTo: v.optional(v.number()),
+    processed: v.boolean(),
+    lastActivityAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_activity", ["userId", "lastActivityAt"])
+    .index("by_processed_activity", ["processed", "lastActivityAt"]),
+
+  // Ventas propuestas por el asistente, pendientes de confirmación en el modal.
+  assistantSaleProposals: defineTable({
+    userId: v.string(),
+    conversationId: v.id("assistantConversations"),
+    clientLabel: v.optional(v.string()),
+    items: v.array(
+      v.object({
+        product: v.string(),
+        quantity: v.number(),
+        price: v.number(), // precio final unitario
+        listPrice: v.optional(v.number()),
+      })
+    ),
+    payments: v.array(
+      v.object({
+        method: v.string(),
+        amount: v.number(),
+        installments: v.optional(v.number()),
+      })
+    ),
+    discountPercent: v.optional(v.number()),
+    total: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+  }).index("by_conversation_status", ["conversationId", "status"]),
+
+  // Diccionario personal: abreviaturas/términos propios de la dueña que el
+  // asistente aprende con el uso (ej. "modal m/c" = "modal crepé").
+  assistantVocabulary: defineTable({
+    userId: v.string(),
+    term: v.string(), // como lo dice ella, normalizado a minúsculas
+    meaning: v.string(), // qué significa
+    useCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_term", ["userId", "term"]),
+
+  // RAG de memoria: resúmenes de conversaciones cerradas, vectorizados.
+  assistantMemories: defineTable({
+    userId: v.string(),
+    summary: v.string(),
+    embedding: v.array(v.float64()),
+    source: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["userId"],
+    }),
 });
