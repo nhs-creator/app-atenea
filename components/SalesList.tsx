@@ -314,31 +314,31 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                     );
                   }
 
-                  // Sin importe no-efectivo no hay nada para facturar (el efectivo no se factura).
-                  if (onFacturar && firstSale.status === 'completed' && !isReturnTransaction && totalFacturable > 0) {
-                    return (
-                      <div className="px-4 py-2.5 bg-white/40 border-t border-white/60">
-                        <button
-                          onClick={() => setFacturarTarget({ clientNumber, total: totalFacturable })}
-                          className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
-                        >
-                          <FileText className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">
-                            Facturar {totalFacturable < totalCobrado ? `($${totalFacturable.toLocaleString('es-AR')} sin ef.)` : ''}
-                          </span>
-                        </button>
-                      </div>
-                    );
-                  }
-
                   return null;
                 })()}
 
                 {/* BOTONES DE ACCIÓN */}
-                <div className="p-2 grid grid-cols-3 gap-2 bg-white/60">
-                  <button onClick={() => { if(window.confirm('¿BORRAR VENTA?')) onDelete(clientNumber); }} className="h-11 bg-white text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
-                  <button onClick={() => onEdit(firstSale)} className="h-11 bg-white text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Corregir</span></button>
-                  <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
-                </div>
+                {(() => {
+                  // Sin importe no-efectivo no hay nada para facturar (el efectivo no se factura).
+                  const showFacturar = !facturaByClientNumber[clientNumber] && onFacturar
+                    && firstSale.status === 'completed' && !isReturnTransaction && totalFacturable > 0;
+                  return (
+                    <div className={`p-2 grid gap-2 bg-white/60 ${showFacturar ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                      <button onClick={() => { if(window.confirm('¿BORRAR VENTA?')) onDelete(clientNumber); }} className="h-11 bg-white text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
+                      <button onClick={() => onEdit(firstSale)} className="h-11 bg-white text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Corregir</span></button>
+                      <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
+                      {showFacturar && (
+                        <button
+                          onClick={() => setFacturarTarget({ clientNumber, total: totalFacturable })}
+                          title={totalFacturable < totalCobrado ? `Factura $${totalFacturable.toLocaleString('es-AR')} sin efectivo` : undefined}
+                          className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"
+                        >
+                          <FileText className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Facturar</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
