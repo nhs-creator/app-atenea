@@ -24,6 +24,8 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId,
   onShowHistory,
   onGenerateLabel,
+  openMenuId,
+  setOpenMenuId,
 }: {
   item: InventoryItem,
   onEdit: (item: InventoryItem) => void,
@@ -32,8 +34,11 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId: (id: string | null) => void,
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
+  openMenuId: string | null,
+  setOpenMenuId: (id: string | null) => void,
 }) => {
   const [generatingLabel, setGeneratingLabel] = useState(false);
+  const menuOpen = openMenuId === item.id;
 
   const handleGenerateLabel = async () => {
     if (!onGenerateLabel || generatingLabel) return;
@@ -107,8 +112,8 @@ const InventoryCard = React.memo(({
           <span className="text-2xl font-black leading-none">{realStock}</span>
         </div>
         
-        {/* Compact Actions Area */}
-        <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100">
+        {/* Compact Actions Area: QR + lápiz (Editar/Historial/Eliminar quedan bajo el lápiz) */}
+        <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100 relative">
           {onGenerateLabel && (
             <button
               onClick={handleGenerateLabel}
@@ -121,30 +126,41 @@ const InventoryCard = React.memo(({
             </button>
           )}
           <button
-            onClick={() => onShowHistory(item.id, item.name)}
-            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all active:scale-90"
-            aria-label="Historial"
-            title="Ver historial de movimientos"
-          >
-            <History className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => onEdit(item)} 
-            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white rounded-xl transition-all active:scale-90"
-            aria-label="Editar"
+            onClick={() => setOpenMenuId(menuOpen ? null : item.id)}
+            className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all active:scale-90 ${menuOpen ? 'text-primary bg-white' : 'text-slate-400 hover:text-primary hover:bg-white'}`}
+            aria-label="Más acciones"
           >
             <Edit2 className="w-5 h-5" />
           </button>
-          <button 
-            onClick={() => setDeleteConfirmId(item.id)} 
-            className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-white rounded-xl transition-all active:scale-90"
-            aria-label="Eliminar"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+              <div className="absolute right-0 bottom-14 z-50 bg-white rounded-2xl border border-slate-100 shadow-xl p-1.5 w-44 animate-in zoom-in-95 duration-150">
+                <button
+                  onClick={() => { setOpenMenuId(null); onEdit(item); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                >
+                  <Edit2 className="w-4 h-4" /> Editar
+                </button>
+                <button
+                  onClick={() => { setOpenMenuId(null); onShowHistory(item.id, item.name); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                >
+                  <History className="w-4 h-4" /> Historial
+                </button>
+                <button
+                  onClick={() => { setOpenMenuId(null); setDeleteConfirmId(item.id); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-red-500 hover:bg-red-50 active:scale-[0.98] transition-all"
+                >
+                  <Trash2 className="w-4 h-4" /> Eliminar
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-      
+
       {/* Confirmation Block */}
       {deleteConfirmId === item.id && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl space-y-3 animate-in zoom-in-95 duration-200">
@@ -181,6 +197,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
   
   // UI state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showMovements, setShowMovements] = useState<{id: string, name: string} | null>(null);
 
   // Debounce search
@@ -524,6 +541,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   setDeleteConfirmId={setDeleteConfirmId}
                   onShowHistory={(id, name) => setShowMovements({id, name})}
                   onGenerateLabel={onGenerateLabel}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
                 />
               ))
             )}

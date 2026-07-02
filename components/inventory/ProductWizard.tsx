@@ -5,6 +5,7 @@ import {
   Package, Save, X, Ruler, ChevronLeft, Check, QrCode, Plus, Minus,
   Snowflake, Shirt, Layers, Sparkles, Watch, Briefcase, Gem, Home, HelpCircle,
 } from 'lucide-react';
+import OptionPicker from './OptionPicker';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'TEJIDOS Y ABRIGOS': Snowflake,
@@ -46,25 +47,6 @@ const StepHeader: React.FC<{ step: number; title: string; onBack: () => void; on
       <h3 className="font-black text-teal-900 text-lg leading-tight">{title}</h3>
     </div>
     <div className="w-10" />
-  </div>
-);
-
-const OptionGrid: React.FC<{ options: string[]; onSelect: (value: string) => void; icons?: Record<string, React.ElementType> }> = ({ options, onSelect, icons }) => (
-  <div className="grid grid-cols-2 gap-3">
-    {options.map((opt) => {
-      const Icon = icons?.[opt];
-      return (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onSelect(opt)}
-          className="flex flex-col items-center justify-center gap-2 h-24 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 font-black text-xs uppercase tracking-wide text-center px-2 active:scale-95 hover:border-primary hover:bg-white transition-all"
-        >
-          {Icon && <Icon className="w-6 h-6 text-primary" />}
-          {opt}
-        </button>
-      );
-    })}
   </div>
 );
 
@@ -205,7 +187,7 @@ const ProductWizard: React.FC<ProductWizardProps> = ({ config, onAdd, onGenerate
       )}
 
       {step === 2 && (
-        <OptionGrid
+        <OptionPicker
           options={categories}
           icons={CATEGORY_ICONS}
           onSelect={(cat) => { setFormData({ ...formData, category: cat, subcategory: '', material: '' }); setStep(3); }}
@@ -213,14 +195,14 @@ const ProductWizard: React.FC<ProductWizardProps> = ({ config, onAdd, onGenerate
       )}
 
       {step === 3 && (
-        <OptionGrid
+        <OptionPicker
           options={availableSubcategories}
           onSelect={(sub) => { setFormData({ ...formData, subcategory: sub }); setStep(4); }}
         />
       )}
 
       {step === 4 && (
-        <OptionGrid
+        <OptionPicker
           options={['SIN MATERIAL', ...materials]}
           onSelect={(mat) => { setFormData({ ...formData, material: mat === 'SIN MATERIAL' ? '' : mat }); setStep(5); }}
         />

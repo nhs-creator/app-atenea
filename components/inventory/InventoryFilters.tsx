@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
+import OptionPicker from './OptionPicker';
 
 interface InventoryFiltersProps {
   searchTerm: string;
@@ -69,57 +70,49 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
       {/* Filter Dropdowns */}
       {showFilters && (
       <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {/* Category Filter */}
           <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
+            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
               Categoría
             </label>
-            <select 
-              value={selectedCategory} 
-              onChange={(e) => onCategoryChange(e.target.value)} 
-              className="w-full h-12 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-black uppercase focus:border-primary outline-none transition-colors"
-            >
-              <option value="">TODAS</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+            <OptionPicker
+              variant="chips"
+              options={categories}
+              selected={selectedCategory}
+              allLabel="TODAS"
+              onSelect={onCategoryChange}
+            />
           </div>
 
           {/* Subcategory Filter */}
-          <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
-              Subcategoría
-            </label>
-            <select 
-              value={selectedSubcategory} 
-              onChange={(e) => onSubcategoryChange(e.target.value)} 
-              className="w-full h-12 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-black uppercase focus:border-primary outline-none transition-colors"
-              disabled={!selectedCategory}
-            >
-              <option value="">TODAS</option>
-              {subcategories.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
-          </div>
+          {selectedCategory && (
+            <div>
+              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
+                Subcategoría
+              </label>
+              <OptionPicker
+                variant="chips"
+                options={subcategories}
+                selected={selectedSubcategory}
+                allLabel="TODAS"
+                onSelect={onSubcategoryChange}
+              />
+            </div>
+          )}
 
           {/* Material Filter */}
           <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
+            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
               Material
             </label>
-            <select 
-              value={selectedMaterial} 
-              onChange={(e) => onMaterialChange(e.target.value)} 
-              className="w-full h-12 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-black uppercase focus:border-primary outline-none transition-colors"
-            >
-              <option value="">TODOS</option>
-              {materials.map(mat => (
-                <option key={mat} value={mat}>{mat}</option>
-              ))}
-            </select>
+            <OptionPicker
+              variant="chips"
+              options={materials}
+              selected={selectedMaterial}
+              allLabel="TODOS"
+              onSelect={onMaterialChange}
+            />
           </div>
         </div>
 
