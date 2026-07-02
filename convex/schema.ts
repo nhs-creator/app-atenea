@@ -98,6 +98,7 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_name", ["userId", "name"])
     .index("by_userId_category", ["userId", "category"])
+    .index("by_userId_barcode", ["userId", "barcode"])
     .index("by_supabaseId", ["supabaseId"]),
 
   // --- Sales ---

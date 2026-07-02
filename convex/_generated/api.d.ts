@@ -25,6 +25,7 @@ import type * as http from "../http.js";
 import type * as lib_afipSdk from "../lib/afipSdk.js";
 import type * as lib_afipValidators from "../lib/afipValidators.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_inventoryCode from "../lib/inventoryCode.js";
 import type * as lib_semanticId from "../lib/semanticId.js";
 import type * as lib_stockHelpers from "../lib/stockHelpers.js";
 import type * as migration_fixUserIds from "../migration/fixUserIds.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "lib/afipSdk": typeof lib_afipSdk;
   "lib/afipValidators": typeof lib_afipValidators;
   "lib/auth": typeof lib_auth;
+  "lib/inventoryCode": typeof lib_inventoryCode;
   "lib/semanticId": typeof lib_semanticId;
   "lib/stockHelpers": typeof lib_stockHelpers;
   "migration/fixUserIds": typeof migration_fixUserIds;

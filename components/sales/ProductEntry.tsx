@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Minus, Search } from 'lucide-react';
+import { Plus, Minus, Search, Camera } from 'lucide-react';
 import { CartItem, InventoryItem, ProductDraft } from '../../types';
+import BarcodeScannerModal from './BarcodeScannerModal';
 
 interface ProductEntryProps {
   current: ProductDraft;
@@ -10,10 +11,12 @@ interface ProductEntryProps {
   cartItems: CartItem[]; // Agregamos esta prop para el cálculo de stock temporal
 }
 
-const ProductEntry: React.FC<ProductEntryProps> = ({ 
-  current, onCurrentChange, onAdd, inventory, cartItems 
+const ProductEntry: React.FC<ProductEntryProps> = ({
+  current, onCurrentChange, onAdd, inventory, cartItems
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanNotice, setScanNotice] = useState('');
 
   const suggestions = useMemo(() => {
     if (!current.name || current.name.length < 2) return [];
@@ -56,6 +59,18 @@ const ProductEntry: React.FC<ProductEntryProps> = ({
       size: '' // Forzamos a que elija talle de nuevo
     });
     setShowSuggestions(false);
+  };
+
+  const handleScan = (code: string) => {
+    setScannerOpen(false);
+    const found = inventory.find(i => i.barcode === code);
+    if (found) {
+      setScanNotice('');
+      handleSelectSuggestion(found);
+    } else {
+      setScanNotice('Código no reconocido — buscá el producto a mano.');
+      setTimeout(() => setScanNotice(''), 4000);
+    }
   };
 
   const cleanNum = (val: string) => val.replace(/\D/g, '');
@@ -102,18 +117,33 @@ const ProductEntry: React.FC<ProductEntryProps> = ({
   return (
     <div className="bg-white rounded-[2.5rem] shadow-xl p-6 border border-slate-100 space-y-4 relative z-20">
       <div className="relative">
-        <input 
-          type="text" 
-          placeholder="BUSCAR PRENDA..." 
-          value={current.name} 
+        <input
+          type="text"
+          placeholder="BUSCAR PRENDA..."
+          value={current.name}
           onChange={(e) => {
             onCurrentChange({ name: e.target.value.toUpperCase(), inventoryId: '', size: '' });
             setShowSuggestions(true);
           }}
           onFocus={() => setShowSuggestions(true)}
-          className="w-full h-16 px-6 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-base outline-none focus:border-primary transition-all placeholder:text-slate-300" 
+          className="w-full h-16 pl-6 pr-16 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-base outline-none focus:border-primary transition-all placeholder:text-slate-300"
         />
-        
+        <button
+          type="button"
+          onClick={() => setScannerOpen(true)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white rounded-xl transition-all active:scale-90"
+          aria-label="Escanear código"
+          title="Escanear código"
+        >
+          <Camera className="w-6 h-6" />
+        </button>
+
+        {scanNotice && (
+          <p className="absolute top-full left-0 right-0 mt-1.5 text-[11px] font-bold text-amber-600 px-1">
+            {scanNotice}
+          </p>
+        )}
+
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
             {suggestions.map(item => (
@@ -197,13 +227,17 @@ const ProductEntry: React.FC<ProductEntryProps> = ({
         </div>
       )}
 
-      <button 
-        onClick={handleAdd} 
-        disabled={!current.name || !current.price || (selectedInventoryItem && !current.size)} 
+      <button
+        onClick={handleAdd}
+        disabled={!current.name || !current.price || (selectedInventoryItem && !current.size)}
         className="w-full h-16 bg-primary text-white font-black rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:opacity-50 shadow-lg shadow-primary/20 uppercase tracking-widest"
       >
         <Plus className="w-6 h-6" /> AGREGAR AL CARRITO
       </button>
+
+      {scannerOpen && (
+        <BarcodeScannerModal onScan={handleScan} onClose={() => setScannerOpen(false)} />
+      )}
     </div>
   );
 };

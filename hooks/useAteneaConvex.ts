@@ -5,6 +5,11 @@ import {
   Sale, Expense, InventoryItem, Voucher, Client, Invoice,
   MultiSaleData, ExpenseFormData, InventoryFormData
 } from '../types';
+import {
+  generateInventoryLabel as buildInventoryLabelPng,
+  inventoryLabelFilename,
+  shareOrDownloadInventoryLabel,
+} from '../lib/generateInventoryLabel';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -133,6 +138,7 @@ export function useAteneaConvex() {
   const addInventoryMutation = useMutation(api.mutations.inventory.addInventory);
   const updateInventoryMutation = useMutation(api.mutations.inventory.updateInventory);
   const deleteInventoryMutation = useMutation(api.mutations.inventory.deleteInventory);
+  const ensureInventoryBarcodeMutation = useMutation(api.mutations.inventory.ensureInventoryBarcode);
   const saveClientMutation = useMutation(api.mutations.clients.saveClient);
   const deleteClientMutation = useMutation(api.mutations.clients.deleteClient);
   const emitirFacturaAction = useAction(api.actions.afip.emitirFactura);
@@ -269,6 +275,18 @@ export function useAteneaConvex() {
     }
   };
 
+  const generateInventoryLabel = async (item: InventoryItem) => {
+    try {
+      const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+      const blob = await buildInventoryLabelPng({ code, productName: item.name, price: item.selling_price });
+      await shareOrDownloadInventoryLabel(blob, inventoryLabelFilename(code));
+      return { success: true as const };
+    } catch (error: any) {
+      console.error('Error generating inventory label:', error);
+      return { success: false as const, error: error.message || 'Error al generar la etiqueta' };
+    }
+  };
+
   const saveClient = async (client: Partial<Client>) => {
     try {
       await saveClientMutation({
@@ -336,6 +354,7 @@ export function useAteneaConvex() {
     addInventory,
     updateInventory,
     deleteInventory,
+    generateInventoryLabel,
     saveClient,
     deleteClient,
     emitirFactura,

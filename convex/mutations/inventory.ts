@@ -2,6 +2,7 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { computeStockTotal } from "../lib/stockHelpers";
 import { getAuthUserId } from "../lib/auth";
+import { generateInventoryCode } from "../lib/inventoryCode";
 
 export const addInventory = mutation({
   args: {
@@ -34,6 +35,11 @@ export const addInventory = mutation({
       sku: args.sku,
       barcode: args.barcode,
     });
+
+    // Código interno (QR/etiqueta) — se autogenera si no lo pasaron a mano.
+    if (!args.barcode) {
+      await ctx.db.patch(inventoryId, { barcode: generateInventoryCode(inventoryId) });
+    }
 
     // Registrar movimiento inicial para cada talle con stock
     for (const [size, qty] of Object.entries(args.sizes)) {
@@ -133,6 +139,31 @@ export const updateInventory = mutation({
     }
 
     await ctx.db.patch(args.id, patch);
+  },
+});
+
+/**
+ * ensureInventoryBarcode: backfill perezoso. Si el item (creado antes de
+ * esta feature) todavía no tiene código, se lo genera y devuelve. Si ya
+ * tiene, lo devuelve tal cual — así "Generar etiqueta" siempre puede llamar
+ * a esto primero sin preocuparse por el estado previo del item.
+ */
+export const ensureInventoryBarcode = mutation({
+  args: { id: v.id("inventory") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== userId) {
+      throw new Error("Producto no encontrado");
+    }
+
+    if (existing.barcode) return existing.barcode;
+
+    const code = generateInventoryCode(id);
+    await ctx.db.patch(id, { barcode: code });
+    return code;
   },
 });
 

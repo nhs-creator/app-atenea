@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
-import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
 import InventoryReporte from './inventory/InventoryReporte';
@@ -12,24 +12,37 @@ interface InventoryViewProps {
   onAdd: (data: InventoryFormData) => void | Promise<unknown>;
   onUpdate: (item: InventoryItem) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
+  onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
 }
 
-const InventoryCard = React.memo(({ 
-  item, 
+const InventoryCard = React.memo(({
+  item,
   onEdit,
-  onDeleteRequest, 
-  deleteConfirmId, 
+  onDeleteRequest,
+  deleteConfirmId,
   setDeleteConfirmId,
-  onShowHistory
-}: { 
-  item: InventoryItem, 
+  onShowHistory,
+  onGenerateLabel,
+}: {
+  item: InventoryItem,
   onEdit: (item: InventoryItem) => void,
   onDeleteRequest: (id: string) => void,
   deleteConfirmId: string | null,
   setDeleteConfirmId: (id: string | null) => void,
-  onShowHistory: (id: string, name: string) => void
+  onShowHistory: (id: string, name: string) => void,
+  onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
 }) => {
-  
+  const [generatingLabel, setGeneratingLabel] = useState(false);
+
+  const handleGenerateLabel = async () => {
+    if (!onGenerateLabel || generatingLabel) return;
+    setGeneratingLabel(true);
+    const res = await onGenerateLabel(item);
+    setGeneratingLabel(false);
+    if (!res.success) alert(res.error || 'Error al generar la etiqueta');
+  };
+
+
   const realStock = useMemo(() => {
     return Object.values(item.sizes || {}).reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
   }, [item.sizes]);
@@ -95,15 +108,26 @@ const InventoryCard = React.memo(({
         
         {/* Compact Actions Area */}
         <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100">
-          <button 
-            onClick={() => onShowHistory(item.id, item.name)} 
+          {onGenerateLabel && (
+            <button
+              onClick={handleGenerateLabel}
+              disabled={generatingLabel}
+              className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-white rounded-xl transition-all active:scale-90 disabled:opacity-50"
+              aria-label="Generar etiqueta"
+              title="Generar etiqueta con QR"
+            >
+              <QrCode className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            onClick={() => onShowHistory(item.id, item.name)}
             className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all active:scale-90"
             aria-label="Historial"
             title="Ver historial de movimientos"
           >
             <History className="w-5 h-5" />
           </button>
-          <button 
+          <button
             onClick={() => onEdit(item)} 
             className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white rounded-xl transition-all active:scale-90"
             aria-label="Editar"
@@ -134,7 +158,7 @@ const InventoryCard = React.memo(({
   );
 });
 
-const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete }) => {
+const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
   
@@ -378,30 +402,12 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
               </select>
             </div>
 
-            {/* SKU/Barcode fields hidden for future QR implementation
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">SKU (Opcional)</label>
-                <input 
-                  type="text" 
-                  value={formData.sku || ''} 
-                  onChange={(e) => setFormData({...formData, sku: e.target.value.toUpperCase()})} 
-                  placeholder="Ej: SKU-001" 
-                  className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-mono uppercase focus:border-primary outline-none transition-all" 
-                />
+            {editingId && formData.barcode && (
+              <div className="flex items-center justify-between bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3">
+                <span className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Código interno</span>
+                <span className="text-sm font-mono font-black text-violet-700">{formData.barcode}</span>
               </div>
-              <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Código de Barras (Opcional)</label>
-                <input 
-                  type="text" 
-                  value={formData.barcode || ''} 
-                  onChange={(e) => setFormData({...formData, barcode: e.target.value})} 
-                  placeholder="1234567890123" 
-                  className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-mono focus:border-primary outline-none transition-all" 
-                />
-              </div>
-            </div>
-            */}
+            )}
 
             <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
               <label className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-2">
@@ -506,6 +512,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   deleteConfirmId={deleteConfirmId}
                   setDeleteConfirmId={setDeleteConfirmId}
                   onShowHistory={(id, name) => setShowMovements({id, name})}
+                  onGenerateLabel={onGenerateLabel}
                 />
               ))
             )}
