@@ -50,6 +50,19 @@ export function isPrinterConnected(): boolean {
   return !!client?.isConnected();
 }
 
+/**
+ * Safari/WebKit (todo navegador en iOS, Chrome incluido — Apple obliga a
+ * usar su motor) nunca implementó la Web Bluetooth API. No es un bug de
+ * conexión ni un tema de filtros: `navigator.bluetooth` directamente no
+ * existe ahí, así que imprimir por Bluetooth desde la web es imposible en
+ * iPhone/iPad sin envolver la app como app nativa. Chequeamos esto antes de
+ * intentar conectar para poder ofrecer el flujo de "Compartir" como
+ * alternativa en vez de tirar un error de Bluetooth genérico y confuso.
+ */
+export function isWebBluetoothSupported(): boolean {
+  return typeof navigator !== 'undefined' && !!(navigator as any).bluetooth;
+}
+
 /** Abre el selector nativo de Bluetooth del navegador y conecta con la impresora elegida. */
 export async function connectPrinter(): Promise<void> {
   try {

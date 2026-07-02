@@ -63,6 +63,11 @@ export async function generateInventoryLabel(data: InventoryLabelData): Promise<
   ctx.fillStyle = '#0f172a';
   ctx.textBaseline = 'top';
 
+  // Todo en negro puro: las impresoras térmicas (NIIMBOT) son monocromáticas —
+  // cualquier color no-negro se convierte a gris con dithering y sale borroso
+  // (confirmado con una impresión real). Nada de tonos "casi negro" tampoco.
+  ctx.fillStyle = '#000000';
+
   ctx.font = 'bold 32px sans-serif';
   const nameLines = wrapText(ctx, data.productName.toUpperCase(), textMaxWidth, 2);
   let y = MARGIN + 6;
@@ -73,13 +78,16 @@ export async function generateInventoryLabel(data: InventoryLabelData): Promise<
 
   y += 10;
   ctx.font = 'bold 38px sans-serif';
-  ctx.fillStyle = '#4f46e5';
   ctx.fillText(`$${Math.round(data.price).toLocaleString('es-AR')}`, textX, y);
 
   ctx.font = '22px monospace';
-  ctx.fillStyle = '#64748b';
   ctx.fillText(data.code, textX, LABEL_HEIGHT - MARGIN - 26);
 
+  return canvasToBlob(canvas);
+}
+
+/** Convierte cualquier canvas de etiqueta a PNG, para compartir/descargar. */
+export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);

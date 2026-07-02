@@ -10,8 +10,9 @@ import {
   inventoryLabelFilename,
   shareOrDownloadInventoryLabel,
   printInventoryLabelCanvas,
+  canvasToBlob,
 } from '../lib/generateInventoryLabel';
-import { printLabel } from '../lib/niimbotPrint';
+import { printLabel, isWebBluetoothSupported } from '../lib/niimbotPrint';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -295,6 +296,18 @@ export function useAteneaConvex() {
     try {
       const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
       const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+
+      // iPhone/iPad (cualquier navegador, por la restricción de WebKit) no
+      // soporta Bluetooth desde la web — ahí no tiene sentido ni intentar
+      // conectar. En vez de mostrar un error de Bluetooth, mandamos la
+      // etiqueta ya armada al tamaño real del rollo (12x40mm) por el share
+      // sheet, para que la importe en la app oficial de Niimbot.
+      if (!isWebBluetoothSupported()) {
+        const blob = await canvasToBlob(canvas);
+        await shareOrDownloadInventoryLabel(blob, inventoryLabelFilename(code));
+        return { success: true as const };
+      }
+
       await printLabel(canvas);
       return { success: true as const };
     } catch (error: any) {
