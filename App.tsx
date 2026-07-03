@@ -14,6 +14,7 @@ import { useAteneaConvex } from './hooks/useAteneaConvex';
 // Componentes
 import SalesForm from './components/SalesForm';
 import SalesList from './components/SalesList';
+import FacturarModal from './components/FacturarModal';
 import ExpenseForm from './components/ExpenseForm';
 import ExpenseList from './components/ExpenseList';
 import InventoryView from './components/InventoryView';
@@ -26,9 +27,9 @@ import AccountantDesktopView from './components/accountant/AccountantDesktopView
 import OwnerDesktopView from './components/owner/OwnerDesktopView';
 
 // Iconos
-import { 
-  PlusCircle, List, BarChart2, ShoppingBag, LogOut, 
-  ArrowUpCircle, ArrowDownCircle, Package, Receipt, Settings, Users, Sparkles
+import {
+  PlusCircle, List, BarChart2, ShoppingBag, LogOut,
+  ArrowUpCircle, ArrowDownCircle, Package, Receipt, Settings, Users, Sparkles, FileText, X
 } from 'lucide-react';
 import { 
   DEFAULT_PRODUCT_CATEGORIES, DEFAULT_CATEGORY_MAP, DEFAULT_MATERIALS,
@@ -91,7 +92,22 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
   const [toastMessage, setToastMessage] = useState<{msg: string, voucher?: any} | null>(null);
+  // Oferta de facturar apenas se confirma una venta con clienta + pago no-efectivo
+  // (casi siempre es porque la clienta lo pidió en el momento). No se auto-cierra —
+  // se queda hasta que ella la toca o la descarta a mano.
+  const [facturarOffer, setFacturarOffer] = useState<{
+    clientNumber: string; total: number;
+    items: { product_name: string; quantity: number; price: number; size?: string }[];
+    clientName?: string;
+    paymentMethods: { method: string; amount: number }[];
+  } | null>(null);
+  const [showFacturarModal, setShowFacturarModal] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 1180px)');
+
+  // Si se cambia de pestaña, la oferta de facturar de la venta anterior ya no aplica.
+  useEffect(() => {
+    setFacturarOffer(null);
+  }, [activeTab]);
 
   // 1. Persistencia Global
   const [saleDraft, setSaleDraft] = useLocalStorage<MultiSaleData>('atenea_sale_draft', initialSaleDraft);
@@ -209,6 +225,27 @@ const App: React.FC = () => {
       }
 
       showToast(data.isEdit ? "¡Actualizado!" : "¡Venta registrada!", res.voucher);
+
+      // Ofrecer facturar solo cuando es casi seguro que tiene sentido: hay clienta
+      // cargada (la razón real por la que se facturaría en el momento) y hay algo
+      // no-efectivo para facturar (el efectivo nunca se factura).
+      const hasClient = !!(data.clientId || data.clientDraft?.name);
+      const totalFacturable = data.payments
+        .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
+        .reduce((sum, p) => sum + p.amount, 0);
+      if (!data.isEdit && hasClient && totalFacturable > 0) {
+        const clientForOffer = data.clientId
+          ? atenea.clients.find(c => c.id === data.clientId)
+          : { name: data.clientDraft?.name };
+        setFacturarOffer({
+          clientNumber: res.client_number,
+          total: totalFacturable,
+          items: data.items.map(i => ({ product_name: i.product, quantity: i.quantity, price: i.finalPrice, size: i.size })),
+          clientName: clientForOffer?.name,
+          paymentMethods: data.payments.map(p => ({ method: p.method, amount: p.amount })),
+        });
+      }
+
       setSaleDraft(initialSaleDraft);
       setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     }
@@ -396,6 +433,30 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {facturarOffer && (
+          <div className="fixed top-36 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
+            <div className="bg-indigo-600 text-white pl-4 pr-2 py-2 rounded-2xl shadow-2xl flex items-center gap-3">
+              <FileText className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-black uppercase tracking-widest">¿Facturar esta venta?</span>
+              <button onClick={() => setShowFacturarModal(true)} className="bg-white text-indigo-600 px-3 h-8 rounded-lg text-[10px] font-black uppercase active:scale-90 transition-all">Facturar</button>
+              <button onClick={() => setFacturarOffer(null)} className="p-1.5 text-indigo-200 hover:text-white active:scale-90 transition-all" aria-label="Descartar"><X className="w-4 h-4" /></button>
+            </div>
+          </div>
+        )}
+
+        {showFacturarModal && facturarOffer && (
+          <FacturarModal
+            clientNumber={facturarOffer.clientNumber}
+            total={facturarOffer.total}
+            items={facturarOffer.items}
+            clientName={facturarOffer.clientName}
+            paymentMethods={facturarOffer.paymentMethods}
+            afipConfig={atenea.afipConfig}
+            onClose={() => { setShowFacturarModal(false); setFacturarOffer(null); }}
+            onEmitir={atenea.emitirFactura}
+          />
+        )}
       </>
     );
   }
@@ -524,6 +585,30 @@ const App: React.FC = () => {
             <span className="text-xs font-black uppercase tracking-widest">{toastMessage.msg}</span>
           </div>
         </div>
+      )}
+
+      {facturarOffer && (
+        <div className="fixed top-36 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
+          <div className="bg-indigo-600 text-white pl-4 pr-2 py-2 rounded-2xl shadow-2xl flex items-center gap-3">
+            <FileText className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-black uppercase tracking-widest">¿Facturar esta venta?</span>
+            <button onClick={() => setShowFacturarModal(true)} className="bg-white text-indigo-600 px-3 h-8 rounded-lg text-[10px] font-black uppercase active:scale-90 transition-all">Facturar</button>
+            <button onClick={() => setFacturarOffer(null)} className="p-1.5 text-indigo-200 hover:text-white active:scale-90 transition-all" aria-label="Descartar"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
+      {showFacturarModal && facturarOffer && (
+        <FacturarModal
+          clientNumber={facturarOffer.clientNumber}
+          total={facturarOffer.total}
+          items={facturarOffer.items}
+          clientName={facturarOffer.clientName}
+          paymentMethods={facturarOffer.paymentMethods}
+          afipConfig={atenea.afipConfig}
+          onClose={() => { setShowFacturarModal(false); setFacturarOffer(null); }}
+          onEmitir={atenea.emitirFactura}
+        />
       )}
     </div>
   );

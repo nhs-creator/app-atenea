@@ -72,6 +72,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
     clientNumber: string; total: number;
     items: { product_name: string; quantity: number; price: number; size?: string }[];
     clientName?: string;
+    paymentMethods: { method: string; amount: number }[];
   } | null>(null);
   const [detailTarget, setDetailTarget] = useState<{ factura: Invoice; items: Sale[]; totalVenta: number; firstSale: Sale; isAnulada: boolean } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -351,6 +352,9 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                               size: i.size,
                             })),
                             clientName: firstSale.client_name,
+                            paymentMethods: (firstSale.payment_details || [])
+                              .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
+                              .map(p => ({ method: p.method, amount: p.amount })),
                           })}
                           title={totalFacturable < totalCobrado ? `Factura $${totalFacturable.toLocaleString('es-AR')} sin efectivo` : undefined}
                           className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"
@@ -384,6 +388,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
           total={facturarTarget.total}
           items={facturarTarget.items}
           clientName={facturarTarget.clientName}
+          paymentMethods={facturarTarget.paymentMethods}
           afipConfig={afipConfig}
           onClose={() => setFacturarTarget(null)}
           onEmitir={onFacturar}

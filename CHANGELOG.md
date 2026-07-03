@@ -10,6 +10,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Añadido
 
+- **Oferta de facturar al confirmar una venta**: si la venta tiene clienta cargada y algo no-efectivo para facturar (el efectivo nunca se factura), aparece un aviso persistente "¿Facturar esta venta?" con un botón — no se auto-abre ni se auto-cierra, es 100% opcional cada vez. Al tocarlo, abre el mismo `FacturarModal` de siempre. El modal ahora también muestra un resumen (clienta, productos, medios de pago) antes de emitir, no solo el total — mejora que aplica también al "Facturar" ya existente en Historial.
+
 - **Detalle de factura con 3 formas de compartir**: la fila de "Factura emitida" en Historial ahora abre un modal (`components/sales/InvoiceDetailModal.tsx`) con: "Ver PDF adentro de la app" (visor inline vía `<iframe>` con blob URL, no existía antes), "Compartir a [clienta]" (si la venta ya tiene clienta vinculada, abre directo su chat de WhatsApp — `lib/whatsappLink.ts` arma la URL `wa.me` a partir del teléfono guardado — y deja el PDF listo para adjuntar), y "Compartir a nueva clienta" (busca o carga una clienta ahí mismo, la vincula a la venta con la nueva mutation `linkClientToTransaction`, y sigue el mismo camino de WhatsApp). "Anular (NC)" se mudó adentro de este modal, como acción secundaria al final — antes competía visualmente con "Compartir".
 
 - **Vista previa antes de imprimir**: "Imprimir etiqueta" ahora muestra primero la imagen exacta de la etiqueta (QR + precio + nombre) en un modal con Confirmar/Cancelar, en vez de imprimir directo — evita gastar una etiqueta física por un error de tipeo. `components/inventory/LabelPreviewModal.tsx`, `hooks/useAteneaConvex.ts::previewInventoryLabel`.

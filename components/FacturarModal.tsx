@@ -32,12 +32,14 @@ interface FacturarModalProps {
   total: number;
   items: FacturaPdfItem[];
   clientName?: string;
+  /** Medios de pago de la venta — solo para mostrar el detalle antes de emitir. */
+  paymentMethods?: { method: string; amount: number }[];
   afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onClose: () => void;
   onEmitir: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
 }
 
-const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, items, clientName, afipConfig, onClose, onEmitir }) => {
+const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, items, clientName, paymentMethods, afipConfig, onClose, onEmitir }) => {
   const [docTipo, setDocTipo] = useState(99);
   const [docNro, setDocNro] = useState('');
   const [condicionIva, setCondicionIva] = useState(5);
@@ -140,6 +142,34 @@ const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, item
             </div>
           ) : (
             <>
+              <div className="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 space-y-3">
+                {clientName && (
+                  <p className="text-xs font-black text-indigo-700 uppercase">Clienta: {clientName}</p>
+                )}
+                <div className="space-y-1">
+                  {items.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs font-bold text-slate-600">
+                      <span className="truncate uppercase pr-4">
+                        {item.quantity > 1 && <span className="text-indigo-500 mr-1">{item.quantity}x</span>}
+                        {item.product_name}
+                        {item.size && item.size !== 'U' && <span className="text-[9px] text-slate-400 font-black ml-1">({item.size})</span>}
+                      </span>
+                      <span className="font-black text-slate-800 shrink-0">${(item.price * item.quantity).toLocaleString('es-AR')}</span>
+                    </div>
+                  ))}
+                </div>
+                {paymentMethods && paymentMethods.length > 0 && (
+                  <div className="pt-2 border-t border-indigo-100 space-y-1">
+                    {paymentMethods.map((p, i) => (
+                      <div key={i} className="flex justify-between items-center text-[10px] font-black text-indigo-500 uppercase tracking-tighter">
+                        <span>{p.method}</span>
+                        <span>${p.amount.toLocaleString('es-AR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-slate-50 rounded-xl p-3 flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase">Total a facturar</span>
                 <span className="text-lg font-black text-slate-800">${total.toLocaleString('es-AR')}</span>
