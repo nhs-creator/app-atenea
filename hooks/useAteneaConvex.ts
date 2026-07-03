@@ -138,6 +138,7 @@ export function useAteneaConvex() {
   // --- Mutations ---
   const saveMultiSaleMutation = useMutation(api.mutations.sales.saveMultiSale);
   const deleteTransactionMutation = useMutation(api.mutations.sales.deleteTransaction);
+  const linkClientToTransactionMutation = useMutation(api.mutations.sales.linkClientToTransaction);
   const saveExpenseMutation = useMutation(api.mutations.expenses.saveExpense);
   const deleteExpenseMutation = useMutation(api.mutations.expenses.deleteExpense);
   const addInventoryMutation = useMutation(api.mutations.inventory.addInventory);
@@ -190,6 +191,16 @@ export function useAteneaConvex() {
       await deleteTransactionMutation({ clientNumber });
     } catch (error: any) {
       alert(error.message || 'No se pudo borrar la venta');
+    }
+  };
+
+  /** Vincula (o crea y vincula) una clienta a una transacción ya existente — para cuando pide la factura después de la venta. */
+  const linkClientToTransaction = async (clientNumber: string, clientId?: string, clientDraft?: { name: string; lastName: string; phone: string; email?: string }) => {
+    try {
+      await linkClientToTransactionMutation({ clientNumber, clientId, clientDraft });
+      return { success: true as const };
+    } catch (error: any) {
+      return { success: false as const, error: error.message || 'No se pudo vincular la clienta' };
     }
   };
 
@@ -424,6 +435,7 @@ export function useAteneaConvex() {
     isSyncing,
     saveMultiSale,
     deleteTransaction,
+    linkClientToTransaction,
     saveExpense,
     deleteExpense,
     fetchData,

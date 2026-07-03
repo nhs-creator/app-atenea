@@ -247,6 +247,62 @@ export const saveMultiSale = mutation({
 });
 
 /**
+ * Vincula (o cambia) la clienta de una transacción ya existente, sin tocar
+ * items/pagos/fechas — mucho más liviana que pasar por saveMultiSale para
+ * esto solo. Pensada para cuando una clienta pide la factura después de la
+ * venta y todavía no había quedado cargada.
+ */
+export const linkClientToTransaction = mutation({
+  args: {
+    clientNumber: v.string(),
+    clientId: v.optional(v.string()),
+    clientDraft: v.optional(v.object({
+      name: v.string(),
+      lastName: v.string(),
+      phone: v.string(),
+      email: v.optional(v.string()),
+    })),
+  },
+  returns: v.id("clients"),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    let finalClientId: Id<"clients"> | undefined = args.clientId
+      ? (args.clientId as Id<"clients">)
+      : undefined;
+
+    if (args.clientDraft && !finalClientId) {
+      finalClientId = await ctx.db.insert("clients", {
+        userId,
+        name: args.clientDraft.name.toUpperCase(),
+        lastName: args.clientDraft.lastName.toUpperCase(),
+        phone: args.clientDraft.phone,
+        email: args.clientDraft.email?.toLowerCase(),
+        totalSpent: 0,
+      });
+    }
+
+    if (!finalClientId) throw new Error("Falta clientId o clientDraft");
+
+    const sales = await ctx.db
+      .query("sales")
+      .withIndex("by_userId_clientNumber", (q) =>
+        q.eq("userId", userId).eq("clientNumber", args.clientNumber)
+      )
+      .collect();
+
+    for (const sale of sales) {
+      await ctx.db.patch(sale._id, { clientId: finalClientId });
+    }
+
+    await syncClientStats(ctx, finalClientId);
+
+    return finalClientId;
+  },
+});
+
+/**
  * Elimina una transacción completa y restaura el stock.
  */
 export const deleteTransaction = mutation({

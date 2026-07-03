@@ -10,6 +10,7 @@ import AfipSection from './settings/AfipSection';
 import CatalogSection from './settings/CatalogSection';
 import SizesSection from './settings/SizesSection';
 import AppUpdateFooter from './settings/AppUpdateFooter';
+import LogoutButton from './settings/LogoutButton';
 
 interface SettingsViewProps {
   config: AppConfig;
@@ -176,6 +177,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
         <h2 className="text-xl font-bold text-slate-800 px-1">Ajustes</h2>
         <SettingsMenu onSelect={setActiveSection} />
         <AppUpdateFooter />
+        <LogoutButton />
       </div>
     );
   }

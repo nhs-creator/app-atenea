@@ -356,7 +356,7 @@ const App: React.FC = () => {
                 <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
               </div>
               {historyMode === 'sale' ? (
-                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} />
+                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} clients={atenea.clients} onLinkClient={atenea.linkClientToTransaction} />
               ) : (
                 <ExpenseList expenses={atenea.expenses} onDelete={atenea.deleteExpense} onEdit={handleEditExpense} />
               )}
@@ -408,23 +408,19 @@ const App: React.FC = () => {
     // al final del layout, sin depender de que el navegador recalcule un fixed.
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-slate-50 font-sans text-slate-800">
       <header className="shrink-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20"><ShoppingBag className="w-4 h-4 text-white" /></div>
-          <h1 className="font-bold text-lg italic">Atenea <span className="text-primary italic">Finanzas</span></h1>
-        </div>
-        <div className="flex items-center gap-2">
+        <h1 className="font-bold text-lg italic">Atenea <span className="text-primary italic">Finanzas</span></h1>
+        <div className="flex items-center gap-1">
           {userRole === 'accountant' && <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-tighter">Contador</span>}
           {userRole === 'owner' && (
-            <div className="flex items-center gap-1">
-              <button onClick={() => setActiveTab('customers')} className={`p-2 rounded-lg transition-all ${activeTab === 'customers' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:text-emerald-600 active:scale-90'}`} aria-label="Clientas">
-                <Users className="w-5 h-5" />
+            <>
+              <button onClick={() => setActiveTab('customers')} className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-all ${activeTab === 'customers' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:text-emerald-600 active:scale-90'}`} aria-label="Clientas">
+                <Users className="w-6 h-6" />
               </button>
-              <button onClick={() => setActiveTab('settings')} className={`p-2 rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:text-primary active:scale-90'}`} aria-label="Configuración">
-                <Settings className="w-5 h-5" />
+              <button onClick={() => setActiveTab('settings')} className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:text-primary active:scale-90'}`} aria-label="Configuración">
+                <Settings className="w-6 h-6" />
               </button>
-            </div>
+            </>
           )}
-          <button onClick={() => void signOut()} className="p-2 text-rose-400 hover:text-rose-600 active:scale-90 transition-all"><LogOut className="w-5 h-5" /></button>
         </div>
       </header>
 
@@ -466,7 +462,7 @@ const App: React.FC = () => {
               <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
             </div>
             {historyMode === 'sale' ? (
-              <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} />
+              <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} clients={atenea.clients} onLinkClient={userRole === 'owner' ? atenea.linkClientToTransaction : undefined} />
             ) : (
               <ExpenseList expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
             )}

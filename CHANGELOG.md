@@ -10,6 +10,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Añadido
 
+- **Detalle de factura con 3 formas de compartir**: la fila de "Factura emitida" en Historial ahora abre un modal (`components/sales/InvoiceDetailModal.tsx`) con: "Ver PDF adentro de la app" (visor inline vía `<iframe>` con blob URL, no existía antes), "Compartir a [clienta]" (si la venta ya tiene clienta vinculada, abre directo su chat de WhatsApp — `lib/whatsappLink.ts` arma la URL `wa.me` a partir del teléfono guardado — y deja el PDF listo para adjuntar), y "Compartir a nueva clienta" (busca o carga una clienta ahí mismo, la vincula a la venta con la nueva mutation `linkClientToTransaction`, y sigue el mismo camino de WhatsApp). "Anular (NC)" se mudó adentro de este modal, como acción secundaria al final — antes competía visualmente con "Compartir".
+
 - **Vista previa antes de imprimir**: "Imprimir etiqueta" ahora muestra primero la imagen exacta de la etiqueta (QR + precio + nombre) en un modal con Confirmar/Cancelar, en vez de imprimir directo — evita gastar una etiqueta física por un error de tipeo. `components/inventory/LabelPreviewModal.tsx`, `hooks/useAteneaConvex.ts::previewInventoryLabel`.
 - **Nombre en 2 líneas en la etiqueta**: si el nombre del producto no entra en 1 línea, prueba en 2 achicando la fuente dinámicamente antes de truncar con "…" (`lib/generateInventoryLabel.ts`).
 - **Impresión por USB/Serial solo en desarrollo**: botón "USB (test)" en el menú del lápiz, gateado por `import.meta.env.DEV` (no existe en el build de producción), para probar la impresora conectada por cable a la compu sin depender de un celular. Permitió detectar y corregir 2 bugs reales del pipeline de impresión (protocolo D110M mal detectado, y la imagen se mandaba sin rotar al cabezal — salía cortada y solo el QR). `lib/niimbotPrint.ts`.
@@ -22,6 +24,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Cambiado
 
 - **Talle en la etiqueta reubicado**: pasó de tener su propia línea arriba del precio a ser un badge chico en la esquina superior derecha, en la misma línea que el precio — libera una línea entera para el nombre del producto.
+- **Topbar simplificado**: se sacó el ícono de logo al lado del nombre y el botón de "Salir" (se mudó a Ajustes, ver abajo). Los botones de Clientas y Configuración se agrandaron a `min-w-[44px] min-h-[44px]` — eran chicos para tocar en mobile.
+- **Cerrar sesión pasó a Ajustes**: nuevo botón de ancho completo al final del menú principal (`components/settings/LogoutButton.tsx`), con confirmación antes de salir.
+- **Historial: lápiz con menú Editar/Borrar**: los botones separados "Borrar" y "Corregir" se unificaron en un solo botón de lápiz que abre un menú desplegable — mismo patrón ya usado en Stock. "Cambio" y "Facturar" quedan igual.
 
 ---
 

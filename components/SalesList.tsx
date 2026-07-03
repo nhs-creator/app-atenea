@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Sale, Invoice } from '../types';
+import { Sale, Invoice, Client } from '../types';
 import {
   Calendar, Package, Trash2, Edit3,
   RefreshCcw, CheckCircle2, AlertCircle, Search,
-  ChevronLeft, ChevronRight, X, Percent, Coins, FileText, Ban, Share2
+  ChevronLeft, ChevronRight, X, Percent, Coins, FileText
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import FacturarModal from './FacturarModal';
-import { generateFacturaPdf, facturaPdfFilename, shareOrDownloadFacturaPdf } from '../lib/generateFacturaPdf';
+import InvoiceDetailModal from './sales/InvoiceDetailModal';
 
 interface EmitirFacturaResult {
   success: boolean;
@@ -43,6 +43,8 @@ interface SalesListProps {
   afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onFacturar?: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
   onAnular?: (args: { invoiceId: string; motivo: string }) => Promise<EmitirNotaCreditoResult>;
+  clients?: Client[];
+  onLinkClient?: (clientNumber: string, clientId?: string, clientDraft?: { name: string; lastName: string; phone: string; email?: string }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -61,7 +63,7 @@ const STATUS_CONFIG = {
   cambio: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', icon: RefreshCcw, label: 'Cambio' }
 };
 
-const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, afipConfig, onFacturar, onAnular }) => {
+const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, afipConfig, onFacturar, onAnular, clients, onLinkClient }) => {
   const [searchTerm, setSearchTerm] = useLocalStorage('atenea_sales_list_search', '');
   const [monthKey, setMonthKey] = useLocalStorage('atenea_sales_list_month', getMonthKey(new Date()));
   const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
@@ -71,51 +73,8 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
     items: { product_name: string; quantity: number; price: number; size?: string }[];
     clientName?: string;
   } | null>(null);
-  const [ncTarget, setNcTarget] = useState<Invoice | null>(null);
-  const [ncMotivo, setNcMotivo] = useState('');
-  const [ncLoading, setNcLoading] = useState(false);
-  const [ncError, setNcError] = useState('');
-  const [sharingInvoiceId, setSharingInvoiceId] = useState<string | null>(null);
-
-  const handleShareFacturaPdf = async (
-    factura: Invoice,
-    items: Sale[],
-    totalVenta: number,
-    clientName?: string,
-  ) => {
-    if (!afipConfig) return;
-    setSharingInvoiceId(factura.id);
-    try {
-      const doc = await generateFacturaPdf({
-        fiscalNumber: factura.afip_fiscal_number,
-        cae: factura.afip_cae,
-        caeExpiration: factura.afip_cae_expiration,
-        qrData: factura.afip_qr_data,
-        importeTotal: factura.importe_total,
-        fecha: factura.created_at.slice(0, 10),
-        totalVenta,
-        items: items
-          .filter(i => i.product_name !== '💰 AJUSTE POR REDONDEO')
-          .map(i => ({ product_name: i.product_name, quantity: i.quantity, price: Number(i.price), size: i.size })),
-        docTipo: factura.doc_tipo,
-        docNro: factura.doc_nro,
-        condicionIvaReceptor: factura.condicion_iva_receptor,
-        clientName,
-        afipConfig: {
-          razonSocial: afipConfig.razonSocial,
-          nombreFantasia: afipConfig.nombreFantasia,
-          cuit: afipConfig.cuit,
-          domicilioComercial: afipConfig.domicilioComercial,
-          condicionIva: afipConfig.condicionIva,
-        },
-      });
-      await shareOrDownloadFacturaPdf(doc, facturaPdfFilename(factura.afip_fiscal_number));
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSharingInvoiceId(null);
-    }
-  };
+  const [detailTarget, setDetailTarget] = useState<{ factura: Invoice; items: Sale[]; totalVenta: number; firstSale: Sale; isAnulada: boolean } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // --- Facturas: solo la Factura C (tipo 11) indexa por clientNumber; las NC comparten el mismo client_number ---
   const facturaByClientNumber = useMemo(() => {
@@ -133,24 +92,6 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
     });
     return map;
   }, [invoices]);
-
-  const handleAnular = async () => {
-    if (!ncTarget || !onAnular) return;
-    if (!ncMotivo.trim()) {
-      setNcError('Ingresá un motivo');
-      return;
-    }
-    setNcError('');
-    setNcLoading(true);
-    const res = await onAnular({ invoiceId: ncTarget.id, motivo: ncMotivo.trim() });
-    setNcLoading(false);
-    if (res.success) {
-      setNcTarget(null);
-      setNcMotivo('');
-    } else {
-      setNcError(res.error || 'Error al emitir la nota de crédito');
-    }
-  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -343,8 +284,11 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
 
                   if (factura) {
                     return (
-                      <div className="px-4 py-2.5 flex items-center justify-between bg-indigo-50/60 border-t border-indigo-100">
-                        <div>
+                      <button
+                        onClick={() => setDetailTarget({ factura, items, totalVenta: totalCobrado, firstSale, isAnulada: !!nc })}
+                        className="w-full px-4 py-2.5 flex items-center justify-between bg-indigo-50/60 border-t border-indigo-100 active:bg-indigo-100/60 transition-colors"
+                      >
+                        <div className="text-left">
                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">
                             {nc ? 'Anulada por NC' : 'Factura emitida'}
                           </p>
@@ -352,25 +296,8 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                             {factura.afip_fiscal_number}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => handleShareFacturaPdf(factura, items, totalCobrado, firstSale.client_name)}
-                            disabled={!afipConfig || sharingInvoiceId === factura.id}
-                            aria-label="Compartir PDF"
-                            className="h-9 w-9 bg-white text-indigo-500 rounded-xl flex items-center justify-center border-2 border-indigo-100 active:scale-90 transition-all disabled:opacity-50"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </button>
-                          {!nc && onAnular && (
-                            <button
-                              onClick={() => { setNcTarget(factura); setNcMotivo(''); setNcError(''); }}
-                              className="h-9 px-3 bg-white text-rose-500 rounded-xl flex items-center gap-1.5 border-2 border-rose-100 active:scale-90 transition-all"
-                            >
-                              <Ban className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase">Anular (NC)</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">Ver detalle</span>
+                      </button>
                     );
                   }
 
@@ -383,9 +310,34 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                   const showFacturar = !facturaByClientNumber[clientNumber] && onFacturar
                     && firstSale.status === 'completed' && !isReturnTransaction && totalFacturable > 0;
                   return (
-                    <div className={`p-2 grid gap-2 bg-white/60 ${showFacturar ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                      <button onClick={() => { if(window.confirm('¿BORRAR VENTA?')) onDelete(clientNumber); }} className="h-11 bg-white text-rose-500 rounded-2xl flex items-center justify-center gap-2 border-2 border-rose-100 shadow-sm active:scale-90 transition-all"><Trash2 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Borrar</span></button>
-                      <button onClick={() => onEdit(firstSale)} className="h-11 bg-white text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"><Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Corregir</span></button>
+                    <div className={`p-2 grid gap-2 bg-white/60 ${showFacturar ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === clientNumber ? null : clientNumber)}
+                          className="w-full h-11 bg-white text-slate-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 shadow-sm active:scale-90 transition-all"
+                        >
+                          <Edit3 className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Editar</span>
+                        </button>
+                        {openMenuId === clientNumber && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+                            <div className="absolute left-0 bottom-14 z-50 bg-white rounded-2xl border border-slate-100 shadow-xl p-1.5 w-40 animate-in zoom-in-95 duration-150">
+                              <button
+                                onClick={() => { setOpenMenuId(null); onEdit(firstSale); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                              >
+                                <Edit3 className="w-4 h-4" /> Editar
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); if (window.confirm('¿BORRAR VENTA?')) onDelete(clientNumber); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-red-500 hover:bg-red-50 active:scale-[0.98] transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" /> Borrar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                       <button onClick={() => onReturn(firstSale)} className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"><RefreshCcw className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Cambio</span></button>
                       {showFacturar && (
                         <button
@@ -438,34 +390,21 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
         />
       )}
 
-      {ncTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm sm:m-4 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-800">Anular {ncTarget.afip_fiscal_number}</h3>
-              <button onClick={() => setNcTarget(null)} className="p-2 text-slate-400 hover:text-slate-600" aria-label="Cerrar"><X className="w-5 h-5" /></button>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Motivo</label>
-              <input
-                type="text"
-                value={ncMotivo}
-                onChange={(e) => setNcMotivo(e.target.value)}
-                placeholder="Ej: devolución de mercadería"
-                className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold"
-                autoFocus
-              />
-            </div>
-            {ncError && <p className="text-xs text-red-500 font-semibold">{ncError}</p>}
-            <button
-              onClick={handleAnular}
-              disabled={ncLoading}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50 active:scale-95 transition-all"
-            >
-              {ncLoading ? 'Emitiendo...' : 'Emitir Nota de Crédito'}
-            </button>
-          </div>
-        </div>
+      {detailTarget && afipConfig && (
+        <InvoiceDetailModal
+          factura={detailTarget.factura}
+          items={detailTarget.items}
+          totalVenta={detailTarget.totalVenta}
+          clientId={detailTarget.firstSale.client_id}
+          clientName={detailTarget.firstSale.client_name}
+          clientPhone={detailTarget.firstSale.client_phone}
+          isAnulada={detailTarget.isAnulada}
+          afipConfig={afipConfig}
+          clients={clients ?? []}
+          onLinkClient={onLinkClient ?? (async () => ({ success: false, error: 'No disponible' }))}
+          onAnular={onAnular}
+          onClose={() => setDetailTarget(null)}
+        />
       )}
     </div>
   );
