@@ -71,6 +71,11 @@ const InventoryCard = React.memo(({
     return res;
   };
 
+  const handlePrintClick = () => {
+    if (onPreviewLabel) { setShowPreview(true); return; }
+    handlePrintLabel().then((res) => { if (!res.success) alert(res.error || 'Error al imprimir la etiqueta'); });
+  };
+
   const handlePrintLabelUSB = async () => {
     if (!onPrintLabelUSB || printingLabelUSB) return;
     setPrintingLabelUSB(true);
@@ -144,17 +149,17 @@ const InventoryCard = React.memo(({
           <span className="text-2xl font-black leading-none">{realStock}</span>
         </div>
         
-        {/* Compact Actions Area: QR + lápiz (Editar/Historial/Eliminar quedan bajo el lápiz) */}
+        {/* Compact Actions Area: QR (imprimir directo) + lápiz (Editar/Historial/Generar etiqueta/Eliminar quedan bajo el lápiz) */}
         <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100 relative">
-          {onGenerateLabel && (
+          {onPrintLabel && (
             <button
-              onClick={handleGenerateLabel}
-              disabled={generatingLabel}
+              onClick={handlePrintClick}
+              disabled={printingLabel}
               className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-white rounded-xl transition-all active:scale-90 disabled:opacity-50"
-              aria-label="Generar etiqueta"
-              title="Generar etiqueta con QR"
+              aria-label="Imprimir etiqueta"
+              title="Imprimir etiqueta"
             >
-              <QrCode className="w-5 h-5" />
+              {printingLabel ? <Loader2 className="w-5 h-5 animate-spin" /> : <QrCode className="w-5 h-5" />}
             </button>
           )}
           <button
@@ -181,18 +186,14 @@ const InventoryCard = React.memo(({
                 >
                   <History className="w-4 h-4" /> Historial
                 </button>
-                {onPrintLabel && (
+                {onGenerateLabel && (
                   <button
-                    onClick={() => {
-                      setOpenMenuId(null);
-                      if (onPreviewLabel) setShowPreview(true);
-                      else handlePrintLabel().then((res) => { if (!res.success) alert(res.error || 'Error al imprimir la etiqueta'); });
-                    }}
-                    disabled={printingLabel}
+                    onClick={() => { setOpenMenuId(null); handleGenerateLabel(); }}
+                    disabled={generatingLabel}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-violet-600 hover:bg-violet-50 active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {printingLabel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                    {printingLabel ? 'Imprimiendo…' : 'Imprimir etiqueta'}
+                    {generatingLabel ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                    {generatingLabel ? 'Generando…' : 'Generar etiqueta'}
                   </button>
                 )}
                 {/* import.meta.env.DEV: solo en `npm run dev`, nunca en el build de producción — es únicamente para probar la impresión con la D110 enchufada por USB acá en la compu. */}
