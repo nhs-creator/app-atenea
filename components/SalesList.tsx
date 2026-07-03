@@ -191,7 +191,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
             const roundingAdjustment = items.find(i => i.product_name === '💰 AJUSTE POR REDONDEO');
             
             const totalCobrado = items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
-            // Si el efectivo se factura o no es configurable (Ajustes → AFIP).
+            // Si el efectivo se factura o no es configurable (Ajustes → ARCA).
             const totalFacturable = sumInvoiceablePayments(firstSale.payment_details || [], afipConfig?.facturarEfectivo ?? false);
 
             let totalDescuento10 = 0;
@@ -277,7 +277,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                   </div>
                 )}
 
-                {/* FACTURACIÓN AFIP */}
+                {/* FACTURACIÓN ARCA */}
                 {(() => {
                   const factura = facturaByClientNumber[clientNumber];
                   const nc = factura ? ncByInvoiceId[factura.id] : undefined;

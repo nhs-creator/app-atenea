@@ -18,7 +18,7 @@ const MonotributoSection: React.FC = () => {
   const [monoSeeding, setMonoSeeding] = useState(false);
 
   const handleSeedMono = async () => {
-    if (!window.confirm('¿Cargar la escala AFIP por defecto (categorías A a K)?')) return;
+    if (!window.confirm('¿Cargar la escala ARCA por defecto (categorías A a K)?')) return;
     setMonoSeeding(true);
     try {
       await seedMonoCategories();
@@ -72,14 +72,14 @@ const MonotributoSection: React.FC = () => {
       {monotributoCats.length === 0 ? (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
           <p className="text-xs font-bold text-emerald-700 mb-3">
-            Todavía no cargaste la escala. Inicializala con los valores actuales de AFIP (vas a poder editar cada fila después).
+            Todavía no cargaste la escala. Inicializala con los valores actuales de ARCA (vas a poder editar cada fila después).
           </p>
           <button
             onClick={handleSeedMono}
             disabled={monoSeeding}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-2 mx-auto disabled:opacity-50"
           >
-            {monoSeeding ? '...' : <><Plus className="w-3.5 h-3.5" /> Inicializar valores AFIP</>}
+            {monoSeeding ? '...' : <><Plus className="w-3.5 h-3.5" /> Inicializar valores ARCA</>}
           </button>
         </div>
       ) : (
@@ -121,7 +121,7 @@ const MonotributoSection: React.FC = () => {
               Escala completa
             </label>
             <p className="text-[10px] text-slate-500 mb-3">
-              Tocá el lápiz para editar el tope anual o el monto mensual de cualquier categoría. Actualizala cuando AFIP cambie los valores.
+              Tocá el lápiz para editar el tope anual o el monto mensual de cualquier categoría. Actualizala cuando ARCA cambie los valores.
             </p>
             <div className="space-y-1.5">
               {monotributoCats.map((c) => {

@@ -14,8 +14,8 @@ interface SectionMeta {
 export const SETTINGS_SECTIONS: SectionMeta[] = [
   { key: 'hours', title: 'Días que abre el local', description: 'Define qué días se muestran en el gráfico de tendencia de Reportes', icon: Store, iconColor: 'text-emerald-500' },
   { key: 'accountants', title: 'Contadoras', description: 'Creá una cuenta para tu contadora con email y contraseña', icon: UserPlus, iconColor: 'text-indigo-500' },
-  { key: 'monotributo', title: 'Monotributo', description: 'Escala AFIP de categorías y categoría actual', icon: FileBarChart, iconColor: 'text-emerald-500' },
-  { key: 'afip', title: 'Configuración AFIP', description: 'CUIT, punto de venta y credenciales para Factura C', icon: ShieldCheck, iconColor: 'text-indigo-500' },
+  { key: 'monotributo', title: 'Monotributo', description: 'Escala ARCA de categorías y categoría actual', icon: FileBarChart, iconColor: 'text-emerald-500' },
+  { key: 'afip', title: 'Configuración ARCA', description: 'CUIT, punto de venta y credenciales para Factura C', icon: ShieldCheck, iconColor: 'text-indigo-500' },
   { key: 'catalog', title: 'Gestión de Catálogo', description: 'Categorías, subcategorías y materiales', icon: List, iconColor: 'text-indigo-500' },
   { key: 'sizes', title: 'Gestión de Talles', description: 'Sistemas de talles y qué categoría usa cada uno', icon: Ruler, iconColor: 'text-amber-500' },
 ];

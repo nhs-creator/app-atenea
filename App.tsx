@@ -229,7 +229,7 @@ const App: React.FC = () => {
 
       // Mismo criterio que "Facturar" en Historial — no hace falta clienta
       // cargada, funciona igual con Consumidor Final. Si el efectivo se
-      // factura o no es configurable (Ajustes → AFIP → "Facturar efectivo").
+      // factura o no es configurable (Ajustes → ARCA → "Facturar efectivo").
       const totalFacturable = sumInvoiceablePayments(data.payments, atenea.afipConfig?.facturarEfectivo ?? false);
       if (!data.isEdit && totalFacturable > 0) {
         const clientForOffer = data.clientId

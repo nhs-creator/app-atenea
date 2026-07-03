@@ -17,7 +17,7 @@ const StatsAfipInvoiced: React.FC<StatsAfipInvoicedProps> = ({ monthLabel, total
         </div>
         <div>
           <p className="text-[10px] font-black text-violet-500 uppercase tracking-[0.15em]">
-            Facturado AFIP (real)
+            Facturado ARCA (real)
           </p>
           <p className="text-xs font-bold text-slate-400 capitalize">{monthLabel}</p>
         </div>

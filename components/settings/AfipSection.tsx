@@ -59,9 +59,9 @@ const AfipSection: React.FC = () => {
         certExpiration: afipCertExpiration || undefined,
         facturarEfectivo: afipFacturarEfectivo,
       });
-      alert('Configuración AFIP guardada correctamente.');
+      alert('Configuración ARCA guardada correctamente.');
     } catch (e: any) {
-      setAfipError(e.message || 'Error al guardar la configuración AFIP');
+      setAfipError(e.message || 'Error al guardar la configuración ARCA');
     } finally {
       setAfipSaving(false);
     }

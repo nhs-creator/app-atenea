@@ -37,7 +37,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
   const monthlyBilling = useQuery(api.queries.monotributo.listMonthlyBilling, {
     yearPrefix: String(year),
   }) ?? [];
-  // Facturado AFIP real (Facturas C netas de Notas de Crédito) — convive con el manual, no lo reemplaza.
+  // Facturado ARCA real (Facturas C netas de Notas de Crédito) — convive con el manual, no lo reemplaza.
   const afipInvoicedMap = useQuery(api.queries.invoices.listMonthlyInvoiced, {
     yearPrefix: String(year),
   }) ?? {};
@@ -350,7 +350,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
               <div className="text-[9px] font-black text-slate-700 uppercase tracking-tighter text-right">Total sin ef</div>
               <div className="text-[9px] font-black text-slate-700 uppercase tracking-tighter text-right">Total</div>
               <div className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter text-right">Facturado</div>
-              <div className="text-[9px] font-black text-violet-600 uppercase tracking-tighter text-right">Facturado AFIP</div>
+              <div className="text-[9px] font-black text-violet-600 uppercase tracking-tighter text-right">Facturado ARCA</div>
               <div className="text-[9px] font-black text-rose-500 uppercase tracking-tighter text-right">Dif sin facturar</div>
             </div>
 
@@ -419,7 +419,7 @@ const AccountantFiscal: React.FC<Props> = ({ sales }) => {
                       </button>
                     )}
                   </div>
-                  {/* Facturado AFIP — real, calculado a partir de las Facturas C emitidas */}
+                  {/* Facturado ARCA — real, calculado a partir de las Facturas C emitidas */}
                   <div className="text-xs font-black text-violet-700 text-right tracking-tighter">
                     {afipFacturado !== 0 ? `$${formatARS(afipFacturado)}` : '·'}
                   </div>
