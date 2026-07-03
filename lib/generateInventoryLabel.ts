@@ -180,30 +180,33 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   const textMaxWidth = PRINT_WIDTH - textX - PRINT_MARGIN;
   let blockY = PRINT_MARGIN + 8;
 
-  // El talle es tan importante como el precio para reconocer la prenda a
-  // simple vista — se muestra arriba de todo si viene informado. "UNICO" no
-  // aporta nada (categorías sin talles reales, ej. accesorios) así que se omite.
+  // El talle va en la esquina superior derecha, en la misma línea que el
+  // precio — un badge chico, no una línea propia. "UNICO" no aporta nada
+  // (categorías sin talles reales, ej. accesorios) así que se omite.
   const hasSize = !!data.size && data.size.trim().toUpperCase() !== 'UNICO';
+  let sizeTextWidth = 0;
   if (hasSize) {
     const sizeText = `TALLE ${data.size!.toUpperCase()}`;
-    let sizeFontSize = 18;
+    let sizeFontSize = 16;
     do {
       ctx.font = `bold ${sizeFontSize}px sans-serif`;
       sizeFontSize -= 1;
-    } while (ctx.measureText(sizeText).width > textMaxWidth && sizeFontSize > 10);
-    ctx.fillText(sizeText, textX, blockY);
-    blockY += sizeFontSize + 6;
+    } while (ctx.measureText(sizeText).width > textMaxWidth * 0.45 && sizeFontSize > 9);
+    sizeTextWidth = ctx.measureText(sizeText).width;
+    ctx.textAlign = 'right';
+    ctx.fillText(sizeText, PRINT_WIDTH - PRINT_MARGIN, blockY);
+    ctx.textAlign = 'left';
   }
 
-  // Con talle ocupando su propia línea, el precio y el nombre arrancan con
-  // fuentes máximas un poco más chicas para que las 3 líneas entren en los
-  // 12mm de alto reales de la etiqueta.
+  // El precio comparte la línea con el talle, así que su ancho disponible
+  // se reduce por lo que ya ocupa el badge del talle a la derecha.
+  const priceMaxWidth = textMaxWidth - (hasSize ? sizeTextWidth + 8 : 0);
   const priceText = `$${Math.round(data.price).toLocaleString('es-AR')}`;
-  let priceSize = hasSize ? 26 : 32;
+  let priceSize = 32;
   do {
     ctx.font = `bold ${priceSize}px sans-serif`;
     priceSize -= 1;
-  } while (ctx.measureText(priceText).width > textMaxWidth && priceSize > 16);
+  } while (ctx.measureText(priceText).width > priceMaxWidth && priceSize > 16);
   ctx.fillText(priceText, textX, blockY);
 
   // Nombre: hasta 2 líneas, achicando la fuente si con el tamaño más grande
@@ -211,7 +214,7 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   // con "…" en la última línea.
   const nameY = blockY + priceSize + 10;
   const upperName = data.productName.toUpperCase();
-  let nameSize = hasSize ? 13 : 15;
+  let nameSize = 15;
   let wrapped = { lines: [upperName], fits: false };
   do {
     ctx.font = `${nameSize}px sans-serif`;
