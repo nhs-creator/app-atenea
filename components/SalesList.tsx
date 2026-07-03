@@ -40,7 +40,7 @@ interface SalesListProps {
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
   invoices?: Invoice[];
-  afipConfig?: { razonSocial: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
+  afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onFacturar?: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
   onAnular?: (args: { invoiceId: string; motivo: string }) => Promise<EmitirNotaCreditoResult>;
 }
@@ -103,6 +103,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
         clientName,
         afipConfig: {
           razonSocial: afipConfig.razonSocial,
+          nombreFantasia: afipConfig.nombreFantasia,
           cuit: afipConfig.cuit,
           domicilioComercial: afipConfig.domicilioComercial,
           condicionIva: afipConfig.condicionIva,

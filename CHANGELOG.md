@@ -16,6 +16,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Elegir talle y cantidad de copias al imprimir**: la vista previa deja elegir el talle (si el producto tiene stock en más de uno) y cuántas copias imprimir — por defecto, tantas como stock tenga ese talle. El talle elegido se imprime en la etiqueta ("TALLE 38") arriba del precio.
 - **QR por talle**: el código que codifica el QR pasa a ser `{código de producto}-{talle}` en vez de solo el código de producto — al escanear la etiqueta en Ingresos, el talle se autoselecciona en vez de tener que elegirlo a mano. `item.barcode` no cambia (compatibilidad total con etiquetas viejas ya impresas, que siguen escaneando igual que antes). Nuevo `lib/inventoryLabelCode.ts` (`composeInventoryLabelCode`/`parseInventoryLabelCode`).
 - **Trackeo de etiquetas emitidas por talle**: nuevo campo `labelsPrinted` en `inventory` (talle → timestamp del último talle impreso/compartido). La vista previa marca con un check los talles que ya tienen etiqueta emitida y preselecciona por defecto el primero que le falta — reimprimir cualquier talle sigue siempre disponible. Nueva mutation `markInventoryLabelPrinted`.
+- **Nombre de fantasía en la factura**: nuevo campo opcional en Ajustes → AFIP. ARCA exige que la razón social (nombre legal, el monotributo es a título personal) figure en la factura, pero permite sumar el nombre del negocio al lado — como nuestro PDF es propio (no el oficial de AFIP), se imprime como título principal arriba de la razón social, que sigue apareciendo siempre debajo. `convex/schema.ts` (`afipConfig.nombreFantasia`), `lib/generateFacturaPdf.ts`.
+
+### Cambiado
+
+- **Talle en la etiqueta reubicado**: pasó de tener su propia línea arriba del precio a ser un badge chico en la esquina superior derecha, en la misma línea que el precio — libera una línea entera para el nombre del producto.
 
 ---
 

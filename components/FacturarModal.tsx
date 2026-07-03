@@ -32,7 +32,7 @@ interface FacturarModalProps {
   total: number;
   items: FacturaPdfItem[];
   clientName?: string;
-  afipConfig?: { razonSocial: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
+  afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
   onClose: () => void;
   onEmitir: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
 }
@@ -88,6 +88,7 @@ const FacturarModal: React.FC<FacturarModalProps> = ({ clientNumber, total, item
         clientName,
         afipConfig: {
           razonSocial: afipConfig.razonSocial,
+          nombreFantasia: afipConfig.nombreFantasia,
           cuit: afipConfig.cuit,
           domicilioComercial: afipConfig.domicilioComercial,
           condicionIva: afipConfig.condicionIva,

@@ -23,6 +23,10 @@ export interface FacturaPdfData {
   clientName?: string;
   afipConfig: {
     razonSocial: string;
+    /** Nombre del negocio (ej. "Atenea Moda y Accesorios"). ARCA exige que la
+     * razón social (nombre legal) igual figure — por eso siempre se muestra
+     * debajo, nunca en su reemplazo. */
+    nombreFantasia?: string;
     cuit: number;
     domicilioComercial: string;
     condicionIva: number;
@@ -54,13 +58,25 @@ export async function generateFacturaPdf(data: FacturaPdfData): Promise<jsPDF> {
   let y = 18;
 
   // --- Encabezado: datos del emisor ---
+  // Si hay nombre de fantasía, es el título principal y la razón social
+  // (nombre legal, obligatorio para ARCA) va debajo en chico — nunca la
+  // reemplaza, solo la acompaña.
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(data.afipConfig.razonSocial, marginX, y);
+  doc.text(data.afipConfig.nombreFantasia || data.afipConfig.razonSocial, marginX, y);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.text('FACTURA C', rightX, y, { align: 'right' });
+
+  if (data.afipConfig.nombreFantasia) {
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(data.afipConfig.razonSocial, marginX, y);
+    doc.setTextColor(0, 0, 0);
+  }
 
   y += 6;
   doc.setFont('helvetica', 'normal');

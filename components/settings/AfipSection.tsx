@@ -11,6 +11,7 @@ const AfipSection: React.FC = () => {
   const [afipCuit, setAfipCuit] = useState('');
   const [afipPuntoVenta, setAfipPuntoVenta] = useState('');
   const [afipRazonSocial, setAfipRazonSocial] = useState('');
+  const [afipNombreFantasia, setAfipNombreFantasia] = useState('');
   const [afipDomicilio, setAfipDomicilio] = useState('');
   const [afipCondicionIva, setAfipCondicionIva] = useState('6');
   const [afipInicioActividades, setAfipInicioActividades] = useState('');
@@ -28,6 +29,7 @@ const AfipSection: React.FC = () => {
       setAfipCuit(String(afipConfigData.cuit));
       setAfipPuntoVenta(String(afipConfigData.puntoVenta));
       setAfipRazonSocial(afipConfigData.razonSocial);
+      setAfipNombreFantasia(afipConfigData.nombreFantasia ?? '');
       setAfipDomicilio(afipConfigData.domicilioComercial);
       setAfipCondicionIva(String(afipConfigData.condicionIva));
       setAfipInicioActividades(afipConfigData.inicioActividades);
@@ -46,6 +48,7 @@ const AfipSection: React.FC = () => {
         cuit: parseInt(afipCuit.replace(/\D/g, ''), 10),
         puntoVenta: parseInt(afipPuntoVenta, 10),
         razonSocial: afipRazonSocial.trim(),
+        nombreFantasia: afipNombreFantasia.trim() || undefined,
         domicilioComercial: afipDomicilio.trim(),
         condicionIva: parseInt(afipCondicionIva, 10),
         inicioActividades: afipInicioActividades,
@@ -99,6 +102,11 @@ const AfipSection: React.FC = () => {
           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Punto de venta</label>
           <input type="number" value={afipPuntoVenta} onChange={(e) => setAfipPuntoVenta(e.target.value)} placeholder="2" className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold" />
         </div>
+      </div>
+      <div>
+        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nombre de fantasía (opcional)</label>
+        <input type="text" value={afipNombreFantasia} onChange={(e) => setAfipNombreFantasia(e.target.value)} placeholder="Atenea Moda y Accesorios" className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold" />
+        <p className="text-[10px] text-slate-500 mt-1">Aparece arriba del nombre legal en la factura. ARCA exige que la razón social igual figure.</p>
       </div>
       <div>
         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Razón social</label>

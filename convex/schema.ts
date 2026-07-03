@@ -208,6 +208,10 @@ export default defineSchema({
     cuit: v.number(),
     puntoVenta: v.number(),
     razonSocial: v.string(),
+    // Nombre del negocio (ej. "Atenea Moda y Accesorios") — ARCA exige que la razón
+    // social (nombre legal, monotributo = persona física) figure en la factura, pero
+    // permite sumar el nombre de fantasía al lado. Es solo visual en nuestro PDF propio.
+    nombreFantasia: v.optional(v.string()),
     domicilioComercial: v.string(),
     condicionIva: v.number(),
     inicioActividades: v.string(),

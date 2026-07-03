@@ -19,6 +19,7 @@ export const upsertConfig = mutation({
     cuit: v.number(),
     puntoVenta: v.number(),
     razonSocial: v.string(),
+    nombreFantasia: v.optional(v.string()),
     domicilioComercial: v.string(),
     condicionIva: v.number(),
     inicioActividades: v.string(),
