@@ -7,6 +7,7 @@ import InventoryFilters from './inventory/InventoryFilters';
 import InventoryReporte from './inventory/InventoryReporte';
 import ProductWizard from './inventory/ProductWizard';
 import InventoryVoiceAgent from './inventory/InventoryVoiceAgent';
+import LabelPreviewModal from './inventory/LabelPreviewModal';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
@@ -15,6 +16,7 @@ interface InventoryViewProps {
   onUpdate: (item: InventoryItem) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
+  onPreviewLabel?: (item: InventoryItem) => Promise<HTMLCanvasElement>;
   onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
   /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
   onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
@@ -28,6 +30,7 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId,
   onShowHistory,
   onGenerateLabel,
+  onPreviewLabel,
   onPrintLabel,
   onPrintLabelUSB,
   openMenuId,
@@ -40,6 +43,7 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId: (id: string | null) => void,
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
+  onPreviewLabel?: (item: InventoryItem) => Promise<HTMLCanvasElement>,
   onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
   onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
   openMenuId: string | null,
@@ -48,6 +52,7 @@ const InventoryCard = React.memo(({
   const [generatingLabel, setGeneratingLabel] = useState(false);
   const [printingLabel, setPrintingLabel] = useState(false);
   const [printingLabelUSB, setPrintingLabelUSB] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const menuOpen = openMenuId === item.id;
 
   const handleGenerateLabel = async () => {
@@ -59,12 +64,11 @@ const InventoryCard = React.memo(({
   };
 
   const handlePrintLabel = async () => {
-    if (!onPrintLabel || printingLabel) return;
+    if (!onPrintLabel) return { success: false, error: 'No disponible' };
     setPrintingLabel(true);
     const res = await onPrintLabel(item);
     setPrintingLabel(false);
-    setOpenMenuId(null);
-    if (!res.success) alert(res.error || 'Error al imprimir la etiqueta');
+    return res;
   };
 
   const handlePrintLabelUSB = async () => {
@@ -179,7 +183,11 @@ const InventoryCard = React.memo(({
                 </button>
                 {onPrintLabel && (
                   <button
-                    onClick={handlePrintLabel}
+                    onClick={() => {
+                      setOpenMenuId(null);
+                      if (onPreviewLabel) setShowPreview(true);
+                      else handlePrintLabel().then((res) => { if (!res.success) alert(res.error || 'Error al imprimir la etiqueta'); });
+                    }}
                     disabled={printingLabel}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-violet-600 hover:bg-violet-50 active:scale-[0.98] transition-all disabled:opacity-50"
                   >
@@ -220,11 +228,20 @@ const InventoryCard = React.memo(({
           </div>
         </div>
       )}
+
+      {showPreview && onPreviewLabel && (
+        <LabelPreviewModal
+          item={item}
+          buildCanvas={onPreviewLabel}
+          onConfirm={handlePrintLabel}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </div>
   );
 });
 
-const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPrintLabel, onPrintLabelUSB }) => {
+const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPreviewLabel, onPrintLabel, onPrintLabelUSB }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
   
@@ -605,6 +622,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   setDeleteConfirmId={setDeleteConfirmId}
                   onShowHistory={(id, name) => setShowMovements({id, name})}
                   onGenerateLabel={onGenerateLabel}
+                  onPreviewLabel={onPreviewLabel}
                   onPrintLabel={onPrintLabel}
                   onPrintLabelUSB={onPrintLabelUSB}
                   openMenuId={openMenuId}

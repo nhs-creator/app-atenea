@@ -8,7 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
-_(Los cambios futuros se documentan aquí hasta el próximo release.)_
+### Añadido
+
+- **Vista previa antes de imprimir**: "Imprimir etiqueta" ahora muestra primero la imagen exacta de la etiqueta (QR + precio + nombre) en un modal con Confirmar/Cancelar, en vez de imprimir directo — evita gastar una etiqueta física por un error de tipeo. `components/inventory/LabelPreviewModal.tsx`, `hooks/useAteneaConvex.ts::previewInventoryLabel`.
 
 ---
 

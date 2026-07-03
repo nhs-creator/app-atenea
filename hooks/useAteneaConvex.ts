@@ -292,10 +292,19 @@ export function useAteneaConvex() {
     }
   };
 
+  /** Arma el canvas de la etiqueta (asegurando el código de barras si todavía no existe) — compartido entre imprimir y previsualizar. */
+  const buildInventoryLabelCanvas = async (item: InventoryItem) => {
+    const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+    const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+    return { canvas, code };
+  };
+
+  /** Devuelve el canvas ya armado para mostrarlo antes de imprimir, sin conectar con nada. */
+  const previewInventoryLabel = async (item: InventoryItem) => (await buildInventoryLabelCanvas(item)).canvas;
+
   const printInventoryLabel = async (item: InventoryItem) => {
     try {
-      const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
-      const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+      const { canvas, code } = await buildInventoryLabelCanvas(item);
 
       // iPhone/iPad (cualquier navegador, por la restricción de WebKit) no
       // soporta Bluetooth desde la web — ahí no tiene sentido ni intentar
@@ -319,8 +328,7 @@ export function useAteneaConvex() {
   /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
   const printInventoryLabelUSB = async (item: InventoryItem) => {
     try {
-      const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
-      const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price });
+      const { canvas } = await buildInventoryLabelCanvas(item);
       await printLabelUSB(canvas);
       return { success: true as const };
     } catch (error: any) {
@@ -397,6 +405,7 @@ export function useAteneaConvex() {
     updateInventory,
     deleteInventory,
     generateInventoryLabel,
+    previewInventoryLabel,
     printInventoryLabel,
     printInventoryLabelUSB,
     saveClient,
