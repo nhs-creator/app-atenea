@@ -12,6 +12,35 @@ _(Los cambios futuros se documentan aquí hasta el próximo release.)_
 
 ---
 
+## [1.6.0] - 2026-07-02
+
+### Añadido
+
+- **Agente de voz para carga de inventario**: nuevo modo `"inventory"` del asistente conversacional (`convex/assistant/chat.ts`), con su propio prompt y set de tools (`convex/assistant/tools.ts`) separado del asistente de ventas. Botón de micrófono violeta en Stock (`InventoryVoiceAgent.tsx`) — ella describe la prenda con sus palabras, el agente arma la propuesta (categoría/subcategoría/material/talles/precio) y pide confirmación en un cartelito antes de guardar nada, igual que el flujo de ventas ya existente. Tabla `assistantInventoryProposals` con `kind: "create" | "update"`.
+- **Tool `list_size_options`**: el agente de voz consulta los talles válidos reales por categoría (`inventoryConstants.ts` → `getSizeOptionsForCategory`) en vez de asumir un rango de memoria — corrige un bug real donde "del 36 al 44" se cargó como 36,37,38...44 (impares que no existen) en vez de 36,38,40,42,44. La data categoría→sistema de talles, que estaba duplicada en 3 lugares del código (una copia ni se usaba), quedó consolidada en una sola fuente.
+- **Impresión térmica directa a la NIIMBOT D110/D110M** (`lib/niimbotPrint.ts`, `lib/generateInventoryLabel.ts`): botón "Imprimir etiqueta" en el menú del lápiz de cada producto.
+  - Bluetooth (Web Bluetooth) como vía principal — filtro de dispositivos permisivo (`acceptAllDevices`) porque el filtro por defecto de la librería no encontraba el modelo real.
+  - Detección automática del protocolo de impresión real (`D110` vs `D110M_V4`) vía `getPrintTaskType()` — el device real es un D110_M, que habla un protocolo de imagen distinto al D110 común.
+  - En iPhone (Safari/WebKit no implementa Web Bluetooth) cae automáticamente al flujo de compartir la etiqueta como imagen a la app oficial de Niimbot.
+  - Impresión por USB/Serial (Web Serial) como vía de testing — solo visible corriendo `npm run dev` (gateada por `import.meta.env.DEV`, confirmado que el build de producción la elimina del bundle).
+  - Etiqueta rediseñada al tamaño real del rollo (40x12mm, apaisada): QR + precio + nombre en 2 líneas con achique dinámico de fuente y truncado como último recurso, todo en negro puro (la impresora es monocromática).
+- **Campo "Detalle" libre en inventario**: texto opcional para lo que no entra en categoría/subcategoría/material (tela puntual, estampado, con qué combina), usado tanto por el wizard táctil como por el agente de voz.
+- **`OptionPicker`** (`components/inventory/OptionPicker.tsx`): componente compartido (variantes grid/chips) que reemplaza los `<select>` nativos tanto en el wizard de alta como en los filtros de Stock.
+
+### Cambiado
+
+- **Layout de la app a flexbox** (`h-[100dvh] flex-col`, `<main>` como único contenedor con scroll) en vez de nav con `position: fixed` — corrige que la barra inferior se rompiera y quedara flotando a mitad de pantalla en iOS al abrir/cerrar el teclado (PWA instalada).
+- **Card de inventario reorganizada**: de 4 botones visibles a 2 (etiqueta QR + lápiz) más un menú desplegable (Editar / Historial / Imprimir etiqueta / Eliminar) — doble confirmación para eliminar, sin long-press.
+- **Ajustes segmentado en menú navegable**: `SettingsView.tsx` pasó de un solo scroll de ~900 líneas con 6 secciones siempre expandidas a un menú tipo lista (ícono + título + descripción) que abre cada sección por separado, con botón de volver. Contadoras/Monotributo/AFIP quedaron como componentes autónomos en `components/settings/`.
+- **Transcripción de voz con vocabulario de dominio**: el prompt de Whisper (`convex/assistant/transcribe.ts`) incluye vocabulario de indumentaria para reducir errores de reconocimiento (ej. "jean" se transcribía como "Shin").
+- **Reglas de interpretación en el agente de voz**: precios dictados como números chicos se interpretan como miles ("treinta y ocho" = $38.000), y talles se validan contra `list_size_options` en vez de un rango fijo hardcodeado.
+
+### Notas
+
+- La impresión por Bluetooth quedó confirmada funcionando en Android, Windows de escritorio (Chrome) y iPhone (vía el navegador alternativo Bluefy, ya que Safari/WebKit no soporta Web Bluetooth). El flujo de compartir a la app de Niimbot sigue como respaldo en iPhone con Safari/Chrome normales.
+
+---
+
 ## [1.5.1] - 2026-04-08
 
 ### Añadido
