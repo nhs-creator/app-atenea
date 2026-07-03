@@ -111,7 +111,10 @@ export function inventoryLabelFilename(code: string): string {
 const PRINT_PX_PER_MM = 203 / 25.4;
 const PRINT_WIDTH = Math.round(40 * PRINT_PX_PER_MM);
 const PRINT_HEIGHT = Math.round(12 * PRINT_PX_PER_MM);
-const PRINT_MARGIN = 4;
+// El margen vertical (eje del cabezal, 12mm) venía muy justo — el QR
+// llegaba a tocar el borde físico y se cortaba un poco al imprimir en
+// real. Con 8px (~1mm) de aire de cada lado entra sin recortarse.
+const PRINT_MARGIN = 8;
 
 function truncateToFit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
