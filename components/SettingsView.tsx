@@ -9,6 +9,7 @@ import MonotributoSection from './settings/MonotributoSection';
 import AfipSection from './settings/AfipSection';
 import CatalogSection from './settings/CatalogSection';
 import SizesSection from './settings/SizesSection';
+import AppUpdateFooter from './settings/AppUpdateFooter';
 
 interface SettingsViewProps {
   config: AppConfig;
@@ -174,6 +175,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
       <div className="space-y-4 pb-10">
         <h2 className="text-xl font-bold text-slate-800 px-1">Ajustes</h2>
         <SettingsMenu onSelect={setActiveSection} />
+        <AppUpdateFooter />
       </div>
     );
   }
