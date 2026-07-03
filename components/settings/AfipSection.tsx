@@ -17,6 +17,7 @@ const AfipSection: React.FC = () => {
   const [afipInicioActividades, setAfipInicioActividades] = useState('');
   const [afipIibb, setAfipIibb] = useState('');
   const [afipIsProduction, setAfipIsProduction] = useState(false);
+  const [afipFacturarEfectivo, setAfipFacturarEfectivo] = useState(false);
   const [afipCertExpiration, setAfipCertExpiration] = useState('');
   const [afipLoaded, setAfipLoaded] = useState(false);
   const [afipSaving, setAfipSaving] = useState(false);
@@ -35,6 +36,7 @@ const AfipSection: React.FC = () => {
       setAfipInicioActividades(afipConfigData.inicioActividades);
       setAfipIibb(afipConfigData.iibb ?? '');
       setAfipIsProduction(afipConfigData.isProduction);
+      setAfipFacturarEfectivo(afipConfigData.facturarEfectivo ?? false);
       setAfipCertExpiration(afipConfigData.certExpiration ?? '');
       setAfipLoaded(true);
     }
@@ -55,6 +57,7 @@ const AfipSection: React.FC = () => {
         iibb: afipIibb.trim() || undefined,
         isProduction: afipIsProduction,
         certExpiration: afipCertExpiration || undefined,
+        facturarEfectivo: afipFacturarEfectivo,
       });
       alert('Configuración AFIP guardada correctamente.');
     } catch (e: any) {
@@ -144,6 +147,19 @@ const AfipSection: React.FC = () => {
           className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${afipIsProduction ? 'bg-red-500' : 'bg-slate-300'}`}
         >
           <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform ${afipIsProduction ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+        <div>
+          <p className="text-xs font-bold text-slate-700">Facturar efectivo</p>
+          <p className="text-[10px] text-slate-500">Apagado (default) = el efectivo nunca se factura, solo transferencia/débito/crédito</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAfipFacturarEfectivo(!afipFacturarEfectivo)}
+          className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${afipFacturarEfectivo ? 'bg-indigo-500' : 'bg-slate-300'}`}
+        >
+          <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform ${afipFacturarEfectivo ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
       </div>
       <div>

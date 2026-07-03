@@ -9,6 +9,7 @@ import {
 
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { sumInvoiceablePayments } from './lib/invoiceablePayments';
 import { useAteneaConvex } from './hooks/useAteneaConvex';
 
 // Componentes
@@ -226,12 +227,10 @@ const App: React.FC = () => {
 
       showToast(data.isEdit ? "¡Actualizado!" : "¡Venta registrada!", res.voucher);
 
-      // Mismo criterio que "Facturar" en Historial: alcanza con que haya algo
-      // no-efectivo para facturar (el efectivo nunca se factura) — no hace
-      // falta clienta cargada, funciona igual con Consumidor Final.
-      const totalFacturable = data.payments
-        .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
-        .reduce((sum, p) => sum + p.amount, 0);
+      // Mismo criterio que "Facturar" en Historial — no hace falta clienta
+      // cargada, funciona igual con Consumidor Final. Si el efectivo se
+      // factura o no es configurable (Ajustes → AFIP → "Facturar efectivo").
+      const totalFacturable = sumInvoiceablePayments(data.payments, atenea.afipConfig?.facturarEfectivo ?? false);
       if (!data.isEdit && totalFacturable > 0) {
         const clientForOffer = data.clientId
           ? atenea.clients.find(c => c.id === data.clientId)

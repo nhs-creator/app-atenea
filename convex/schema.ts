@@ -218,6 +218,10 @@ export default defineSchema({
     iibb: v.optional(v.string()),
     isProduction: v.boolean(),
     certExpiration: v.optional(v.string()),
+    // Regla de negocio configurable: por default el efectivo no se factura
+    // (caso original de Atenea), pero otros comercios pueden necesitar
+    // facturar todo, incluido efectivo.
+    facturarEfectivo: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"]),
 

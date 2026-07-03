@@ -26,6 +26,7 @@ export const upsertConfig = mutation({
     iibb: v.optional(v.string()),
     isProduction: v.boolean(),
     certExpiration: v.optional(v.string()),
+    facturarEfectivo: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

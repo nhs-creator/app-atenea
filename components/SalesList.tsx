@@ -8,6 +8,7 @@ import {
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import FacturarModal from './FacturarModal';
 import InvoiceDetailModal from './sales/InvoiceDetailModal';
+import { sumInvoiceablePayments, filterInvoiceablePayments } from '../lib/invoiceablePayments';
 
 interface EmitirFacturaResult {
   success: boolean;
@@ -40,7 +41,7 @@ interface SalesListProps {
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
   invoices?: Invoice[];
-  afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number } | null;
+  afipConfig?: { razonSocial: string; nombreFantasia?: string; cuit: number; domicilioComercial: string; condicionIva: number; facturarEfectivo?: boolean } | null;
   onFacturar?: (args: { clientNumber: string; docTipo: number; docNro: number; condicionIvaReceptor: number }) => Promise<EmitirFacturaResult>;
   onAnular?: (args: { invoiceId: string; motivo: string }) => Promise<EmitirNotaCreditoResult>;
   clients?: Client[];
@@ -190,10 +191,8 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
             const roundingAdjustment = items.find(i => i.product_name === '💰 AJUSTE POR REDONDEO');
             
             const totalCobrado = items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
-            // El efectivo no se factura — el importe a facturar es solo transferencia+débito+crédito.
-            const totalFacturable = (firstSale.payment_details || [])
-              .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
-              .reduce((sum, p) => sum + p.amount, 0);
+            // Si el efectivo se factura o no es configurable (Ajustes → AFIP).
+            const totalFacturable = sumInvoiceablePayments(firstSale.payment_details || [], afipConfig?.facturarEfectivo ?? false);
 
             let totalDescuento10 = 0;
             realProducts.forEach(p => {
@@ -352,11 +351,10 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                               size: i.size,
                             })),
                             clientName: firstSale.client_name,
-                            paymentMethods: (firstSale.payment_details || [])
-                              .filter(p => p.method === 'Transferencia' || p.method === 'Débito' || p.method === 'Crédito')
+                            paymentMethods: filterInvoiceablePayments(firstSale.payment_details || [], afipConfig?.facturarEfectivo ?? false)
                               .map(p => ({ method: p.method, amount: p.amount })),
                           })}
-                          title={totalFacturable < totalCobrado ? `Factura $${totalFacturable.toLocaleString('es-AR')} sin efectivo` : undefined}
+                          title={totalFacturable < totalCobrado ? `Factura $${totalFacturable.toLocaleString('es-AR')}${afipConfig?.facturarEfectivo ? '' : ' sin efectivo'}` : undefined}
                           className="h-11 bg-white hover:bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-90 transition-all"
                         >
                           <FileText className="w-4 h-4" /><span className="text-[9px] font-black uppercase">Facturar</span>

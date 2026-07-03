@@ -23,11 +23,13 @@ export const listSales = query({
  * agrupada por clientNumber y calcular el importe a facturar. Solo considera
  * ventas "completed" — no tiene sentido facturar una seña pendiente.
  *
- * IMPORTANTE: el efectivo no se factura (regla del negocio). El importe a
- * facturar es la suma de los medios de pago no-efectivo (Transferencia,
- * Débito, Crédito) de paymentDetails — NO el total de la venta. "Vale" tampoco
- * cuenta (no es un cobro real). Todas las líneas de una transacción comparten
- * el mismo paymentDetails, así que alcanza con mirar el de la primera.
+ * Por default el efectivo no se factura (regla de negocio original de Atenea —
+ * ventas en efectivo suelen no declararse), pero es configurable por comercio
+ * vía `afipConfig.facturarEfectivo` (para otros negocios que sí lo necesiten).
+ * El importe a facturar es la suma de los medios de pago que correspondan de
+ * paymentDetails — NO el total de la venta. "Vale" nunca cuenta (no es un
+ * cobro real). Todas las líneas de una transacción comparten el mismo
+ * paymentDetails, así que alcanza con mirar el de la primera.
  */
 export const getTransactionInternal = internalQuery({
   args: { userId: v.string(), clientNumber: v.string() },
@@ -42,8 +44,14 @@ export const getTransactionInternal = internalQuery({
     if (items.length === 0) return null;
     if (items[0].status !== "completed") return null;
 
+    const afipConfig = await ctx.db
+      .query("afipConfig")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    const facturarEfectivo = afipConfig?.facturarEfectivo ?? false;
+
     const importeTotal = items[0].paymentDetails
-      .filter((p) => p.method === "Transferencia" || p.method === "Débito" || p.method === "Crédito")
+      .filter((p) => p.method === "Transferencia" || p.method === "Débito" || p.method === "Crédito" || (facturarEfectivo && p.method === "Efectivo"))
       .reduce((sum, p) => sum + p.amount, 0);
 
     return { items, importeTotal, clientId: items[0].clientId };
