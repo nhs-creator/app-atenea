@@ -1,15 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { X, Printer, Loader2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Printer, Loader2, AlertCircle, Minus, Plus } from 'lucide-react';
 import { InventoryItem } from '../../types';
 
 interface LabelPreviewModalProps {
   item: InventoryItem;
-  buildCanvas: (item: InventoryItem) => Promise<HTMLCanvasElement>;
-  onConfirm: () => Promise<{ success: boolean; error?: string }>;
+  buildCanvas: (item: InventoryItem, size?: string) => Promise<HTMLCanvasElement>;
+  onConfirm: (opts: { size?: string; quantity: number }) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }
 
 const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas, onConfirm, onClose }) => {
+  const availableSizes = useMemo(
+    () => Object.entries(item.sizes || {})
+      .filter(([, qty]) => Number(qty) > 0)
+      .map(([size, qty]) => ({ size, qty: Number(qty) })),
+    [item.sizes]
+  );
+
+  const [selectedSize, setSelectedSize] = useState(availableSizes[0]?.size);
+  const [quantity, setQuantity] = useState(Math.max(1, availableSizes[0]?.qty || 1));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,9 +26,10 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
-        const canvas = await buildCanvas(item);
+        const canvas = await buildCanvas(item, selectedSize);
         if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'No se pudo generar la vista previa');
@@ -29,12 +39,17 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
+  }, [item.id, selectedSize]);
+
+  const handleSelectSize = (size: string, qty: number) => {
+    setSelectedSize(size);
+    setQuantity(Math.max(1, qty));
+  };
 
   const handleConfirm = async () => {
     setError('');
     setPrinting(true);
-    const res = await onConfirm();
+    const res = await onConfirm({ size: selectedSize, quantity });
     setPrinting(false);
     if (res.success) onClose();
     else setError(res.error || 'Error al imprimir la etiqueta');
@@ -61,6 +76,51 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
                 style={{ imageRendering: 'pixelated' }}
               />
             ) : null}
+          </div>
+
+          {availableSizes.length > 1 && (
+            <div className="mt-4">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Talle</label>
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map(({ size, qty }) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => handleSelectSize(size, qty)}
+                    className={`px-3 py-2 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${
+                      selectedSize === size
+                        ? 'bg-violet-600 border-violet-600 text-white'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-violet-300'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cantidad de copias</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center active:scale-90"
+                aria-label="Restar copia"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="flex-1 text-center text-lg font-black text-slate-800">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => q + 1)}
+                className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center active:scale-90"
+                aria-label="Sumar copia"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {error && (

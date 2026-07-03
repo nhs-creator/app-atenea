@@ -4,6 +4,8 @@ export interface InventoryLabelData {
   code: string;
   productName: string;
   price: number;
+  /** Talle a mostrar en la etiqueta (ej. "38", "M") — se omite si no se pasa o es "UNICO". */
+  size?: string;
 }
 
 // Etiqueta de cartón real: 9cm x 2.5cm. 10px/mm da buena resolución para el QR
@@ -176,10 +178,28 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
 
   const textX = PRINT_MARGIN + qrSize + 8;
   const textMaxWidth = PRINT_WIDTH - textX - PRINT_MARGIN;
-  const blockY = PRINT_MARGIN + 8;
+  let blockY = PRINT_MARGIN + 8;
 
+  // El talle es tan importante como el precio para reconocer la prenda a
+  // simple vista — se muestra arriba de todo si viene informado. "UNICO" no
+  // aporta nada (categorías sin talles reales, ej. accesorios) así que se omite.
+  const hasSize = !!data.size && data.size.trim().toUpperCase() !== 'UNICO';
+  if (hasSize) {
+    const sizeText = `TALLE ${data.size!.toUpperCase()}`;
+    let sizeFontSize = 18;
+    do {
+      ctx.font = `bold ${sizeFontSize}px sans-serif`;
+      sizeFontSize -= 1;
+    } while (ctx.measureText(sizeText).width > textMaxWidth && sizeFontSize > 10);
+    ctx.fillText(sizeText, textX, blockY);
+    blockY += sizeFontSize + 6;
+  }
+
+  // Con talle ocupando su propia línea, el precio y el nombre arrancan con
+  // fuentes máximas un poco más chicas para que las 3 líneas entren en los
+  // 12mm de alto reales de la etiqueta.
   const priceText = `$${Math.round(data.price).toLocaleString('es-AR')}`;
-  let priceSize = 32;
+  let priceSize = hasSize ? 26 : 32;
   do {
     ctx.font = `bold ${priceSize}px sans-serif`;
     priceSize -= 1;
@@ -191,7 +211,7 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   // con "…" en la última línea.
   const nameY = blockY + priceSize + 10;
   const upperName = data.productName.toUpperCase();
-  let nameSize = 15;
+  let nameSize = hasSize ? 13 : 15;
   let wrapped = { lines: [upperName], fits: false };
   do {
     ctx.font = `${nameSize}px sans-serif`;

@@ -16,10 +16,10 @@ interface InventoryViewProps {
   onUpdate: (item: InventoryItem) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
-  onPreviewLabel?: (item: InventoryItem) => Promise<HTMLCanvasElement>;
-  onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
+  onPreviewLabel?: (item: InventoryItem, size?: string) => Promise<HTMLCanvasElement>;
+  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>;
   /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
-  onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
+  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryCard = React.memo(({
@@ -43,9 +43,9 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId: (id: string | null) => void,
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
-  onPreviewLabel?: (item: InventoryItem) => Promise<HTMLCanvasElement>,
-  onPrintLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
-  onPrintLabelUSB?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
+  onPreviewLabel?: (item: InventoryItem, size?: string) => Promise<HTMLCanvasElement>,
+  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>,
+  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>,
   openMenuId: string | null,
   setOpenMenuId: (id: string | null) => void,
 }) => {
@@ -63,10 +63,10 @@ const InventoryCard = React.memo(({
     if (!res.success) alert(res.error || 'Error al generar la etiqueta');
   };
 
-  const handlePrintLabel = async () => {
+  const handlePrintLabel = async (opts?: { size?: string; quantity?: number }) => {
     if (!onPrintLabel) return { success: false, error: 'No disponible' };
     setPrintingLabel(true);
-    const res = await onPrintLabel(item);
+    const res = await onPrintLabel(item, opts?.size, opts?.quantity);
     setPrintingLabel(false);
     return res;
   };
