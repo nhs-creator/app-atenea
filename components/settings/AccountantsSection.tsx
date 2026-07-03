@@ -38,11 +38,11 @@ const AccountantsSection: React.FC = () => {
   };
 
   const handleRemoveAccountant = async (profileId: Id<"profiles">) => {
-    if (!window.confirm('¿Quitar esta contadora?')) return;
+    if (!window.confirm('¿Quitar este usuario?')) return;
     try {
       await removeAccountant({ accountantProfileId: profileId });
     } catch (e: any) {
-      setAccountantError(e.message || 'Error al quitar contadora');
+      setAccountantError(e.message || 'Error al quitar usuario');
     }
   };
 
@@ -53,7 +53,7 @@ const AccountantsSection: React.FC = () => {
           type="email"
           value={accountantEmail}
           onChange={(e) => setAccountantEmail(e.target.value)}
-          placeholder="Email de la contadora..."
+          placeholder="Email del usuario..."
           className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold"
           disabled={accountantLoading}
         />
@@ -85,12 +85,12 @@ const AccountantsSection: React.FC = () => {
             <div key={a.profileId} className="flex items-center justify-between bg-indigo-50 px-3 py-2.5 rounded-xl border border-indigo-100">
               <div>
                 <span className="text-xs font-bold text-indigo-700">{a.email}</span>
-                <span className="ml-2 text-[9px] font-black bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded uppercase">Contadora</span>
+                <span className="ml-2 text-[9px] font-black bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded uppercase">Usuario</span>
               </div>
               <button
                 onClick={() => handleRemoveAccountant(a.profileId)}
                 className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                aria-label="Quitar contadora"
+                aria-label="Quitar usuario"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -98,7 +98,7 @@ const AccountantsSection: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-400 text-center py-2">No hay contadoras asignadas</p>
+        <p className="text-xs text-slate-400 text-center py-2">No hay usuarios asignados</p>
       )}
     </div>
   );

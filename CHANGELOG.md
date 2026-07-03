@@ -32,6 +32,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Cerrar sesión pasó a Ajustes**: nuevo botón de ancho completo al final del menú principal (`components/settings/LogoutButton.tsx`), con confirmación antes de salir.
 - **Historial: lápiz con menú Editar/Borrar**: los botones separados "Borrar" y "Corregir" se unificaron en un solo botón de lápiz que abre un menú desplegable — mismo patrón ya usado en Stock. "Cambio" y "Facturar" quedan igual.
 - **"AFIP" pasó a decir "ARCA" en toda la app**: el organismo se renombró en la vida real (Decreto 953/2024, noviembre 2024) — Administración Federal de Ingresos Públicos ahora es Agencia de Recaudación y Control Aduanero. Se actualizaron los 11 textos visibles en Ajustes, Fiscal y Reportes. Excepción intencional: la URL de verificación del QR en la factura (`afip.gob.ar/fe/qr`) se deja igual — confirmado que ese dominio sigue siendo el vigente para la verificación de comprobantes, aunque el organismo ya se llame ARCA.
+- **"Contadoras" pasó a decir "Usuarios"**: cambio solo de texto en Ajustes (menú, formulario de alta, badges) — pensando en que a futuro puede haber otros tipos de cuenta (empleados) además de la contadora. El sistema de roles por debajo no cambió (sigue siendo `owner`/`accountant`); esto queda para cuando haya una necesidad concreta de un rol distinto.
 
 ---
 
