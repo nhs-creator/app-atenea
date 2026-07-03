@@ -201,10 +201,10 @@ const InventoryCard = React.memo(({
                   <button
                     onClick={handlePrintLabelUSB}
                     disabled={printingLabelUSB}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-400 hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black uppercase text-slate-400 hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50 whitespace-nowrap"
                   >
-                    {printingLabelUSB ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                    {printingLabelUSB ? 'Imprimiendo…' : 'Imprimir (USB, test)'}
+                    {printingLabelUSB ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <Printer className="w-4 h-4 shrink-0" />}
+                    {printingLabelUSB ? 'Probando…' : 'USB (test)'}
                   </button>
                 )}
                 <button
