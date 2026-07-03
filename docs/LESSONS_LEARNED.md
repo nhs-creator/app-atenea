@@ -52,6 +52,12 @@ Patrón útil: gatear una feature con `import.meta.env.DEV &&` la oculta complet
 
 `npm install` genera un `package-lock.json` que no es el que usa este proyecto. Si eso pasa: `git restore --staged package-lock.json && rm package-lock.json && bun install`.
 
+## Certificado AFIP: dónde chequear el vencimiento real
+
+El certificado (`AFIP_CERT`/`AFIP_KEY`, env vars de Convex) se generó desde el **portal oficial de AFIP**, no desde afipsdk.com (afipsdk solo provee el `AFIP_SDK_TOKEN`). Para ver la fecha real de vencimiento: entrar con la Clave Fiscal a **"Administración de Certificados Digitales"** (dentro de los servicios de AFIP) — lista los certificados asociados al CUIT con nro. de serie, fecha de emisión, vencimiento y estado (VALIDO/vencido).
+
+El campo "Vencimiento del certificado" en Ajustes → AFIP es **solo un recordatorio manual** — la app no lee el certificado real para chequearlo sola, así que hay que sincronizarlo a mano contra este portal cada vez que se renueve.
+
 ## Disciplina de CHANGELOG
 
 `docs/VERSIONING.md` documenta que **antes de cada commit que cambie código o funcionalidad hay que actualizar `CHANGELOG.md`** (sección `[Unreleased]`). Es fácil de olvidar en medio de una sesión larga — más vale actualizarlo commit a commit que dejarlo para reconstruir al final.
