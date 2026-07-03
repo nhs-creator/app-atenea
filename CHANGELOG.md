@@ -11,6 +11,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Añadido
 
 - **Vista previa antes de imprimir**: "Imprimir etiqueta" ahora muestra primero la imagen exacta de la etiqueta (QR + precio + nombre) en un modal con Confirmar/Cancelar, en vez de imprimir directo — evita gastar una etiqueta física por un error de tipeo. `components/inventory/LabelPreviewModal.tsx`, `hooks/useAteneaConvex.ts::previewInventoryLabel`.
+- **Nombre en 2 líneas en la etiqueta**: si el nombre del producto no entra en 1 línea, prueba en 2 achicando la fuente dinámicamente antes de truncar con "…" (`lib/generateInventoryLabel.ts`).
+- **Impresión por USB/Serial solo en desarrollo**: botón "USB (test)" en el menú del lápiz, gateado por `import.meta.env.DEV` (no existe en el build de producción), para probar la impresora conectada por cable a la compu sin depender de un celular. Permitió detectar y corregir 2 bugs reales del pipeline de impresión (protocolo D110M mal detectado, y la imagen se mandaba sin rotar al cabezal — salía cortada y solo el QR). `lib/niimbotPrint.ts`.
+- **Elegir talle y cantidad de copias al imprimir**: la vista previa deja elegir el talle (si el producto tiene stock en más de uno) y cuántas copias imprimir — por defecto, tantas como stock tenga ese talle. El talle elegido se imprime en la etiqueta ("TALLE 38") arriba del precio.
+- **QR por talle**: el código que codifica el QR pasa a ser `{código de producto}-{talle}` en vez de solo el código de producto — al escanear la etiqueta en Ingresos, el talle se autoselecciona en vez de tener que elegirlo a mano. `item.barcode` no cambia (compatibilidad total con etiquetas viejas ya impresas, que siguen escaneando igual que antes). Nuevo `lib/inventoryLabelCode.ts` (`composeInventoryLabelCode`/`parseInventoryLabelCode`).
+- **Trackeo de etiquetas emitidas por talle**: nuevo campo `labelsPrinted` en `inventory` (talle → timestamp del último talle impreso/compartido). La vista previa marca con un check los talles que ya tienen etiqueta emitida y preselecciona por defecto el primero que le falta — reimprimir cualquier talle sigue siempre disponible. Nueva mutation `markInventoryLabelPrinted`.
 
 ---
 

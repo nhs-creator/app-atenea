@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Printer, Loader2, AlertCircle, Minus, Plus } from 'lucide-react';
+import { X, Printer, Loader2, AlertCircle, Minus, Plus, Check } from 'lucide-react';
 import { InventoryItem } from '../../types';
 
 interface LabelPreviewModalProps {
@@ -13,12 +13,17 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
   const availableSizes = useMemo(
     () => Object.entries(item.sizes || {})
       .filter(([, qty]) => Number(qty) > 0)
-      .map(([size, qty]) => ({ size, qty: Number(qty) })),
-    [item.sizes]
+      .map(([size, qty]) => ({ size, qty: Number(qty), printed: !!item.labelsPrinted?.[size] })),
+    [item.sizes, item.labelsPrinted]
   );
 
-  const [selectedSize, setSelectedSize] = useState(availableSizes[0]?.size);
-  const [quantity, setQuantity] = useState(Math.max(1, availableSizes[0]?.qty || 1));
+  // Por defecto, arranca en el primer talle SIN etiqueta emitida (lo que
+  // probablemente hace falta imprimir); si ya está todo impreso, el primero
+  // disponible nomás — reimprimir siempre se puede, esto es solo el default.
+  const defaultSize = availableSizes.find((s) => !s.printed) ?? availableSizes[0];
+
+  const [selectedSize, setSelectedSize] = useState(defaultSize?.size);
+  const [quantity, setQuantity] = useState(Math.max(1, defaultSize?.qty || 1));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,6 +50,8 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
     setSelectedSize(size);
     setQuantity(Math.max(1, qty));
   };
+
+  const selectedAlreadyPrinted = availableSizes.find((s) => s.size === selectedSize)?.printed;
 
   const handleConfirm = async () => {
     setError('');
@@ -82,21 +89,36 @@ const LabelPreviewModal: React.FC<LabelPreviewModalProps> = ({ item, buildCanvas
             <div className="mt-4">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Talle</label>
               <div className="flex flex-wrap gap-2">
-                {availableSizes.map(({ size, qty }) => (
+                {availableSizes.map(({ size, qty, printed }) => (
                   <button
                     key={size}
                     type="button"
                     onClick={() => handleSelectSize(size, qty)}
-                    className={`px-3 py-2 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${
+                    className={`relative px-3 py-2 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${
                       selectedSize === size
                         ? 'bg-violet-600 border-violet-600 text-white'
                         : 'bg-white border-slate-200 text-slate-600 hover:border-violet-300'
                     }`}
                   >
                     {size}
+                    {printed && (
+                      <span
+                        className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${
+                          selectedSize === size ? 'bg-white text-violet-600' : 'bg-emerald-500 text-white'
+                        }`}
+                        title="Ya tiene etiqueta emitida"
+                      >
+                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
+              {selectedAlreadyPrinted && (
+                <p className="text-[10px] text-slate-400 font-semibold mt-2">
+                  Este talle ya tiene una etiqueta emitida — igual podés reimprimirla.
+                </p>
+              )}
             </div>
           )}
 

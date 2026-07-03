@@ -171,6 +171,31 @@ export const ensureInventoryBarcode = mutation({
   },
 });
 
+/**
+ * Registra que se imprimió/compartió una etiqueta para un talle puntual —
+ * no es un conteo, solo la marca de la última vez. Sirve para que la vista
+ * previa sepa qué talles ya tienen etiqueta emitida al cargar stock nuevo.
+ * Reimprimir un talle ya marcado sigue siendo posible, esto no bloquea nada.
+ */
+export const markInventoryLabelPrinted = mutation({
+  args: { id: v.id("inventory"), size: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { id, size }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== userId) {
+      throw new Error("Producto no encontrado");
+    }
+
+    await ctx.db.patch(id, {
+      labelsPrinted: { ...(existing.labelsPrinted ?? {}), [size]: Date.now() },
+    });
+    return null;
+  },
+});
+
 export const deleteInventory = mutation({
   args: { id: v.id("inventory") },
   handler: async (ctx, { id }) => {

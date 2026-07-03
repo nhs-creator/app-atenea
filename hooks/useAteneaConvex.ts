@@ -13,6 +13,7 @@ import {
   canvasToBlob,
 } from '../lib/generateInventoryLabel';
 import { printLabel, printLabelUSB, isWebBluetoothSupported } from '../lib/niimbotPrint';
+import { composeInventoryLabelCode } from '../lib/inventoryLabelCode';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -90,6 +91,7 @@ export function useAteneaConvex() {
     min_stock: i.minStock,
     sku: i.sku,
     barcode: i.barcode,
+    labelsPrinted: i.labelsPrinted,
     created_at: new Date(i._creationTime).toISOString(),
     updated_at: new Date(i._creationTime).toISOString(),
   }));
@@ -142,6 +144,7 @@ export function useAteneaConvex() {
   const updateInventoryMutation = useMutation(api.mutations.inventory.updateInventory);
   const deleteInventoryMutation = useMutation(api.mutations.inventory.deleteInventory);
   const ensureInventoryBarcodeMutation = useMutation(api.mutations.inventory.ensureInventoryBarcode);
+  const markInventoryLabelPrintedMutation = useMutation(api.mutations.inventory.markInventoryLabelPrinted);
   const saveClientMutation = useMutation(api.mutations.clients.saveClient);
   const deleteClientMutation = useMutation(api.mutations.clients.deleteClient);
   const emitirFacturaAction = useAction(api.actions.afip.emitirFactura);
@@ -292,9 +295,28 @@ export function useAteneaConvex() {
     }
   };
 
-  /** Arma el canvas de la etiqueta (asegurando el código de barras si todavía no existe) — compartido entre imprimir y previsualizar. */
+  /**
+   * Marca el talle como "etiqueta emitida" — no debe hacer fallar el resultado
+   * del print/compartir si la mutation falla (la etiqueta física ya salió).
+   */
+  const markLabelPrintedSafe = async (item: InventoryItem, size?: string) => {
+    if (!size) return;
+    try {
+      await markInventoryLabelPrintedMutation({ id: item.id as Id<"inventory">, size });
+    } catch (error) {
+      console.error('Error marcando etiqueta como impresa:', error);
+    }
+  };
+
+  /**
+   * Arma el canvas de la etiqueta (asegurando el código de barras si todavía
+   * no existe) — compartido entre imprimir y previsualizar. El QR codifica
+   * código de producto + talle (si hay), para que escanearlo en Ingresos
+   * autoseleccione el talle.
+   */
   const buildInventoryLabelCanvas = async (item: InventoryItem, size?: string) => {
-    const code = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+    const rawCode = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
+    const code = composeInventoryLabelCode(rawCode, size);
     const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price, size });
     return { canvas, code };
   };
@@ -316,10 +338,12 @@ export function useAteneaConvex() {
       if (!isWebBluetoothSupported()) {
         const blob = await canvasToBlob(canvas);
         await shareOrDownloadInventoryLabel(blob, inventoryLabelFilename(code));
+        await markLabelPrintedSafe(item, size);
         return { success: true as const };
       }
 
       await printLabel(canvas, quantity);
+      await markLabelPrintedSafe(item, size);
       return { success: true as const };
     } catch (error: any) {
       console.error('Error printing inventory label:', error);
@@ -327,7 +351,7 @@ export function useAteneaConvex() {
     }
   };
 
-  /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
+  /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. No marca la etiqueta como impresa (es solo para probar el hardware). */
   const printInventoryLabelUSB = async (item: InventoryItem, size?: string, quantity = 1) => {
     try {
       const { canvas } = await buildInventoryLabelCanvas(item, size);

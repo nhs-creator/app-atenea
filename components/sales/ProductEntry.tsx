@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Minus, Search, Camera } from 'lucide-react';
 import { CartItem, InventoryItem, ProductDraft } from '../../types';
 import BarcodeScannerModal from './BarcodeScannerModal';
+import { parseInventoryLabelCode } from '../../lib/inventoryLabelCode';
 
 interface ProductEntryProps {
   current: ProductDraft;
@@ -51,22 +52,29 @@ const ProductEntry: React.FC<ProductEntryProps> = ({
       .map(([size, qty]) => ({ size, qty: Number(qty) }));
   }, [selectedInventoryItem, cartItems]);
 
-  const handleSelectSuggestion = (item: InventoryItem) => {
+  const handleSelectSuggestion = (item: InventoryItem, scannedSize?: string) => {
+    // El talle escaneado solo se autocompleta si es un talle real con stock
+    // de ESE producto — si no, cae al comportamiento de siempre (elegir a mano).
+    const validSize = scannedSize && Number(item.sizes?.[scannedSize] || 0) > 0 ? scannedSize : '';
     onCurrentChange({
       name: item.name,
       price: (item.selling_price || 0).toString(),
       inventoryId: item.id,
-      size: '' // Forzamos a que elija talle de nuevo
+      size: validSize
     });
     setShowSuggestions(false);
   };
 
   const handleScan = (code: string) => {
     setScannerOpen(false);
-    const found = inventory.find(i => i.barcode === code);
+    // Las etiquetas nuevas codifican "código de producto-talle"; las viejas
+    // (impresas antes de este cambio) siguen siendo solo el código de
+    // producto — parseInventoryLabelCode entiende ambos formatos.
+    const { itemCode, size } = parseInventoryLabelCode(code);
+    const found = inventory.find(i => i.barcode === itemCode);
     if (found) {
       setScanNotice('');
-      handleSelectSuggestion(found);
+      handleSelectSuggestion(found, size);
     } else {
       setScanNotice('Código no reconocido — buscá el producto a mano.');
       setTimeout(() => setScanNotice(''), 4000);

@@ -97,6 +97,9 @@ export default defineSchema({
     // Nota libre (tela, estampado, detalle) para cuando la categoría rígida no alcanza
     // a describir la prenda como la piensa la dueña. También la matchea la búsqueda.
     detalle: v.optional(v.string()),
+    // Talle -> timestamp del último talle impreso (no un conteo, solo "¿ya se
+    // imprimió alguna vez?") — para saber qué falta etiquetar al cargar stock nuevo.
+    labelsPrinted: v.optional(v.record(v.string(), v.number())),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_name", ["userId", "name"])

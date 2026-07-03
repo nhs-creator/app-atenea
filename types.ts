@@ -194,6 +194,8 @@ export interface InventoryItem {
   image_url?: string;
   sku?: string;
   barcode?: string;
+  /** Talle -> timestamp del último talle con etiqueta impresa/compartida. */
+  labelsPrinted?: Record<string, number>;
   detalle?: string;
   created_at: string;
   updated_at: string;
