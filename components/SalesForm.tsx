@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { MultiSaleData, CartItem, InventoryItem, Voucher, ProductDraft, Client } from '../types';
-import { UserPlus, Search, UserCheck, X } from 'lucide-react';
+import { UserPlus, UserCheck, X } from 'lucide-react';
 
 // Subcomponentes modulares
 import SalesHeader from './sales/SalesHeader';
@@ -8,6 +8,7 @@ import ProductEntry from './sales/ProductEntry';
 import CartDisplay from './sales/CartDisplay';
 import PaymentManager from './sales/PaymentManager';
 import FinalTicket from './sales/FinalTicket';
+import ClientSearchInput from './ui/ClientSearchInput';
 
 interface SalesFormProps {
   onSubmit: (data: MultiSaleData) => void;
@@ -184,15 +185,8 @@ const SalesForm: React.FC<SalesFormProps> = ({
           </div>
         ) : (
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-            <input 
-              type="text" 
-              placeholder="BUSCAR POR NOMBRE O TEL..." 
-              value={clientSearchTerm}
-              onChange={(e) => setClientSearchTerm(e.target.value)}
-              className="w-full h-14 pl-11 pr-4 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-xs outline-none focus:border-primary transition-all uppercase"
-            />
-            
+            <ClientSearchInput value={clientSearchTerm} onChange={setClientSearchTerm} />
+
             {clientSearchTerm.length >= 2 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50">
                 {filteredClients.map(c => (

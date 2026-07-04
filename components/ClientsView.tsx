@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  UserPlus, Search, Phone, Mail, Trash2, 
-  Edit3, User, ChevronLeft, X 
+import {
+  UserPlus, Phone, Mail, Trash2,
+  Edit3, User, ChevronLeft
 } from 'lucide-react';
 import { Client } from '../types';
+import SearchBar from './ui/SearchBar';
+import ListCard from './ui/ListCard';
 
 interface ClientsViewProps {
   clients: Client[];
@@ -70,19 +72,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({ clients, onAdd, onUpdate, onD
             </button>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre o celular..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-14 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter" 
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"><X className="w-3 h-3" /></button>
-            )}
-          </div>
+          <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre o celular..." size="lg" />
         </div>
       )}
 
@@ -144,7 +134,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({ clients, onAdd, onUpdate, onD
       {!showForm && (
         <div className="grid gap-3">
           {filteredClients.map(client => (
-            <div key={client.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex justify-between items-center group">
+            <ListCard key={client.id} className="p-4 flex justify-between items-center group">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-primary border border-slate-100">
                   <User className="w-6 h-6" />
@@ -171,14 +161,14 @@ const ClientsView: React.FC<ClientsViewProps> = ({ clients, onAdd, onUpdate, onD
                 >
                   <Edit3 className="w-5 h-5" />
                 </button>
-                <button 
-                  onClick={() => { if(window.confirm('¿Borrar cliente?')) onDelete(client.id); }}
+                <button
+                  onClick={() => onDelete(client.id)}
                   className="p-3 text-rose-300 hover:text-rose-500 active:scale-90 transition-all"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
-            </div>
+            </ListCard>
           ))}
           {filteredClients.length === 0 && (
             <div className="text-center py-20 opacity-20">

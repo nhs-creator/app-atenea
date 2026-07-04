@@ -4,6 +4,7 @@ import { Sale, Expense } from '../../types';
 import {
   ShoppingBag, LogOut, BarChart2, Receipt, LayoutDashboard, FileBarChart,
 } from 'lucide-react';
+import { formatShortDate } from '../../lib/dateLabels';
 import AccountantOverview from './AccountantOverview';
 import AccountantLedger from './AccountantLedger';
 import AccountantAnalysis from './AccountantAnalysis';
@@ -50,9 +51,7 @@ const AccountantDesktopView: React.FC<Props> = ({ sales, expenses, isSyncing }) 
             <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <h1 className="font-bold text-lg italic">
-              Atenea <span className="text-primary italic">Finanzas</span>
-            </h1>
+            <h1 className="font-bold text-lg text-slate-800 uppercase">{formatShortDate(today)}</h1>
           </div>
           <div className="mt-3">
             <span className="inline-block text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-tighter">
@@ -142,7 +141,7 @@ const AccountantDesktopView: React.FC<Props> = ({ sales, expenses, isSyncing }) 
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                 Hoy
               </p>
-              <p className="text-sm font-black text-slate-700 capitalize">{formatLongDate(today)}</p>
+              <p className="text-sm font-black text-slate-700 uppercase">{formatLongDate(today)}</p>
             </div>
           </div>
         </header>

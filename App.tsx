@@ -11,6 +11,7 @@ import {
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { sumInvoiceablePayments } from './lib/invoiceablePayments';
 import { DEFAULT_LABEL_SIZE_ID } from './lib/labelSizes';
+import { formatShortDate } from './lib/dateLabels';
 import { useAteneaConvex } from './hooks/useAteneaConvex';
 
 // Componentes
@@ -27,6 +28,8 @@ import AssistantView from './components/AssistantView';
 import LoginView from './components/LoginView';
 import AccountantDesktopView from './components/accountant/AccountantDesktopView';
 import OwnerDesktopView from './components/owner/OwnerDesktopView';
+import SegmentedToggle from './components/ui/SegmentedToggle';
+import DaySelector from './components/ui/DaySelector';
 
 // Iconos
 import {
@@ -45,6 +48,16 @@ const getTodayAR = () => {
     year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
 };
+
+const EXPENSE_TYPE_OPTIONS = [
+  { value: 'business' as const, label: 'Negocio', icon: ShoppingBag, activeColor: 'text-rose-600' },
+  { value: 'personal' as const, label: 'Personal', icon: PlusCircle, activeColor: 'text-pink-600' },
+];
+
+const HISTORY_MODE_OPTIONS: { value: EntryMode; label: string; activeColor: string }[] = [
+  { value: 'sale', label: 'Ingresos', activeColor: 'text-primary' },
+  { value: 'expense', label: 'Egresos', activeColor: 'text-rose-500' },
+];
 
 // Accountant gets a dedicated desktop layout on wider screens.
 function useMediaQuery(query: string): boolean {
@@ -93,6 +106,7 @@ const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [historyMode, setHistoryMode] = useState<EntryMode>('sale');
+  const [historyDate, setHistoryDate] = useLocalStorage('atenea_history_date', getTodayAR());
   const [toastMessage, setToastMessage] = useState<{msg: string, voucher?: any} | null>(null);
   // Oferta de facturar apenas se confirma una venta con clienta + pago no-efectivo
   // (casi siempre es porque la clienta lo pidió en el momento). No se auto-cierra —
@@ -369,14 +383,12 @@ const App: React.FC = () => {
 
           {activeTab === 'expenses' && (
             <div className="max-w-3xl mx-auto flex flex-col space-y-4 animate-in fade-in duration-500">
-              <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-                <button onClick={() => setExpenseDraft({ ...expenseDraft, type: 'business', category: BUSINESS_CATEGORIES[0].id })} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'business' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
-                  <ShoppingBag className="w-4 h-4" /> NEGOCIO
-                </button>
-                <button onClick={() => setExpenseDraft({ ...expenseDraft, type: 'personal', category: PERSONAL_CATEGORIES[0].id })} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'personal' ? 'bg-white text-pink-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
-                  <PlusCircle className="w-4 h-4" /> PERSONAL
-                </button>
-              </div>
+              <DaySelector date={expenseDraft.date} onDateChange={(date) => setExpenseDraft({ ...expenseDraft, date })} />
+              <SegmentedToggle
+                options={EXPENSE_TYPE_OPTIONS}
+                value={expenseDraft.type}
+                onChange={(type) => setExpenseDraft({ ...expenseDraft, type, category: type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id })}
+              />
               <ExpenseForm
                 formData={expenseDraft}
                 onChange={setExpenseDraft}
@@ -388,14 +400,12 @@ const App: React.FC = () => {
 
           {activeTab === 'list' && (
             <div className="max-w-5xl mx-auto flex flex-col space-y-4 animate-in fade-in duration-500">
-              <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner max-w-md">
-                <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
-                <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
-              </div>
+              <DaySelector date={historyDate} onDateChange={setHistoryDate} />
+              <SegmentedToggle options={HISTORY_MODE_OPTIONS} value={historyMode} onChange={setHistoryMode} className="max-w-md" />
               {historyMode === 'sale' ? (
-                <SalesList sales={atenea.sales} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} clients={atenea.clients} onLinkClient={atenea.linkClientToTransaction} />
+                <SalesList sales={atenea.sales} date={historyDate} onDelete={atenea.deleteTransaction} onEdit={handleEditSale} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={atenea.emitirFactura} onAnular={atenea.emitirNotaCredito} clients={atenea.clients} onLinkClient={atenea.linkClientToTransaction} />
               ) : (
-                <ExpenseList expenses={atenea.expenses} onDelete={atenea.deleteExpense} onEdit={handleEditExpense} />
+                <ExpenseList expenses={atenea.expenses} date={historyDate} onDelete={atenea.deleteExpense} onEdit={handleEditExpense} />
               )}
             </div>
           )}
@@ -469,7 +479,7 @@ const App: React.FC = () => {
     // al final del layout, sin depender de que el navegador recalcule un fixed.
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-slate-50 font-sans text-slate-800">
       <header className="shrink-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <h1 className="font-bold text-lg italic">Atenea <span className="text-primary italic">Finanzas</span></h1>
+        <h1 className="font-bold text-lg text-slate-800 uppercase">{formatShortDate()}</h1>
         <div className="flex items-center gap-1">
           {userRole === 'accountant' && <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-tighter">Contador</span>}
           {userRole === 'owner' && (
@@ -504,28 +514,24 @@ const App: React.FC = () => {
 
         {activeTab === 'expenses' && (
           <div className="flex flex-col space-y-4 animate-in fade-in duration-500">
-            <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-              <button onClick={() => setExpenseDraft({...expenseDraft, type: 'business', category: BUSINESS_CATEGORIES[0].id})} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'business' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
-                <ShoppingBag className="w-4 h-4" /> NEGOCIO
-              </button>
-              <button onClick={() => setExpenseDraft({...expenseDraft, type: 'personal', category: PERSONAL_CATEGORIES[0].id})} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs transition-all ${expenseDraft.type === 'personal' ? 'bg-white text-pink-600 shadow-md scale-[1.02]' : 'text-slate-500'}`}>
-                <PlusCircle className="w-4 h-4" /> PERSONAL
-              </button>
-            </div>
+            <DaySelector date={expenseDraft.date} onDateChange={(date) => setExpenseDraft({ ...expenseDraft, date })} />
+            <SegmentedToggle
+              options={EXPENSE_TYPE_OPTIONS}
+              value={expenseDraft.type}
+              onChange={(type) => setExpenseDraft({ ...expenseDraft, type, category: type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id })}
+            />
             <ExpenseForm formData={expenseDraft} onChange={setExpenseDraft} onSubmit={handleNewExpense} onCancelEdit={() => setExpenseDraft({ date: getTodayAR(), description: '', amount: '', category: expenseDraft.type === 'business' ? BUSINESS_CATEGORIES[0].id : PERSONAL_CATEGORIES[0].id, hasInvoiceA: false, invoiceAmount: '', type: expenseDraft.type, isEdit: false })} />
           </div>
         )}
 
         {activeTab === 'list' && (
           <div className="flex flex-col space-y-4 animate-in fade-in duration-500">
-            <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-              <button onClick={() => setHistoryMode('sale')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'sale' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}>Ingresos</button>
-              <button onClick={() => setHistoryMode('expense')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all uppercase ${historyMode === 'expense' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500'}`}>Egresos</button>
-            </div>
+            <DaySelector date={historyDate} onDateChange={setHistoryDate} />
+            <SegmentedToggle options={HISTORY_MODE_OPTIONS} value={historyMode} onChange={setHistoryMode} />
             {historyMode === 'sale' ? (
-              <SalesList sales={atenea.sales} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} clients={atenea.clients} onLinkClient={userRole === 'owner' ? atenea.linkClientToTransaction : undefined} />
+              <SalesList sales={atenea.sales} date={historyDate} onDelete={userRole === 'owner' ? atenea.deleteTransaction : undefined} onEdit={userRole === 'owner' ? handleEditSale : undefined} onReturn={() => {}} invoices={atenea.invoices} afipConfig={atenea.afipConfig} onFacturar={userRole === 'owner' ? atenea.emitirFactura : undefined} onAnular={userRole === 'owner' ? atenea.emitirNotaCredito : undefined} clients={atenea.clients} onLinkClient={userRole === 'owner' ? atenea.linkClientToTransaction : undefined} />
             ) : (
-              <ExpenseList expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
+              <ExpenseList expenses={userRole === 'accountant' ? atenea.expenses.filter(e => e.type === 'business') : atenea.expenses} date={historyDate} onDelete={userRole === 'owner' ? atenea.deleteExpense : undefined} onEdit={userRole === 'owner' ? handleEditExpense : undefined} />
             )}
           </div>
         )}
@@ -554,13 +560,13 @@ const App: React.FC = () => {
                 <Receipt className="w-6 h-6" />
                 <span className="text-[9px] font-black uppercase tracking-tighter">Historial</span>
               </button>
-              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
-                <BarChart2 className="w-6 h-6" />
-                <span className="text-[9px] font-black uppercase tracking-tighter">Reporte</span>
-              </button>
               <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'inventory' ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
                 <Package className="w-6 h-6" />
                 <span className="text-[9px] font-black uppercase tracking-tighter">Stock</span>
+              </button>
+              <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center gap-1.5 w-16 py-1 min-h-[52px] transition-all ${activeTab === 'stats' ? 'text-slate-800 scale-110' : 'text-slate-400'}`}>
+                <BarChart2 className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Reporte</span>
               </button>
             </>
           ) : (

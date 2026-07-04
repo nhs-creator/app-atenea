@@ -2,12 +2,15 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Sale, Invoice, Client } from '../types';
 import {
   Calendar, Package, Trash2, Edit3,
-  RefreshCcw, CheckCircle2, AlertCircle, Search,
-  ChevronLeft, ChevronRight, X, Percent, Coins, FileText
+  RefreshCcw, CheckCircle2, AlertCircle,
+  ChevronLeft, ChevronRight, Percent, Coins, FileText
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import FacturarModal from './FacturarModal';
 import InvoiceDetailModal from './sales/InvoiceDetailModal';
+import SearchBar from './ui/SearchBar';
+import FilterButton from './ui/FilterButton';
+import ListCard from './ui/ListCard';
 import { sumInvoiceablePayments, filterInvoiceablePayments } from '../lib/invoiceablePayments';
 
 interface EmitirFacturaResult {
@@ -27,16 +30,9 @@ interface EmitirNotaCreditoResult {
   error?: string;
 }
 
-const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-const parseMonthKey = (key: string) => {
-  if (!key || !key.includes('-')) return new Date();
-  const [y, m] = key.split('-').map(Number);
-  if (isNaN(y) || isNaN(m)) return new Date();
-  return new Date(y, m - 1, 1);
-};
-
 interface SalesListProps {
   sales: Sale[];
+  date: string;
   onDelete: (clientNumber: string) => void;
   onEdit: (sale: Sale) => void;
   onReturn: (sale: Sale) => void;
@@ -64,10 +60,59 @@ const STATUS_CONFIG = {
   cambio: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', icon: RefreshCcw, label: 'Cambio' }
 };
 
-const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn, invoices, afipConfig, onFacturar, onAnular, clients, onLinkClient }) => {
+type StatusFilter = 'todos' | 'saldado' | 'sena' | 'cambio';
+type InvoiceFilter = 'todos' | 'facturado' | 'no_facturado' | 'anulado';
+type PaymentFilter = 'todos' | 'Efectivo' | 'Transferencia' | 'Débito' | 'Crédito' | 'Vale';
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'saldado', label: 'Saldado' },
+  { key: 'sena', label: 'Seña' },
+  { key: 'cambio', label: 'Cambio' },
+];
+
+const INVOICE_FILTERS: { key: InvoiceFilter; label: string }[] = [
+  { key: 'todos', label: 'Todas' },
+  { key: 'facturado', label: 'Facturado' },
+  { key: 'no_facturado', label: 'No facturado' },
+  { key: 'anulado', label: 'Anulada' },
+];
+
+const PAYMENT_FILTERS: { key: PaymentFilter; label: string }[] = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'Efectivo', label: 'Efectivo' },
+  { key: 'Transferencia', label: 'Transferencia' },
+  { key: 'Débito', label: 'Débito' },
+  { key: 'Crédito', label: 'Crédito' },
+  { key: 'Vale', label: 'Vale' },
+];
+
+const FilterRow = <T extends string>({ label, options, value, onChange }: {
+  label: string; options: { key: T; label: string }[]; value: T; onChange: (v: T) => void;
+}) => (
+  <div>
+    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{label}</p>
+    <div className="flex flex-wrap gap-1.5">
+      {options.map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
+          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tighter border-2 transition-all active:scale-95 ${value === opt.key ? 'bg-primary border-primary text-white' : 'bg-white border-slate-100 text-slate-500'}`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+const SalesList: React.FC<SalesListProps> = ({ sales, date, onDelete, onEdit, onReturn, invoices, afipConfig, onFacturar, onAnular, clients, onLinkClient }) => {
   const [searchTerm, setSearchTerm] = useLocalStorage('atenea_sales_list_search', '');
-  const [monthKey, setMonthKey] = useLocalStorage('atenea_sales_list_month', getMonthKey(new Date()));
-  const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
+  const [statusFilter, setStatusFilter] = useLocalStorage<StatusFilter>('atenea_sales_list_status_filter', 'todos');
+  const [invoiceFilter, setInvoiceFilter] = useLocalStorage<InvoiceFilter>('atenea_sales_list_invoice_filter', 'todos');
+  const [paymentFilter, setPaymentFilter] = useLocalStorage<PaymentFilter>('atenea_sales_list_payment_filter', 'todos');
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [statusFilter, invoiceFilter, paymentFilter].filter(f => f !== 'todos').length;
   const [currentPage, setCurrentPage] = useState(1);
   const [facturarTarget, setFacturarTarget] = useState<{
     clientNumber: string; total: number;
@@ -97,38 +142,43 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [monthKey, searchTerm]);
-
-  // --- Navegación de Meses ---
-  const handlePrevMonth = () => {
-    const d = parseMonthKey(monthKey);
-    d.setMonth(d.getMonth() - 1);
-    setMonthKey(getMonthKey(d));
-  };
-
-  const handleNextMonth = () => {
-    const d = parseMonthKey(monthKey);
-    d.setMonth(d.getMonth() + 1);
-    setMonthKey(getMonthKey(d));
-  };
+  }, [date, searchTerm, statusFilter, invoiceFilter, paymentFilter]);
 
   // --- Lógica de Filtrado ---
   const filteredSales = useMemo(() => {
-    const startOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
-    const endOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
-
     return sales.filter(sale => {
-      const saleDate = new Date(sale.date + 'T12:00:00');
-      const isInMonth = saleDate >= startOfMonth && saleDate <= endOfMonth;
-      if (!isInMonth) return false;
+      if (sale.date !== date) return false;
 
-      const matchesSearch = 
+      const matchesSearch =
         sale.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sale.client_number.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
 
-      return matchesSearch;
+      const isReturnTransaction = sale.client_number.startsWith('C');
+      const matchesStatus = statusFilter === 'todos' ? true
+        : statusFilter === 'cambio' ? isReturnTransaction
+        : isReturnTransaction ? false
+        : statusFilter === 'sena' ? sale.status === 'pending'
+        : sale.status !== 'pending';
+      if (!matchesStatus) return false;
+
+      if (invoiceFilter !== 'todos') {
+        const factura = facturaByClientNumber[sale.client_number];
+        const nc = factura ? ncByInvoiceId[factura.id] : undefined;
+        const matchesInvoice = invoiceFilter === 'facturado' ? (!!factura && !nc)
+          : invoiceFilter === 'no_facturado' ? !factura
+          : (!!factura && !!nc);
+        if (!matchesInvoice) return false;
+      }
+
+      if (paymentFilter !== 'todos') {
+        const matchesPayment = (sale.payment_details || []).some(p => p.method === paymentFilter);
+        if (!matchesPayment) return false;
+      }
+
+      return true;
     });
-  }, [sales, selectedMonthDate, searchTerm]);
+  }, [sales, date, searchTerm, statusFilter, invoiceFilter, paymentFilter, facturaByClientNumber, ncByInvoiceId]);
 
   // --- Agrupamiento y Paginación ---
   const groupedSales = useMemo(() => {
@@ -145,32 +195,30 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
 
   return (
     <div className="space-y-4 pb-24">
-      {/* 1. SELECTOR DE MES (PAGINACIÓN TEMPORAL) */}
-      <div className="flex items-center justify-between bg-white p-2 rounded-2xl border-2 border-slate-100 shadow-sm sticky top-0 z-30">
-        <button onClick={handlePrevMonth} className="p-3 text-slate-400 active:scale-75 transition-all"><ChevronLeft className="w-6 h-6" /></button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-black text-primary uppercase tracking-tighter">Historial de</span>
-          <span className="text-sm font-black text-slate-700 uppercase tracking-tight">
-            {selectedMonthDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-          </span>
-        </div>
-        <button onClick={handleNextMonth} className="p-3 text-slate-400 active:scale-75 transition-all"><ChevronRight className="w-6 h-6" /></button>
+      {/* BUSCADOR + FILTROS */}
+      <div className="px-1 flex items-center gap-2">
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar venta..." />
+        <FilterButton active={showFilters} activeCount={activeFilterCount} onClick={() => setShowFilters(v => !v)} />
       </div>
 
-      {/* 2. BUSCADOR */}
-      <div className="px-1 relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-        <input 
-          type="text" 
-          placeholder="Buscar venta..." 
-          value={searchTerm} 
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full h-12 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter" 
-        />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"><X className="w-3 h-3" /></button>
-        )}
-      </div>
+      {/* PANEL DE FILTROS */}
+      {showFilters && (
+        <div className="px-1 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm p-3 space-y-3">
+            <FilterRow label="Estado" options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+            <FilterRow label="Facturación" options={INVOICE_FILTERS} value={invoiceFilter} onChange={setInvoiceFilter} />
+            <FilterRow label="Medio de pago" options={PAYMENT_FILTERS} value={paymentFilter} onChange={setPaymentFilter} />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setStatusFilter('todos'); setInvoiceFilter('todos'); setPaymentFilter('todos'); }}
+                className="w-full h-9 rounded-xl bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-tighter active:scale-95 transition-all"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 3. LISTADO DE VENTAS */}
       {paginatedGroups.length === 0 ? (
@@ -202,7 +250,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
             });
 
             return (
-              <div key={clientNumber} className={`${status.bg} rounded-[2rem] shadow-md border-2 ${status.border} overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+              <ListCard key={clientNumber} variant={status}>
                 {/* CABECERA (Colores y Estados) */}
                 <div className="p-4 flex justify-between items-center bg-white/40 border-b border-white/60">
                   <div className="flex items-center gap-3">
@@ -363,7 +411,7 @@ const SalesList: React.FC<SalesListProps> = ({ sales, onDelete, onEdit, onReturn
                     </div>
                   );
                 })()}
-              </div>
+              </ListCard>
             );
           })}
 

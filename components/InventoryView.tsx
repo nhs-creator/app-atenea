@@ -9,6 +9,7 @@ import InventoryReporte from './inventory/InventoryReporte';
 import ProductWizard from './inventory/ProductWizard';
 import InventoryVoiceAgent from './inventory/InventoryVoiceAgent';
 import LabelPreviewModal from './inventory/LabelPreviewModal';
+import ListCard from './ui/ListCard';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
@@ -109,7 +110,7 @@ const InventoryCard = React.memo(({
   const status = getStockStatus(realStock);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 relative overflow-hidden transition-all hover:shadow-md">
+    <ListCard className="p-5 relative overflow-hidden">
       {/* Header: Name and Main Price */}
       <div className="flex justify-between items-start mb-3 gap-4">
         <div className="flex-1">
@@ -241,7 +242,7 @@ const InventoryCard = React.memo(({
           onClose={() => setShowPreview(false)}
         />
       )}
-    </div>
+    </ListCard>
   );
 });
 
@@ -604,6 +605,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
             subcategories={availableSubcategories}
             materials={materials}
             totalResults={filteredInventory.length}
+            onAddProduct={() => setShowForm(true)}
           />
 
           {/* Product List */}
@@ -681,20 +683,13 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
       {/* Agente de voz para carga de inventario */}
       {showVoiceAgent && <InventoryVoiceAgent onClose={() => setShowVoiceAgent(false)} />}
 
-      {/* Floating Buttons: mic (carga por voz) + agregar (wizard táctil) */}
+      {/* Floating Button: carga por voz. Agregar manual vive junto al buscador. */}
       <button
         onClick={() => setShowVoiceAgent(true)}
-        className="fixed bottom-44 right-6 w-14 h-14 bg-violet-500 text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"
+        className="fixed bottom-24 right-6 w-16 h-16 bg-violet-500 text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"
         aria-label="Cargar por voz"
       >
-        <Mic className="w-6 h-6" />
-      </button>
-      <button
-        onClick={() => setShowForm(true)}
-        className="fixed bottom-24 right-6 w-16 h-16 bg-primary text-white rounded-full shadow-2xl hover:scale-110 transition-all flex items-center justify-center z-30"
-        aria-label="Agregar producto"
-      >
-        <Plus className="w-8 h-8" />
+        <Mic className="w-8 h-8" />
       </button>
     </div>
   );

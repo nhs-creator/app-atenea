@@ -1,62 +1,35 @@
 import React, { useMemo } from 'react';
 import { Expense, ExpenseCategory } from '../types';
-import { 
-  Receipt, Search, ChevronLeft, ChevronRight, X, Calendar, Edit3, Trash2
+import {
+  Receipt, Calendar, Edit3, Trash2
 } from 'lucide-react';
 import { CATEGORY_METADATA } from '../constants';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-
-const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-const parseMonthKey = (key: string) => {
-  if (!key || !key.includes('-')) return new Date();
-  const [y, m] = key.split('-').map(Number);
-  if (isNaN(y) || isNaN(m)) return new Date();
-  return new Date(y, m - 1, 1);
-};
+import SearchBar from './ui/SearchBar';
+import ListCard from './ui/ListCard';
 
 interface ExpenseListProps {
   expenses: Expense[];
+  date: string;
   onDelete: (id: string) => void;
   onEdit: (expense: Expense) => void;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, date, onDelete, onEdit }) => {
   const [searchTerm, setSearchTerm] = useLocalStorage('atenea_expense_list_search', '');
-  const [monthKey, setMonthKey] = useLocalStorage('atenea_expense_list_month', getMonthKey(new Date()));
-  const selectedMonthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
-
-  // --- Navegación de Meses ---
-  const handlePrevMonth = () => {
-    const d = parseMonthKey(monthKey);
-    d.setMonth(d.getMonth() - 1);
-    setMonthKey(getMonthKey(d));
-  };
-
-  const handleNextMonth = () => {
-    const d = parseMonthKey(monthKey);
-    d.setMonth(d.getMonth() + 1);
-    setMonthKey(getMonthKey(d));
-  };
 
   // --- Lógica de Filtrado ---
   const filteredExpenses = useMemo(() => {
-    const startOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
-    const endOfMonth = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
-
     return expenses.filter(exp => {
-      // Filtro de Tiempo
-      const expDate = new Date(exp.date + 'T12:00:00');
-      const isInMonth = expDate >= startOfMonth && expDate <= endOfMonth;
-      if (!isInMonth) return false;
+      if (exp.date !== date) return false;
 
-      // Filtro de Búsqueda
-      const matchesSearch = 
+      const matchesSearch =
         exp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.category.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       return matchesSearch;
     });
-  }, [expenses, selectedMonthDate, searchTerm]);
+  }, [expenses, date, searchTerm]);
 
   // --- Totales del Mes ---
   const totalMes = useMemo(() => 
@@ -65,34 +38,10 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit })
 
   return (
     <div className="space-y-4 pb-24 animate-in fade-in duration-500">
-      {/* 1. Selector de Mes */}
-      <div className="flex items-center justify-between bg-white p-2 rounded-2xl border-2 border-slate-100 shadow-sm sticky top-0 z-30">
-        <button onClick={handlePrevMonth} className="p-3 text-slate-400 active:scale-75 transition-all"><ChevronLeft /></button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">Historial de</span>
-          <span className="text-sm font-black text-slate-700 uppercase">
-            {selectedMonthDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-          </span>
-        </div>
-        <button onClick={handleNextMonth} className="p-3 text-slate-400 active:scale-75 transition-all"><ChevronRight /></button>
-      </div>
-
-      {/* 2. Buscador y Resumen */}
+      {/* Buscador y Resumen */}
       <div className="px-1 space-y-2">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-          <input 
-            type="text" 
-            placeholder="Buscar por descripción o categoría..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-12 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-rose-400 transition-all uppercase tracking-tighter"
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"><X className="w-3 h-3" /></button>
-          )}
-        </div>
-        
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por descripción o categoría..." focusColorClass="focus:border-rose-400" />
+
         <div className="bg-slate-900 p-4 rounded-2xl shadow-lg flex justify-between items-center text-white">
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-rose-400" />
@@ -121,10 +70,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit })
             const isPersonal = expense.type === 'personal';
 
             return (
-              <div 
-                key={expense.id} 
-                className={`bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden transition-all active:scale-[0.98]`}
-              >
+              <ListCard key={expense.id}>
                 <div className="p-4">
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-3">
@@ -171,15 +117,15 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit })
                       <Edit3 className="w-3.5 h-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Editar</span>
                     </button>
-                    <button 
-                      onClick={() => onDelete(expense.id)}
+                    <button
+                      onClick={() => { if (window.confirm('¿BORRAR GASTO?')) onDelete(expense.id); }}
                       className="h-10 w-10 bg-rose-50 hover:bg-rose-100 text-rose-400 rounded-xl flex items-center justify-center transition-all active:scale-95"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              </div>
+              </ListCard>
             );
           })}
         </div>

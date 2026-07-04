@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { X, FileDown, Share2, UserCheck, UserPlus, Search, Ban, ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
+import { X, FileDown, Share2, UserCheck, UserPlus, Ban, ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
 import { Invoice, Sale, Client } from '../../types';
 import { generateFacturaPdf, facturaPdfFilename, shareOrDownloadFacturaPdf } from '../../lib/generateFacturaPdf';
 import { buildWhatsAppChatUrl } from '../../lib/whatsappLink';
+import ClientSearchInput from '../ui/ClientSearchInput';
 
 interface InvoiceDetailModalProps {
   factura: Invoice;
@@ -208,15 +209,7 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
               </div>
             ) : (
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <input
-                  type="text"
-                  placeholder="BUSCAR POR NOMBRE O TEL..."
-                  value={clientSearchTerm}
-                  onChange={(e) => setClientSearchTerm(e.target.value)}
-                  autoFocus
-                  className="w-full h-14 pl-11 pr-4 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-xs outline-none focus:border-primary uppercase"
-                />
+                <ClientSearchInput value={clientSearchTerm} onChange={setClientSearchTerm} autoFocus />
                 {clientSearchTerm.length >= 2 && (
                   <div className="mt-2 bg-white rounded-2xl border border-slate-100 overflow-hidden">
                     {filteredClients.map(c => (

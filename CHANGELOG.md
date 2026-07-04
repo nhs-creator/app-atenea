@@ -8,6 +8,32 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Borrado de gasto sin confirmación**: en Historial → Egresos, el botón de borrar un gasto lo eliminaba directo, sin preguntar — a diferencia de Ventas/Clientas, que ya pedían confirmación. Ahora pide `¿BORRAR GASTO?` igual que el resto (`components/ExpenseList.tsx`).
+- **Doble diálogo al borrar una clienta**: `ClientsView.tsx` confirmaba antes de llamar a `onDelete`, y `useAteneaConvex.ts::deleteClient` volvía a confirmar adentro — aparecían dos cuadros de diálogo seguidos con mensajes distintos. Se dejó una sola confirmación (la del hook).
+- **Selector de fecha cambiaba de posición sin motivo**: en Gastos el toggle Negocio/Personal quedaba arriba de la fecha, mientras que en Ingresos y Reporte la fecha iba primero — se unificó el orden (fecha arriba, toggle debajo) en `App.tsx`.
+- **Doble botón flotante en Stock**: "Cargar por voz" y "Agregar producto" quedaban apilados como dos FAB en la esquina inferior derecha. Ahora "Agregar producto" vive junto al buscador (`components/inventory/InventoryFilters.tsx`) y solo "Cargar por voz" queda como FAB.
+- Subtítulo desactualizado ("Movimientos del mes") en el sidebar de escritorio de la dueña, después de que Historial pasara a filtrar por día (`components/owner/OwnerDesktopView.tsx`).
+
+### Cambiado
+
+- **Historial filtra por día, no por mes**: para no forzar a revisar una lista larga de todo el mes para cargar/revisar un movimiento puntual, Historial ahora usa el mismo selector de un solo día (`DaySelector`) que Ingresos y Gastos, en la misma posición (arriba del toggle Ingresos/Egresos). `components/SalesList.tsx` y `components/ExpenseList.tsx` reciben `date` como prop en vez de manejar su propio mes.
+- **Formato de fecha unificado**: el header (mobile y sidebars de escritorio) y el `DaySelector` de Ingresos/Gastos/Historial ahora muestran el mismo formato ("SÁB 4 DE JULIO"), en mayúscula para mejor legibilidad, con el día de la semana abreviado a 3 letras para que no se corte en combinaciones largas (ej. "miércoles ... septiembre"). Nuevo `lib/dateLabels.ts`.
+- **Orden del navbar**: "Stock" pasa a ir antes que "Reporte" (en mobile estaba al revés respecto del sidebar de escritorio).
+- **Reporte: "Hoy" a la derecha**: se invirtió el orden de los tabs de período (Mes/Semana/Ayer/Hoy) para que "Hoy" quede del lado derecho, consistente con los demás selectores de fecha.
+- **Tarjetas de listado unificadas**: Historial, Gastos, Clientas y Stock comparten ahora el mismo estilo de tarjeta (radio, borde, sombra y animación de entrada) vía el nuevo componente `ListCard`, en vez de cuatro estilos distintos.
+
+### Añadido
+
+- **Filtros en Historial**: chips de Estado (Saldado/Seña/Cambio), Facturación (Facturado/No facturado/Anulada) y Medio de pago, detrás de un botón de filtro con contador de filtros activos junto al buscador.
+- Componentes compartidos nuevos en `components/ui/`: `SegmentedToggle`, `SearchBar`, `FilterButton`, `ClientSearchInput`, `DaySelector`, `ListCard` — reemplazan implementaciones duplicadas que había en Ingresos, Gastos, Historial, Reporte, Stock y Clientas.
+
+### Eliminado
+
+- `components/ExpensesView.tsx`: componente sin uso (la app renderiza `ExpenseForm` + `ExpenseList`, no este).
+- `components/ui/MonthSelector.tsx`: quedó sin consumidores después de que Historial pasara a filtrar por día.
+
 ---
 
 ## [1.7.0] - 2026-07-04

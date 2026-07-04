@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import OptionPicker from './OptionPicker';
+import SearchBar from '../ui/SearchBar';
+import FilterButton from '../ui/FilterButton';
 
 interface InventoryFiltersProps {
   searchTerm: string;
@@ -17,6 +19,7 @@ interface InventoryFiltersProps {
   subcategories: string[];
   materials: string[];
   totalResults: number;
+  onAddProduct?: () => void;
 }
 
 const InventoryFilters: React.FC<InventoryFiltersProps> = ({
@@ -33,38 +36,29 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
   categories,
   subcategories,
   materials,
-  totalResults
+  totalResults,
+  onAddProduct
 }) => {
   const [showFilters, setShowFilters] = useState(false);
-  const hasActiveFilters = Boolean(selectedCategory || selectedSubcategory || selectedMaterial || stockLevel !== 'all');
+  const activeFilterCount = [selectedCategory, selectedSubcategory, selectedMaterial].filter(Boolean).length + (stockLevel !== 'all' ? 1 : 0);
 
   return (
     <div className="space-y-4">
-      {/* Search Bar + botón de filtro, una sola línea */}
+      {/* Search Bar + botón de filtro + agregar producto, una sola línea */}
       <div className="flex gap-2">
-        <div className="relative group flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar por nombre, subcategoría o detalle..."
-            className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-primary outline-none font-bold text-slate-700"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowFilters((v) => !v)}
-          className={`relative w-14 h-14 shrink-0 flex items-center justify-center rounded-2xl border shadow-sm transition-all active:scale-95 ${
-            showFilters ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-500'
-          }`}
-          aria-label="Filtros avanzados"
-        >
-          <Filter className="w-5 h-5" />
-          {hasActiveFilters && !showFilters && (
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" />
-          )}
-        </button>
+        <SearchBar value={searchTerm} onChange={onSearchChange} placeholder="Buscar por nombre, subcategoría o detalle..." size="lg" />
+        <FilterButton active={showFilters} activeCount={activeFilterCount} onClick={() => setShowFilters((v) => !v)} size="lg" />
+        {onAddProduct && (
+          <button
+            type="button"
+            onClick={onAddProduct}
+            className="w-14 h-14 shrink-0 flex items-center justify-center rounded-2xl border-2 border-primary/20 bg-primary/10 text-primary shadow-sm transition-all active:scale-90"
+            aria-label="Agregar producto"
+            title="Agregar producto"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Filter Dropdowns */}

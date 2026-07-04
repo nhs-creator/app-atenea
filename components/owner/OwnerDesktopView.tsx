@@ -5,6 +5,7 @@ import {
   ShoppingBag, LogOut, ArrowUpCircle, ArrowDownCircle, Receipt,
   Package, BarChart2, Users, Settings,
 } from 'lucide-react';
+import { formatShortDate } from '../../lib/dateLabels';
 
 interface Props {
   activeSection: Tab;
@@ -26,7 +27,7 @@ interface SectionDef {
 const sections: SectionDef[] = [
   { id: 'form', label: 'Ingresos', subtitle: 'Registrar venta', icon: ArrowUpCircle, color: 'primary' },
   { id: 'expenses', label: 'Gastos', subtitle: 'Registrar egreso', icon: ArrowDownCircle, color: 'rose' },
-  { id: 'list', label: 'Historial', subtitle: 'Movimientos del mes', icon: Receipt, color: 'indigo' },
+  { id: 'list', label: 'Historial', subtitle: 'Movimientos del día', icon: Receipt, color: 'indigo' },
   { id: 'inventory', label: 'Stock', subtitle: 'Inventario', icon: Package, color: 'orange' },
   { id: 'stats', label: 'Reporte', subtitle: 'Estadísticas', icon: BarChart2, color: 'slate' },
   { id: 'customers', label: 'Clientas', subtitle: 'Base de clientas', icon: Users, color: 'emerald' },
@@ -81,9 +82,7 @@ const OwnerDesktopView: React.FC<Props> = ({
             <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <h1 className="font-bold text-lg italic">
-              Atenea <span className="text-primary italic">Finanzas</span>
-            </h1>
+            <h1 className="font-bold text-lg text-slate-800 uppercase">{formatShortDate(today)}</h1>
           </div>
           <div className="mt-3">
             <span className="inline-block text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-lg uppercase tracking-tighter">
@@ -159,7 +158,7 @@ const OwnerDesktopView: React.FC<Props> = ({
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                 Hoy
               </p>
-              <p className="text-sm font-black text-slate-700 capitalize">
+              <p className="text-sm font-black text-slate-700 uppercase">
                 {formatLongDate(today)}
               </p>
             </div>

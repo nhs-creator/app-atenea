@@ -1,11 +1,17 @@
 import React from 'react';
-import { 
-  ChevronLeft, ChevronRight, Calendar, 
-  ShoppingBag, PlusCircle 
+import {
+  ChevronLeft, ChevronRight, Calendar,
+  ShoppingBag, PlusCircle
 } from 'lucide-react';
+import SegmentedToggle from '../ui/SegmentedToggle';
 
 export type Period = 'today' | 'yesterday' | 'week' | 'month';
 export type ViewMode = 'business' | 'personal';
+
+const VIEW_MODE_OPTIONS = [
+  { value: 'business' as const, label: 'Negocio', icon: ShoppingBag, activeColor: 'text-rose-600' },
+  { value: 'personal' as const, label: 'Personal', icon: PlusCircle, activeColor: 'text-pink-600' },
+];
 
 interface StatsHeaderProps {
   period: Period;
@@ -32,7 +38,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({
     <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-2 pb-2 space-y-3">
       {/* 1. Selector de Período con opción AYER */}
       <div className="flex bg-slate-200 p-1 rounded-2xl shadow-sm">
-        {(['today', 'yesterday', 'week', 'month'] as Period[]).map(p => (
+        {(['month', 'week', 'yesterday', 'today'] as Period[]).map(p => (
           <button 
             key={p} 
             onClick={() => onPeriodChange(p)} 
@@ -66,24 +72,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({
       )}
 
       {/* 3. Selector Negocio / Personal */}
-      <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner mt-2">
-        <button 
-          onClick={() => onViewModeChange('business')} 
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-            viewMode === 'business' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-500'
-          }`}
-        >
-          <ShoppingBag className="w-3.5 h-3.5" /> NEGOCIO
-        </button>
-        <button 
-          onClick={() => onViewModeChange('personal')} 
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-            viewMode === 'personal' ? 'bg-white text-pink-600 shadow-md scale-[1.02]' : 'text-slate-500'
-          }`}
-        >
-          <PlusCircle className="w-3.5 h-3.5" /> PERSONAL
-        </button>
-      </div>
+      <SegmentedToggle options={VIEW_MODE_OPTIONS} value={viewMode} onChange={onViewModeChange} className="mt-2" />
     </div>
   );
 };

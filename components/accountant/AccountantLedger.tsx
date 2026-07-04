@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Sale, Expense, PaymentSplit } from '../../types';
 import {
-  Search, X, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Receipt,
+  ArrowUpCircle, ArrowDownCircle, RefreshCcw, Receipt,
   ChevronDown, FileText, Package, CreditCard,
 } from 'lucide-react';
 import { PeriodSelector, PeriodMode, getPeriodRange } from './sharedPeriod';
+import SearchBar from '../ui/SearchBar';
 
 interface Props {
   sales: Sale[];
@@ -249,24 +250,7 @@ const AccountantLedger: React.FC<Props> = ({ sales, expenses }) => {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-        <input
-          type="text"
-          placeholder="Buscar concepto, categoría..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-12 pl-11 pr-10 rounded-2xl bg-white border-2 border-slate-100 shadow-sm font-bold text-sm outline-none focus:border-primary transition-all uppercase tracking-tighter"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        )}
-      </div>
+      <SearchBar value={search} onChange={setSearch} placeholder="Buscar concepto, categoría..." className="max-w-md" />
 
       {/* Ledger table */}
       <div className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm overflow-hidden">

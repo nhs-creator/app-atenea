@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { ExpenseFormData } from '../types';
-import { 
-  ChevronLeft, ChevronRight, Save, AlertCircle, X,
+import {
+  Save, AlertCircle, X,
   ArrowDownCircle, Receipt
 } from 'lucide-react';
 import { BUSINESS_CATEGORIES, PERSONAL_CATEGORIES, DESC_KEYWORDS_TO_CATEGORY } from '../constants';
@@ -25,9 +25,7 @@ const parseOptionalNotesFromDescription = (desc: string): string => {
 };
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ formData, onChange, onSubmit, onCancelEdit }) => {
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const currentCategories = formData.type === 'personal' 
+  const currentCategories = formData.type === 'personal'
     ? PERSONAL_CATEGORIES 
     : BUSINESS_CATEGORIES;
 
@@ -92,17 +90,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ formData, onChange, onSubmit,
         </div>
       )}
 
-      {/* 1. Selector de Fecha */}
-      <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-        <button onClick={() => { const d = new Date(formData.date + 'T12:00:00'); d.setDate(d.getDate() - 1); onChange({...formData, date: d.toISOString().split('T')[0]}); }} className="p-4 text-slate-400 active:scale-75 transition-all"><ChevronLeft /></button>
-        <div onClick={() => dateInputRef.current?.showPicker()} className="flex-1 text-center py-2 cursor-pointer active:opacity-50 transition-all">
-          <span className="text-base font-black text-slate-700">{new Date(formData.date + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-          <input ref={dateInputRef} type="date" value={formData.date} onChange={(e) => onChange({...formData, date: e.target.value})} className="sr-only" />
-        </div>
-        <button onClick={() => { const d = new Date(formData.date + 'T12:00:00'); d.setDate(d.getDate() + 1); onChange({...formData, date: d.toISOString().split('T')[0]}); }} className="p-4 text-slate-400 active:scale-75 transition-all"><ChevronRight /></button>
-      </div>
-
-      {/* 2. Datos del Gasto */}
+      {/* Datos del Gasto */}
       <div className="bg-white rounded-3xl shadow-xl p-5 border border-slate-100 space-y-4">
         <div className="space-y-4">
           {/* Campo de descripción siempre visible */}
