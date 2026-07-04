@@ -8,6 +8,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+---
+
+## [1.7.0] - 2026-07-04
+
 ### Añadido
 
 - **Tamaño de etiqueta configurable**: nueva sección "Etiquetas de impresión" en Ajustes para elegir el rollo cargado en la impresora NIIMBOT D110 — 12x40mm (original), 14x30mm o 15x30mm. La D110 soporta hasta 15mm de ancho de cabezal; un rollo más ancho imprime un QR más grande, más fácil de leer con celulares con cámara vieja/de baja calidad. La sección muestra una vista previa en vivo con datos de ejemplo. Nuevo `lib/labelSizes.ts`; `printInventoryLabelCanvas` (`lib/generateInventoryLabel.ts`) calcula las dimensiones del canvas a partir del tamaño elegido en vez de tenerlas fijas.
