@@ -1,7 +1,7 @@
 import React from 'react';
-import { ChevronRight, Store, UserPlus, FileBarChart, ShieldCheck, List, Ruler, LucideIcon } from 'lucide-react';
+import { ChevronRight, Store, UserPlus, FileBarChart, ShieldCheck, List, Ruler, Tag, LucideIcon } from 'lucide-react';
 
-export type SettingsSectionKey = 'hours' | 'accountants' | 'monotributo' | 'afip' | 'catalog' | 'sizes';
+export type SettingsSectionKey = 'hours' | 'accountants' | 'monotributo' | 'afip' | 'catalog' | 'sizes' | 'labels';
 
 interface SectionMeta {
   key: SettingsSectionKey;
@@ -18,6 +18,7 @@ export const SETTINGS_SECTIONS: SectionMeta[] = [
   { key: 'afip', title: 'Configuración ARCA', description: 'CUIT, punto de venta y credenciales para Factura C', icon: ShieldCheck, iconColor: 'text-indigo-500' },
   { key: 'catalog', title: 'Gestión de Catálogo', description: 'Categorías, subcategorías y materiales', icon: List, iconColor: 'text-indigo-500' },
   { key: 'sizes', title: 'Gestión de Talles', description: 'Sistemas de talles y qué categoría usa cada uno', icon: Ruler, iconColor: 'text-amber-500' },
+  { key: 'labels', title: 'Etiquetas de impresión', description: 'Tamaño del rollo de la impresora térmica NIIMBOT', icon: Tag, iconColor: 'text-violet-500' },
 ];
 
 interface SettingsMenuProps {

@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { LabelSizeId, getLabelSizeMm } from './labelSizes';
 
 export interface InventoryLabelData {
   code: string;
@@ -103,18 +104,17 @@ export function inventoryLabelFilename(code: string): string {
 }
 
 // Etiquetas reales del rollo de la impresora NIIMBOT D110: nominal "12x40mm",
-// pero 12mm es el ancho fijo del cabezal/rollo — leída de forma normal, la
-// etiqueta queda apaisada: 40mm de ancho x 12mm de alto (la primera versión
-// de este canvas la había armado al revés, angosta y alta — corregido al
+// pero 12mm es el ancho del cabezal/rollo (variable según el rollo cargado,
+// ver lib/labelSizes.ts) — leída de forma normal, la etiqueta queda apaisada:
+// el largo como ancho x el ancho del cabezal como alto (la primera versión de
+// este canvas la había armado al revés, angosta y alta — corregido al
 // comparar con una etiqueta armada a mano en la app oficial de Niimbot).
 // 203dpi es la resolución del cabezal térmico, ~8px/mm. El tamaño se define
 // en píxeles porque eso es lo que la impresora recibe — no hay metadata de
 // DPI de por medio como en un PDF.
 const PRINT_PX_PER_MM = 203 / 25.4;
-const PRINT_WIDTH = Math.round(40 * PRINT_PX_PER_MM);
-const PRINT_HEIGHT = Math.round(12 * PRINT_PX_PER_MM);
-// El margen vertical (eje del cabezal, 12mm) venía muy justo — el QR
-// llegaba a tocar el borde físico y se cortaba un poco al imprimir en
+// El margen vertical (eje del cabezal) venía muy justo con el rollo de 12mm —
+// el QR llegaba a tocar el borde físico y se cortaba un poco al imprimir en
 // real. Con 8px (~1mm) de aire de cada lado entra sin recortarse.
 const PRINT_MARGIN = 8;
 
@@ -156,18 +156,25 @@ function wrapToLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: numb
  * para compartir a la app de Niimbot en iPhone (donde Bluetooth no anda).
  * Layout apaisado: QR a la izquierda (ocupa todo el alto) + precio y nombre
  * a la derecha, achicados hasta entrar en el ancho disponible.
+ *
+ * `labelSize` define el rollo cargado en la impresora (ver lib/labelSizes.ts)
+ * — por defecto el original de 12x40mm si no se pasa nada.
  */
-export async function printInventoryLabelCanvas(data: InventoryLabelData): Promise<HTMLCanvasElement> {
+export async function printInventoryLabelCanvas(data: InventoryLabelData, labelSize?: LabelSizeId): Promise<HTMLCanvasElement> {
+  const { headMm, lengthMm } = getLabelSizeMm(labelSize);
+  const printWidth = Math.round(lengthMm * PRINT_PX_PER_MM);
+  const printHeight = Math.round(headMm * PRINT_PX_PER_MM);
+
   const canvas = document.createElement('canvas');
-  canvas.width = PRINT_WIDTH;
-  canvas.height = PRINT_HEIGHT;
+  canvas.width = printWidth;
+  canvas.height = printHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No se pudo crear el canvas de la etiqueta');
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, PRINT_WIDTH, PRINT_HEIGHT);
+  ctx.fillRect(0, 0, printWidth, printHeight);
 
-  const qrSize = PRINT_HEIGHT - PRINT_MARGIN * 2;
+  const qrSize = printHeight - PRINT_MARGIN * 2;
   const qrDataUrl = await QRCode.toDataURL(data.code, { width: qrSize, margin: 0 });
   const qrImg = await loadImage(qrDataUrl);
   ctx.drawImage(qrImg, PRINT_MARGIN, PRINT_MARGIN, qrSize, qrSize);
@@ -177,7 +184,7 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
   ctx.textAlign = 'left';
 
   const textX = PRINT_MARGIN + qrSize + 8;
-  const textMaxWidth = PRINT_WIDTH - textX - PRINT_MARGIN;
+  const textMaxWidth = printWidth - textX - PRINT_MARGIN;
   let blockY = PRINT_MARGIN + 8;
 
   // El talle va en la esquina superior derecha, en la misma línea que el
@@ -194,7 +201,7 @@ export async function printInventoryLabelCanvas(data: InventoryLabelData): Promi
     } while (ctx.measureText(sizeText).width > textMaxWidth * 0.45 && sizeFontSize > 9);
     sizeTextWidth = ctx.measureText(sizeText).width;
     ctx.textAlign = 'right';
-    ctx.fillText(sizeText, PRINT_WIDTH - PRINT_MARGIN, blockY);
+    ctx.fillText(sizeText, printWidth - PRINT_MARGIN, blockY);
     ctx.textAlign = 'left';
   }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppConfig } from '../types';
 import { ChevronLeft } from 'lucide-react';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP, DEFAULT_OPEN_DAYS } from '../constants';
+import { DEFAULT_LABEL_SIZE_ID, LabelSizeId } from '../lib/labelSizes';
 import SettingsMenu, { SETTINGS_SECTIONS, SettingsSectionKey } from './settings/SettingsMenu';
 import LocalHoursSection from './settings/LocalHoursSection';
 import AccountantsSection from './settings/AccountantsSection';
@@ -9,6 +10,7 @@ import MonotributoSection from './settings/MonotributoSection';
 import AfipSection from './settings/AfipSection';
 import CatalogSection from './settings/CatalogSection';
 import SizesSection from './settings/SizesSection';
+import LabelSection from './settings/LabelSection';
 import AppUpdateFooter from './settings/AppUpdateFooter';
 import LogoutButton from './settings/LogoutButton';
 
@@ -30,6 +32,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
   const [sizeSystems, setSizeSystems] = useState(config.sizeSystems || DEFAULT_SIZE_SYSTEMS);
   const [categorySizeMap, setCategorySizeMap] = useState(config.categorySizeMap || DEFAULT_CATEGORY_SIZE_MAP);
   const [openDays, setOpenDays] = useState<number[]>(config.openDays ?? DEFAULT_OPEN_DAYS);
+  const [labelSize, setLabelSize] = useState<LabelSizeId>(config.labelSize || DEFAULT_LABEL_SIZE_ID);
 
   const [newCat, setNewCat] = useState('');
   const [selectedCatForSub, setSelectedCatForSub] = useState(categories[0] || '');
@@ -58,7 +61,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
       materials: mats,
       sizeSystems,
       categorySizeMap: sizeMap,
-      openDays
+      openDays,
+      labelSize
     });
     setCategories(cats);
     setSubcategories(subs);
@@ -243,6 +247,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ config, onSaveConfig }) => 
             addSizeToSystem={addSizeToSystem}
             removeSizeFromSystem={removeSizeFromSystem}
             setCategorySizeSystem={setCategorySizeSystem}
+            onSave={handleSave}
+          />
+        )}
+        {activeSection === 'labels' && (
+          <LabelSection
+            labelSize={labelSize}
+            setLabelSize={setLabelSize}
             onSave={handleSave}
           />
         )}

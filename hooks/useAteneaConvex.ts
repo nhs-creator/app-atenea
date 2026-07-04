@@ -14,6 +14,7 @@ import {
 } from '../lib/generateInventoryLabel';
 import { printLabel, printLabelUSB, isWebBluetoothSupported } from '../lib/niimbotPrint';
 import { composeInventoryLabelCode } from '../lib/inventoryLabelCode';
+import { LabelSizeId } from '../lib/labelSizes';
 
 /**
  * Hook adaptador que provee la misma interfaz que useAtenea
@@ -323,26 +324,28 @@ export function useAteneaConvex() {
    * Arma el canvas de la etiqueta (asegurando el código de barras si todavía
    * no existe) — compartido entre imprimir y previsualizar. El QR codifica
    * código de producto + talle (si hay), para que escanearlo en Ingresos
-   * autoseleccione el talle.
+   * autoseleccione el talle. `labelSize` es el rollo cargado en la impresora
+   * (ver lib/labelSizes.ts) — configurable desde Ajustes.
    */
-  const buildInventoryLabelCanvas = async (item: InventoryItem, size?: string) => {
+  const buildInventoryLabelCanvas = async (item: InventoryItem, size?: string, labelSize?: LabelSizeId) => {
     const rawCode = item.barcode || await ensureInventoryBarcodeMutation({ id: item.id as Id<"inventory"> });
     const code = composeInventoryLabelCode(rawCode, size);
-    const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price, size });
+    const canvas = await printInventoryLabelCanvas({ code, productName: item.name, price: item.selling_price, size }, labelSize);
     return { canvas, code };
   };
 
   /** Devuelve el canvas ya armado para mostrarlo antes de imprimir, sin conectar con nada. */
-  const previewInventoryLabel = async (item: InventoryItem, size?: string) => (await buildInventoryLabelCanvas(item, size)).canvas;
+  const previewInventoryLabel = async (item: InventoryItem, size?: string, labelSize?: LabelSizeId) =>
+    (await buildInventoryLabelCanvas(item, size, labelSize)).canvas;
 
-  const printInventoryLabel = async (item: InventoryItem, size?: string, quantity = 1) => {
+  const printInventoryLabel = async (item: InventoryItem, size?: string, quantity = 1, labelSize?: LabelSizeId) => {
     try {
-      const { canvas, code } = await buildInventoryLabelCanvas(item, size);
+      const { canvas, code } = await buildInventoryLabelCanvas(item, size, labelSize);
 
       // iPhone/iPad (cualquier navegador, por la restricción de WebKit) no
       // soporta Bluetooth desde la web — ahí no tiene sentido ni intentar
       // conectar. En vez de mostrar un error de Bluetooth, mandamos la
-      // etiqueta ya armada al tamaño real del rollo (12x40mm) por el share
+      // etiqueta ya armada al tamaño real del rollo cargado por el share
       // sheet, para que la importe en la app oficial de Niimbot. El share
       // sheet comparte un solo archivo, así que la cantidad no aplica ahí
       // (ella la reimprime desde la app de Niimbot si quiere varias copias).
@@ -363,9 +366,9 @@ export function useAteneaConvex() {
   };
 
   /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. No marca la etiqueta como impresa (es solo para probar el hardware). */
-  const printInventoryLabelUSB = async (item: InventoryItem, size?: string, quantity = 1) => {
+  const printInventoryLabelUSB = async (item: InventoryItem, size?: string, quantity = 1, labelSize?: LabelSizeId) => {
     try {
-      const { canvas } = await buildInventoryLabelCanvas(item, size);
+      const { canvas } = await buildInventoryLabelCanvas(item, size, labelSize);
       await printLabelUSB(canvas, quantity);
       return { success: true as const };
     } catch (error: any) {

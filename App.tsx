@@ -10,6 +10,7 @@ import {
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { sumInvoiceablePayments } from './lib/invoiceablePayments';
+import { DEFAULT_LABEL_SIZE_ID } from './lib/labelSizes';
 import { useAteneaConvex } from './hooks/useAteneaConvex';
 
 // Componentes
@@ -129,7 +130,8 @@ const App: React.FC = () => {
     materials: DEFAULT_MATERIALS,
     sizeSystems: DEFAULT_SIZE_SYSTEMS,
     categorySizeMap: DEFAULT_CATEGORY_SIZE_MAP,
-    openDays: DEFAULT_OPEN_DAYS
+    openDays: DEFAULT_OPEN_DAYS,
+    labelSize: DEFAULT_LABEL_SIZE_ID
   });
 
   // 2. Cerebro de la App (Convex)

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
+import { LabelSizeId, DEFAULT_LABEL_SIZE_ID } from '../lib/labelSizes';
 import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode, Mic, Printer, Loader2 } from 'lucide-react';
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
@@ -16,10 +17,10 @@ interface InventoryViewProps {
   onUpdate: (item: InventoryItem) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>;
-  onPreviewLabel?: (item: InventoryItem, size?: string) => Promise<HTMLCanvasElement>;
-  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>;
+  onPreviewLabel?: (item: InventoryItem, size?: string, labelSize?: LabelSizeId) => Promise<HTMLCanvasElement>;
+  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number, labelSize?: LabelSizeId) => Promise<{ success: boolean; error?: string }>;
   /** Solo para testing en desarrollo: imprime por USB/Serial en vez de Bluetooth. */
-  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>;
+  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number, labelSize?: LabelSizeId) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryCard = React.memo(({
@@ -33,6 +34,7 @@ const InventoryCard = React.memo(({
   onPreviewLabel,
   onPrintLabel,
   onPrintLabelUSB,
+  labelSize,
   openMenuId,
   setOpenMenuId,
 }: {
@@ -43,9 +45,10 @@ const InventoryCard = React.memo(({
   setDeleteConfirmId: (id: string | null) => void,
   onShowHistory: (id: string, name: string) => void,
   onGenerateLabel?: (item: InventoryItem) => Promise<{ success: boolean; error?: string }>,
-  onPreviewLabel?: (item: InventoryItem, size?: string) => Promise<HTMLCanvasElement>,
-  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>,
-  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number) => Promise<{ success: boolean; error?: string }>,
+  onPreviewLabel?: (item: InventoryItem, size?: string, labelSize?: LabelSizeId) => Promise<HTMLCanvasElement>,
+  onPrintLabel?: (item: InventoryItem, size?: string, quantity?: number, labelSize?: LabelSizeId) => Promise<{ success: boolean; error?: string }>,
+  onPrintLabelUSB?: (item: InventoryItem, size?: string, quantity?: number, labelSize?: LabelSizeId) => Promise<{ success: boolean; error?: string }>,
+  labelSize: LabelSizeId,
   openMenuId: string | null,
   setOpenMenuId: (id: string | null) => void,
 }) => {
@@ -66,7 +69,7 @@ const InventoryCard = React.memo(({
   const handlePrintLabel = async (opts?: { size?: string; quantity?: number }) => {
     if (!onPrintLabel) return { success: false, error: 'No disponible' };
     setPrintingLabel(true);
-    const res = await onPrintLabel(item, opts?.size, opts?.quantity);
+    const res = await onPrintLabel(item, opts?.size, opts?.quantity, labelSize);
     setPrintingLabel(false);
     return res;
   };
@@ -79,7 +82,7 @@ const InventoryCard = React.memo(({
   const handlePrintLabelUSB = async () => {
     if (!onPrintLabelUSB || printingLabelUSB) return;
     setPrintingLabelUSB(true);
-    const res = await onPrintLabelUSB(item);
+    const res = await onPrintLabelUSB(item, undefined, 1, labelSize);
     setPrintingLabelUSB(false);
     setOpenMenuId(null);
     if (!res.success) alert(res.error || 'Error al imprimir la etiqueta');
@@ -233,7 +236,7 @@ const InventoryCard = React.memo(({
       {showPreview && onPreviewLabel && (
         <LabelPreviewModal
           item={item}
-          buildCanvas={onPreviewLabel}
+          buildCanvas={(previewItem, size) => onPreviewLabel(previewItem, size, labelSize)}
           onConfirm={handlePrintLabel}
           onClose={() => setShowPreview(false)}
         />
@@ -626,6 +629,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
                   onPreviewLabel={onPreviewLabel}
                   onPrintLabel={onPrintLabel}
                   onPrintLabelUSB={onPrintLabelUSB}
+                  labelSize={config.labelSize || DEFAULT_LABEL_SIZE_ID}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
                 />

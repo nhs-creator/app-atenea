@@ -34,7 +34,7 @@ El nombre de dispositivo Bluetooth es una pista (`D110_M-...` = variante M). Par
 
 ## NIIMBOT: `ImageEncoder.encodeCanvas` necesita rotación para cabezales angostos
 
-El cabezal térmico es físicamente angosto y fijo (ancho del rollo — acá 12mm/~96px), y el papel avanza en la otra dirección (largo variable — acá 40mm/~320px). Si el canvas se dibuja apaisado (320×96, para que se vea bien en pantalla), hay que pasarle `printDirection: 'left'` a `encodeCanvas()` (es el default de la librería) para que rote 90° y el ancho de pantalla se mapee al avance de papel, no al cabezal. Usar `'top'` (sin rotar) manda las 320 columnas directo al cabezal de 96 — solo imprime la porción que cae dentro de esas primeras columnas y corta el resto.
+El cabezal térmico es físicamente angosto y fijo por rollo (12 a 15mm según el rollo cargado — configurable en Ajustes → Etiquetas de impresión, ver `lib/labelSizes.ts` — ej. 12mm/~96px), y el papel avanza en la otra dirección (largo variable, ej. 40mm/~320px). Si el canvas se dibuja apaisado (320×96, para que se vea bien en pantalla), hay que pasarle `printDirection: 'left'` a `encodeCanvas()` (es el default de la librería) para que rote 90° y el ancho de pantalla se mapee al avance de papel, no al cabezal. Usar `'top'` (sin rotar) manda las 320 columnas directo al cabezal de 96 — solo imprime la porción que cae dentro de esas primeras columnas y corta el resto.
 
 ## NIIMBOT: filtro de Bluetooth por defecto demasiado restrictivo
 

@@ -1,3 +1,5 @@
+import { LabelSizeId } from './lib/labelSizes';
+
 export type Tab = 'form' | 'list' | 'inventory' | 'stats' | 'settings' | 'expenses' | 'customers' | 'assistant';
 export type EntryMode = 'sale' | 'expense';
 export type ExpenseType = 'business' | 'personal';
@@ -225,6 +227,8 @@ export interface AppConfig {
   categorySizeMap: Record<string, string>;
   /** Días en que abre el local: 0=Domingo, 1=Lunes, ..., 6=Sábado. Usado por Stats para el gráfico de tendencia. */
   openDays?: number[];
+  /** Tamaño del rollo de etiquetas cargado en la impresora NIIMBOT (ver lib/labelSizes.ts). */
+  labelSize?: LabelSizeId;
 }
 
 export interface InventoryFormData {
