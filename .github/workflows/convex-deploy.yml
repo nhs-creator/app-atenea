@@ -2,8 +2,9 @@ name: Deploy Convex
 
 # Deploya el backend de Convex (schema, functions, vector index, crons) en cada
 # push a main. Corre en la infraestructura de GitHub (que sí tiene salida de red
-# a Convex) usando el secret CONVEX_DEPLOY_KEY. El frontend lo sigue publicando
-# Netlify por separado.
+# a Convex) usando el secret CONVEX_DEPLOY_KEY. El frontend (Vercel) NO se
+# dispara solo con este push — hay que correr `vercel --prod --yes` a mano
+# después de cada release (ver CLAUDE.md).
 on:
   push:
     branches: [main]
