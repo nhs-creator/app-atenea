@@ -47,7 +47,7 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({
       {/* Search Bar + botón de filtro + agregar producto, una sola línea */}
       <div className="flex gap-2">
         <SearchBar value={searchTerm} onChange={onSearchChange} placeholder="Buscar por nombre, subcategoría o detalle..." size="lg" />
-        <FilterButton active={showFilters} activeCount={activeFilterCount} onClick={() => setShowFilters((v) => !v)} size="lg" />
+        <FilterButton active={showFilters} activeCount={activeFilterCount} onClick={() => setShowFilters((v) => !v)} size="lg" ariaLabel="Filtros avanzados" />
         {onAddProduct && (
           <button
             type="button"

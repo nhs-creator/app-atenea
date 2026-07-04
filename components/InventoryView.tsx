@@ -2,10 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryFormData, AppConfig } from '../types';
 import { DEFAULT_SIZE_SYSTEMS, DEFAULT_CATEGORY_SIZE_MAP } from '../constants';
 import { LabelSizeId, DEFAULT_LABEL_SIZE_ID } from '../lib/labelSizes';
-import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, BarChart3, ChevronLeft, ChevronRight, QrCode, Mic, Printer, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Package, Save, X, Ruler, Edit2, History, ChevronLeft, ChevronRight, QrCode, Mic, Printer, Loader2 } from 'lucide-react';
 import { InventoryMovements } from './inventory/InventoryMovements';
 import InventoryFilters from './inventory/InventoryFilters';
-import InventoryReporte from './inventory/InventoryReporte';
 import ProductWizard from './inventory/ProductWizard';
 import InventoryVoiceAgent from './inventory/InventoryVoiceAgent';
 import LabelPreviewModal from './inventory/LabelPreviewModal';
@@ -247,9 +246,6 @@ const InventoryCard = React.memo(({
 });
 
 const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, onAdd, onUpdate, onDelete, onGenerateLabel, onPreviewLabel, onPrintLabel, onPrintLabelUSB }) => {
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'stock' | 'reporte'>('stock');
-  
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -430,28 +426,6 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
 
   return (
     <div className="space-y-4">
-      {/* Tab Selector */}
-      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-2 pb-2">
-        <div className="flex bg-slate-200 p-1 rounded-2xl shadow-inner">
-          <button 
-            onClick={() => setActiveTab('stock')} 
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-              activeTab === 'stock' ? 'bg-white text-primary shadow-md scale-[1.02]' : 'text-slate-500'
-            }`}
-          >
-            <Package className="w-3.5 h-3.5" /> STOCK
-          </button>
-          <button 
-            onClick={() => setActiveTab('reporte')} 
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-              activeTab === 'reporte' ? 'bg-white text-indigo-600 shadow-md scale-[1.02]' : 'text-slate-500'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" /> REPORTE STOCK
-          </button>
-        </div>
-      </div>
-
       {/* Alta nueva: wizard paso a paso (más rápido de tocar, menos fricción) */}
       {showForm && !editingId && (
         <ProductWizard
@@ -583,8 +557,6 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
         </div>
       )}
 
-      {/* Tab Content */}
-      {activeTab === 'stock' ? (
         <div className="space-y-6 pb-24 animate-in fade-in duration-300">
           {/* Filters Component */}
           <InventoryFilters
@@ -667,9 +639,6 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory = [], config, o
             </div>
           )}
         </div>
-      ) : (
-        <InventoryReporte inventory={inventory} />
-      )}
 
       {/* Inventory Movements Modal */}
       {showMovements && (

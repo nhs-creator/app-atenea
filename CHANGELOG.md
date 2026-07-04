@@ -33,6 +33,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 - `components/ExpensesView.tsx`: componente sin uso (la app renderiza `ExpenseForm` + `ExpenseList`, no este).
 - `components/ui/MonthSelector.tsx`: quedó sin consumidores después de que Historial pasara a filtrar por día.
+- **"Reporte Stock"**: se sacó la sub-pestaña de reportes dentro de Stock (valor invertido, distribución por categoría, etc.) por no usarse — Stock ahora entra directo a la lista de productos. Se borraron `components/inventory/InventoryReporte.tsx`, `components/inventory/InventoryCharts.tsx` y `hooks/useInventoryMetrics.ts`.
 
 ---
 

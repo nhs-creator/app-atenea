@@ -206,24 +206,4 @@ describe("InventoryView - flujo de inventario", () => {
     });
   });
 
-  describe("tabs", () => {
-    it("muestra tabs de Stock y Reporte", () => {
-      render(
-        <InventoryView
-          inventory={[]}
-          config={mockConfig}
-          onAdd={noop}
-          onUpdate={noop}
-          onDelete={noop}
-        />
-      );
-
-      const buttons = screen.getAllByRole("button");
-      const stockTab = buttons.find((b) => b.textContent?.includes("STOCK"));
-      const reporteTab = buttons.find((b) => b.textContent?.includes("REPORTE"));
-
-      expect(stockTab).toBeDefined();
-      expect(reporteTab).toBeDefined();
-    });
-  });
 });
